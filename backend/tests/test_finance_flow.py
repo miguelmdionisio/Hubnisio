@@ -284,7 +284,7 @@ async def test_link_sync_and_read(hub: Hub, people: People) -> None:
     connection = await hub.link(ana)
 
     auth = json.loads(hub.bank.calls("/auth")[0].content)
-    assert auth["redirect_url"] == "http://localhost:5173/finance/connections/callback"
+    assert auth["redirect_url"] == "https://localhost:5173/finance/connections/callback"
     consent = datetime.fromisoformat(auth["access"]["valid_until"]) - datetime.now(UTC)
     assert timedelta(days=179) < consent < timedelta(days=180)
     assert connection["status"] == "active"

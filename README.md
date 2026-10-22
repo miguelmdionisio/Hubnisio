@@ -19,13 +19,14 @@ Needs Docker Desktop, plus uv for the one-time key generation.
 
 First time only:
 
-1. `cp .env.example .env`, then set a real `POSTGRES_PASSWORD`, your email as `HUBNISIO_DEV_USER_EMAIL`, and the Enable Banking application ID.
-2. Put the Enable Banking private key at `secrets/enable-banking.pem`.
-3. Generate the key that encrypts provider secrets. Keep a copy of both files in your password manager; backups are useless without them.
+1. `cp .env.example .env`, then set a real `POSTGRES_PASSWORD`, your email as `HUBNISIO_DEV_USER_EMAIL`, and the Enable Banking application ID. The ID is the name of the `.pem` file the Control Panel gave you when you registered the application, without `.pem`.
+2. Put that private key file at `secrets/enable-banking.pem`.
+3. In the Enable Banking Control Panel, allow `https://localhost:5173/finance/connections/callback` as the application's redirect URL. In restricted mode, also link your own accounts there: the API only returns accounts linked in the Control Panel.
+4. Generate the key that encrypts provider secrets. Keep a copy of both files in your password manager; backups are useless without them.
    ```bash
    cd backend && uv run python scripts/generate_encryption_key.py ../secrets/encryption-keys
    ```
-4. Create your user and household. The API acts as this user until passkey login exists.
+5. Create your user and household. The API acts as this user until passkey login exists.
    ```bash
    docker compose run --rm api python -m hubnisio.cli bootstrap --email you@example.com --name "Your Name"
    ```
@@ -36,7 +37,8 @@ Then:
 docker compose up --build
 ```
 
-- App: http://localhost:5173
+- App: https://localhost:5173. It uses a self-signed certificate (Enable Banking only redirects
+  to https URLs), so the browser warns the first time: accept it once, before linking a bank.
 - API docs: http://localhost:8000/docs
 
 ## Work on it without Docker

@@ -150,7 +150,7 @@ async def test_start_authorization_sends_the_consent_request(
         started = await client.start_authorization(
             aspsp_name="Banco BPI",
             country="PT",
-            redirect_url="http://localhost:5173/finance/connections/callback",
+            redirect_url="https://localhost:5173/finance/connections/callback",
             state="state-1",
             valid_until=datetime(2027, 4, 20, 12, 0, tzinfo=UTC),
         )
@@ -161,7 +161,7 @@ async def test_start_authorization_sends_the_consent_request(
         "access": {"valid_until": "2027-04-20T12:00:00+00:00"},
         "aspsp": {"name": "Banco BPI", "country": "PT"},
         "state": "state-1",
-        "redirect_url": "http://localhost:5173/finance/connections/callback",
+        "redirect_url": "https://localhost:5173/finance/connections/callback",
         "psu_type": "personal",
     }
 

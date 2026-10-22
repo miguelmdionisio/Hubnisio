@@ -25,10 +25,10 @@ class Settings(BaseSettings):
     encryption_keys_file: Path = Path("../secrets/encryption-keys")
     enable_banking_key_file: Path = Path("../secrets/enable-banking.pem")
 
-    # Enable Banking (ADR-0003): the application ID from its Control Panel, and the URL the bank
-    # sends the browser back to after authorization (must be allowed in the Control Panel too).
+    # Enable Banking (ADR-0003): the application ID (the name of its .pem key file), and the URL the
+    # bank sends the browser back to after authorization (https; allowed in the Control Panel).
     enable_banking_app_id: str | None = None
-    enable_banking_redirect_url: str = "http://localhost:5173/finance/connections/callback"
+    enable_banking_redirect_url: str = "https://localhost:5173/finance/connections/callback"
 
     @property
     def sqlalchemy_url(self) -> str:

@@ -1,10 +1,17 @@
 import path from 'node:path';
 import tailwindcss from '@tailwindcss/vite';
+import basicSsl from '@vitejs/plugin-basic-ssl';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [
+    react(),
+    tailwindcss(),
+    // HTTPS with a self-signed certificate: Enable Banking only redirects back to https URLs.
+    // Tests don't serve pages, so they skip it.
+    ...(process.env.VITEST ? [] : [basicSsl()]),
+  ],
   resolve: {
     alias: { '@': path.resolve(import.meta.dirname, 'src') },
   },
@@ -16,5 +23,6 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
+    setupFiles: ['src/test/setup.ts'],
   },
 });
