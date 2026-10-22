@@ -103,15 +103,39 @@ Findings that shape it ([research](../research/oss-finance-analysis.md)):
 - **Easier:** syncs are safe to re-run; bank corrections never destroy user work; history fixes come from re-normalizing raw data; joint accounts dedupe naturally.
 - **Harder:** pending→booked matching and fingerprinting need careful tests with real data from each bank; the user layer must follow a transaction through re-identification.
 - **Revisit:**
-  - pending-match tolerance and fingerprint fields once real BPI / Novo Banco / Revolut data is seen
+  - pending-match tolerance and fingerprint fields once a bank returns pending items or drops references (see below)
   - the investment model, when the Trading 212 provider is built
   - a split UI, if receipts become a data source
 
+## What the banks actually send (first live sync, 2026-10-22)
+
+Observed through Enable Banking, restricted mode, first sync with `strategy=longest` run within 10 minutes of linking.
+
+| | BPI (PT) | Revolut (LT entity, PT IBANs) |
+|---|---|---|
+| Accounts | 2 current accounts | 2 current (EUR, PT IBAN), 1 MAD current, 2 EUR savings without IBAN |
+| History returned | About 90 days, even inside the first hour | About 2 years |
+| `entry_reference` | On every transaction | On every transaction |
+| Pending transactions | None returned | None returned |
+| Counterparty name | Never; everything is in the description | On about 91% of transactions |
+| `bank_transaction_code` | Present but empty | `CARD_PAYMENT`, `TRANSFER`, `TOPUP`, `EXCHANGE`, `CARD_REFUND`, `ATM`, `FEE`, `REV_PAYMENT` |
+| Type hints in the description | Prefixes: `TRF`/`TRANSF.` (transfer), `DD` (direct debit), `dd/mm` (card purchase) | — |
+| MCC, balance after, original-currency amount | Never | Never |
+| Account name | None: `product` empty, `details` holds the holder's name | `product` empty; savings accounts carry their name in `details` |
+
+Consequences:
+
+- **Identity:** the `entry_reference` path covers every transaction so far; the fingerprint fallback is unused. Keep it for banks that drop references.
+- **Pending:** neither bank returned pending items, so pending→booked matching (M2) has nothing to work on yet. Check again whether Enable Banking needs `transaction_status` to return them.
+- **Categorization (M2):** rules can't rely on MCCs. Use Revolut's transaction codes and counterparty names, and BPI's description prefixes and text.
+- **History:** BPI's 90 days is the limit through this route; accepted, as there's no CSV backfill ([ADR-0003](0003-financial-data-sources.md)).
+- **Account names:** the hub uses `product`, else `details` unless it repeats the holder's name, else the IBAN's last four digits or the currency and type.
+
 ## Action Items
 
-1. [ ] Migrations for the tables above in the `finance` schema.
-2. [ ] Enable Banking provider: linking, `longest` first fetch, overlapping incremental sync, pending replacement.
-3. [ ] Dedup and pending-matching test suite built from recorded raw payloads.
+1. [x] Migrations for the bank-facts tables in the `finance` schema (user-layer tables come with M2).
+2. [x] Enable Banking provider: linking, `longest` first fetch, overlapping incremental sync, pending replacement.
+3. [x] Dedup test suite (synthetic payloads modelled on real ones). Pending→booked matching moves to M2, with the user layer.
 4. [ ] Rules engine plus the category precedence logic.
 5. [ ] Recurring detection job.
 6. [ ] Budget calculation with per-category rollover and overspend settings.

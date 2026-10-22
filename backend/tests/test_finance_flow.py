@@ -597,17 +597,34 @@ async def test_linking_again_replaces_the_expired_connection(hub: Hub, people: P
     assert relinked["account_ids"] == expired["account_ids"]
 
 
-async def test_accounts_without_a_product_name_are_told_apart_by_iban(
+async def test_accounts_get_the_banks_label_or_a_distinct_default_name(
     hub: Hub, people: People
 ) -> None:
+    holder = {"product": None, "name": "ANA EXEMPLO", "details": "ANA EXEMPLO"}  # like BPI
     hub.bank.session_accounts = [
-        {**bank_account("uid-1", "hash-1", IBAN_1), "product": None},
-        {**bank_account("uid-2", "hash-2", IBAN_2), "product": None},
+        {**bank_account("uid-1", "hash-1", IBAN_1), **holder},
+        {**bank_account("uid-2", "hash-2", IBAN_2), **holder},
+        {  # like a Revolut savings account: no IBAN, its name in `details`
+            **bank_account("uid-3", "hash-3", ""),
+            "account_id": {"other": {"identification": "x", "scheme_name": "OTHI"}},
+            "cash_account_type": "SVGS",
+            "product": None,
+            "details": "Mensal",
+        },
+        {  # a currency account with neither
+            **bank_account("uid-4", "hash-4", ""),
+            "account_id": None,
+            "currency": "MAD",
+            "product": None,
+        },
     ]
     await hub.link(people.owner)
 
     async with hub.api(people.owner) as client:
-        names = sorted(
-            account["name"] for account in (await client.get("/api/finance/accounts")).json()
-        )
-    assert names == ["Banco BPI ••0154", "Banco BPI ••0155"]
+        accounts = (await client.get("/api/finance/accounts")).json()
+    assert sorted(account["name"] for account in accounts) == [
+        "Banco BPI MAD",
+        "Banco BPI ••0154",
+        "Banco BPI ••0155",
+        "Mensal",
+    ]

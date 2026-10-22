@@ -8,7 +8,7 @@
 
 Accounts to integrate:
 
-- **BPI** and **Novo Banco** (Portuguese banks)
+- **BPI** (Portuguese bank). Novo Banco was listed at first; there turned out to be no account there.
 - **Revolut:** a Lithuanian personal account and a Portuguese joint account
 - **Trading 212** (broker)
 
@@ -81,8 +81,8 @@ A buys features immediately and charges for it forever in integration and constr
 
 ## Action Items
 
-1. [ ] Register an Enable Banking application and generate the key pair; store the private key outside the repo ([ADR-0004](0004-hosting-and-security.md)).
-2. [ ] Confirm Revolut (LT personal and PT joint) appear in Enable Banking's bank list, and that the joint account is returned after linking.
+1. [x] Register an Enable Banking application and generate the key pair; store the private key outside the repo ([ADR-0004](0004-hosting-and-security.md)).
+2. [x] Confirm Revolut appears and returns the accounts. It links through the Lithuanian entity (country LT); one consent returned all five accounts, both current accounts with Portuguese IBANs. Observations: [ADR-0007](0007-finance-domain-model.md#what-the-banks-actually-send-first-live-sync-2026-10-22).
 3. [ ] Check whether Enable Banking's restricted-mode terms allow a household member to link her own accounts under the same application.
 4. [ ] Check whether Trading 212's API covers cash-account and card transactions or only investment-account movements.
-5. [ ] Write the finance domain model ADR from the research report.
+5. [x] Write the finance domain model ADR from the research report ([ADR-0007](0007-finance-domain-model.md)).

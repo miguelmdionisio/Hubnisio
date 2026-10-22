@@ -53,6 +53,7 @@ class SessionAccount(_Model):
     identification_hash: str | None = None
     account_id: AccountIdentification | None = None
     name: str | None = None  # holder name(s)
+    details: str | None = None  # a label; some banks repeat the holder name here
     product: str | None = None
     cash_account_type: str | None = None
     currency: str

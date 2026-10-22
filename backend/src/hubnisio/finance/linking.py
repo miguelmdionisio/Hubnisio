@@ -214,6 +214,8 @@ async def _match_account(
     """The household's account for this bank account: matched on identification_hash
     (stable across sessions), then IBAN; created if neither matches."""
     iban = _iban(bank_account)
+    label = bank_label(bank_account.product, bank_account.details, bank_account.name)
+    found = None
     if bank_account.identification_hash:
         found = await session.scalar(
             select(Account).where(
@@ -221,17 +223,14 @@ async def _match_account(
                 Account.identification_hash == bank_account.identification_hash,
             )
         )
-        if found is not None:
-            return found
-    if iban:
+    if found is None and iban:
         found = await session.scalar(
             select(Account).where(Account.household_id == household_id, Account.iban == iban)
         )
-        if found is not None:
-            found.identification_hash = (
-                found.identification_hash or bank_account.identification_hash
-            )
-            return found
+    if found is not None:
+        found.identification_hash = found.identification_hash or bank_account.identification_hash
+        found.product = found.product or label
+        return found
 
     account = Account(
         household_id=household_id,
@@ -239,7 +238,7 @@ async def _match_account(
         iban=iban,
         institution_name=institution_name,
         holder_name=bank_account.name,
-        product=bank_account.product,
+        product=label,
         currency=bank_account.currency,
         cash_account_type=bank_account.cash_account_type,
     )
@@ -253,3 +252,14 @@ def _iban(bank_account: SessionAccount) -> str | None:
     if identification is None or not identification.iban:
         return None
     return identification.iban.replace(" ", "").upper()
+
+
+def bank_label(product: str | None, details: str | None, holder: str | None) -> str | None:
+    """The bank's own name for an account. Banks put it in different fields: Revolut leaves
+    `product` empty and puts a savings account's name ("Mensal") in `details`, while BPI fills
+    `details` with the holder's name, which is no help as an account name."""
+    for candidate in (product, details):
+        cleaned = (candidate or "").strip()
+        if cleaned and cleaned.casefold() != (holder or "").strip().casefold():
+            return cleaned
+    return None

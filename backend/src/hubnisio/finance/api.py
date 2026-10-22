@@ -49,6 +49,8 @@ BANK_LIST_TTL = 6 * 3600  # seconds
 STALE_RUN = timedelta(minutes=30)
 # Shown first: what's spendable, then the booked balance.
 BALANCE_PREFERENCE = ("ITAV", "CLAV", "ITBD", "CLBD", "XPCD", "OPAV", "OPBD")
+# ISO 20022 cash account types, for default names (current accounts need no word).
+ACCOUNT_TYPES = {"SVGS": "savings", "CARD": "card", "LOAN": "loan"}
 
 _bank_cache: dict[str, tuple[float, list[schemas.Bank]]] = {}
 
@@ -506,7 +508,8 @@ def _decode_cursor(cursor: str) -> tuple[date, uuid.UUID]:
 
 
 def _default_name(account: Account) -> str:
-    """Some banks (BPI) send no product name: tell accounts apart by their IBAN's end."""
+    """When the bank gives an account no name: its IBAN's end, else its currency and type."""
     if account.iban:
         return f"{account.institution_name} ••{account.iban[-4:]}"
-    return account.institution_name
+    kind = ACCOUNT_TYPES.get(account.cash_account_type or "", "")
+    return " ".join(part for part in (account.institution_name, account.currency, kind) if part)
