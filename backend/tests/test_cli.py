@@ -28,3 +28,12 @@ def test_bootstrap_creates_owner_once(
             (email,),
         ).fetchall()
     assert rows == [("Owner", "Casa", "owner")]
+
+
+def test_renormalize_an_account_without_syncs(
+    migrated_database: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    account_id = uuid.uuid4()
+
+    assert main(["renormalize", "--account", str(account_id)]) == 0
+    assert f"Account {account_id}: replayed 0 syncs, 0 transactions." in capsys.readouterr().out

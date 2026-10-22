@@ -1,0 +1,78 @@
+{
+  "transactions": [
+    {
+      "entry_reference": "20261014-000123",
+      "transaction_id": null,
+      "transaction_amount": { "currency": "EUR", "amount": "42.17" },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-10-14",
+      "value_date": "2026-10-14",
+      "transaction_date": "2026-10-13",
+      "creditor": { "name": "SUPERMERCADO EXEMPLO PORTO" },
+      "creditor_account": null,
+      "debtor": { "name": "ANA EXEMPLO" },
+      "debtor_account": { "iban": "PT50000201231234567890154" },
+      "remittance_information": ["COMPRA 4450 ", " SUPERMERCADO EXEMPLO PORTO"],
+      "merchant_category_code": "5411",
+      "bank_transaction_code": { "description": "Card payment", "code": "CCRD", "sub_code": "POSD" },
+      "balance_after_transaction": { "currency": "EUR", "amount": "1957.83" }
+    },
+    {
+      "entry_reference": "20261015-000045",
+      "transaction_amount": { "currency": "EUR", "amount": "2100.00" },
+      "credit_debit_indicator": "CRDT",
+      "status": "BOOK",
+      "booking_date": "2026-10-15",
+      "value_date": "2026-10-15",
+      "debtor": { "name": "EMPRESA EXEMPLO LDA" },
+      "debtor_account": { "iban": "PT50 0002 0123 1234 5678 9015 4" },
+      "creditor": { "name": "ANA EXEMPLO" },
+      "remittance_information": ["SALARIO OUTUBRO"],
+      "reference_number": "RF18539007547034"
+    },
+    {
+      "entry_reference": "20261016-000201",
+      "transaction_amount": { "currency": "EUR", "amount": "9.21" },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK",
+      "booking_date": "2026-10-16",
+      "creditor": { "name": "EXAMPLE STREAMING INC" },
+      "remittance_information": ["EXAMPLE STREAMING"],
+      "exchange_rate": {
+        "unit_currency": "USD",
+        "exchange_rate": "0.921",
+        "rate_type": "SALE",
+        "instructed_amount": { "currency": "USD", "amount": "10.00" }
+      }
+    },
+    {
+      "transaction_amount": { "currency": "EUR", "amount": "3.50" },
+      "credit_debit_indicator": "DBIT",
+      "status": "PDNG",
+      "transaction_date": "2026-10-17",
+      "creditor": { "name": "CAFE EXEMPLO" },
+      "remittance_information": ["CAFE EXEMPLO"]
+    },
+    {
+      "entry_reference": "20261012-000999",
+      "transaction_amount": { "currency": "EUR", "amount": "15.00" },
+      "credit_debit_indicator": "DBIT",
+      "status": "CNCL",
+      "booking_date": "2026-10-12",
+      "remittance_information": ["CANCELLED ORDER"]
+    },
+    {
+      "entry_reference": "malformed-no-amount",
+      "status": "BOOK",
+      "booking_date": "2026-10-12"
+    },
+    {
+      "entry_reference": "no-dates",
+      "transaction_amount": { "currency": "EUR", "amount": "1.00" },
+      "credit_debit_indicator": "DBIT",
+      "status": "BOOK"
+    }
+  ],
+  "continuation_key": null
+}

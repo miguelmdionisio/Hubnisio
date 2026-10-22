@@ -112,3 +112,37 @@ class TransactionsPage(_Model):
     # A flat list per the API reference; some banks have sent {"booked": [...], "pending": [...]}.
     transactions: list[dict[str, Any]] | dict[str, Any] = []
     continuation_key: str | None = None
+
+
+class Party(_Model):
+    name: str | None = None
+
+
+class ExchangeRate(_Model):
+    unit_currency: str | None = None
+    exchange_rate: str | None = None
+    rate_type: str | None = None
+    # The original-currency amount of a cross-currency card payment.
+    instructed_amount: Amount | None = None
+
+
+class BankTransaction(_Model):
+    """One item of a transactions page. Parsed by the normalizer, one item at a time."""
+
+    entry_reference: str | None = None
+    transaction_amount: Amount
+    credit_debit_indicator: str | None = None  # CRDT (in) / DBIT (out)
+    status: str | None = None  # BOOK, PDNG, HOLD, SCHD, CNCL, RJCT, OTHR
+    booking_date: date | None = None
+    value_date: date | None = None
+    transaction_date: date | None = None
+    creditor: Party | None = None
+    creditor_account: AccountIdentification | None = None
+    debtor: Party | None = None
+    debtor_account: AccountIdentification | None = None
+    remittance_information: list[str] | None = None
+    reference_number: str | None = None
+    merchant_category_code: str | None = None
+    bank_transaction_code: dict[str, Any] | None = None
+    balance_after_transaction: Amount | None = None
+    exchange_rate: ExchangeRate | None = None

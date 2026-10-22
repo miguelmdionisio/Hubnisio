@@ -46,7 +46,7 @@ def _enum(python_enum: type[enum.StrEnum], name: str) -> Enum:
     )
 
 
-class Provider(enum.StrEnum):
+class ProviderName(enum.StrEnum):
     ENABLE_BANKING = "enable_banking"
 
 
@@ -85,7 +85,7 @@ class Connection(Base):
         ForeignKey("core.households.id", ondelete="CASCADE")
     )
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("core.users.id", ondelete="CASCADE"))
-    provider: Mapped[Provider] = mapped_column(_enum(Provider, "provider"))
+    provider: Mapped[ProviderName] = mapped_column(_enum(ProviderName, "provider"))
     institution_name: Mapped[str] = mapped_column(String(100))
     institution_country: Mapped[str] = mapped_column(String(2))
     status: Mapped[ConnectionStatus] = mapped_column(_enum(ConnectionStatus, "connection_status"))

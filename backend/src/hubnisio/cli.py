@@ -3,11 +3,14 @@
 import argparse
 import asyncio
 import sys
+import uuid
 
 from sqlalchemy import select
 
 from hubnisio.core.db import get_engine, get_sessionmaker
 from hubnisio.core.models import Household, HouseholdMember, HouseholdRole, User
+from hubnisio.finance.ingest.renormalize import renormalize_account
+from hubnisio.finance.models import Account
 
 
 async def bootstrap(email: str, name: str, household_name: str) -> int:
@@ -28,11 +31,30 @@ async def bootstrap(email: str, name: str, household_name: str) -> int:
     return 0
 
 
+async def renormalize(account_id: uuid.UUID | None) -> int:
+    """Rebuild transactions and balances from stored payloads, one account per transaction."""
+    sessionmaker = get_sessionmaker()
+    if account_id is None:
+        async with sessionmaker() as session:
+            account_ids = list(await session.scalars(select(Account.id).order_by(Account.id)))
+    else:
+        account_ids = [account_id]
+    for current in account_ids:
+        async with sessionmaker() as session, session.begin():
+            result = await renormalize_account(session, current)
+        print(
+            f"Account {current}: replayed {result.syncs} syncs, {result.transactions} transactions."
+        )
+    return 0
+
+
 async def _run(args: argparse.Namespace) -> int:
     try:
         match args.command:
             case "bootstrap":
                 return await bootstrap(args.email, args.name, args.household)
+            case "renormalize":
+                return await renormalize(args.account)
             case _:
                 raise AssertionError(args.command)
     finally:
@@ -50,6 +72,13 @@ def main(argv: list[str] | None = None) -> int:
     bootstrap_parser.add_argument("--email", required=True)
     bootstrap_parser.add_argument("--name", required=True, help="display name")
     bootstrap_parser.add_argument("--household", default="Home", help="household name")
+
+    renormalize_parser = commands.add_parser(
+        "renormalize", help="rebuild transactions and balances from stored provider payloads"
+    )
+    renormalize_parser.add_argument(
+        "--account", type=uuid.UUID, help="one account ID (default: every account)"
+    )
 
     args = parser.parse_args(argv)
     # psycopg's async mode can't run on the Proactor event loop that Windows uses by default.
