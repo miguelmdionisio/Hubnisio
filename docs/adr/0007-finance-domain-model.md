@@ -138,6 +138,25 @@ Consequences:
 - **History:** BPI's 90 days is the limit through this route; accepted, as there's no CSV backfill ([ADR-0003](0003-financial-data-sources.md)).
 - **Account names:** the hub uses `product`, else `details` unless it repeats the holder's name, else the IBAN's last four digits or the currency and type.
 
+### First categorization run (`cli recategorize`, 2026-10-22)
+
+Run over all 1,655 transactions with the seeded rule set and no merchant defaults. Counts only; no transaction details are recorded here.
+
+| | Result |
+|---|---|
+| Merchants created | 537 (552 in total), all from Revolut's names. 1,363 of 1,485 Revolut transactions (92%) got one; BPI got none, as it sends no names |
+| Categorized | 5 of 1,655: the ones set by hand. The engine has nothing else to go on until rules or merchant defaults exist |
+| Kind set by rule | 23, the seeded "bank code is `EXCHANGE`" rule |
+| Transfer pairs linked | 16: 13 Revolut ↔ Revolut, 2 Revolut → BPI, 1 BPI → BPI |
+
+What it showed:
+
+- **No BPI → Revolut top-ups were paired.** BPI's 90 days hold 6 Revolut `TOPUP`s; none has a BPI outflow of the same amount within 3 days (one has one 21 days apart). Those top-ups are funded some other way, so the pairing can't be spot-checked against them. A BPI outflow with two same-amount Revolut candidates was correctly left unlinked.
+- **Revolut names are per branch, not per brand.** 537 merchants for 1,152 card payments; one brand alone has 38 spellings. The 10 most used merchants cover 23% of named transactions, the top 50 cover 46%. Setting a default per merchant is too slow; a rule on `bank_counterparty starts_with <brand>` that sets one merchant collapses the spellings, and that merchant's default category then covers them all.
+- **BPI descriptions carry the merchant after the card reference** (`dd/mm COMPRA <ref> <MERCHANT …>`), so a `description contains` rule can set the same merchant that Revolut's name created, and one category default then serves both banks.
+- **`TRF` is not "transfer".** `TRF SEPA+ INST` (35 transactions, 12 in) and `TRF CR INTRAB` (7, 6 in) are mostly payments to and from other people. Only transfers between the household's own accounts are transfers; marking every `TRF` would hide real spending.
+- **Patterns worth a rule on BPI** (counts are BPI transactions): `comissao` (26, includes the VAT on it), `imposto` (6), `lev. atm` (4), `reforco bpi poupanca` (3, a move to savings), `dev. compra` (2, refunds in), `paypal` (8), and card purchases by merchant name.
+
 ## Action Items
 
 1. [x] Migrations for the bank-facts tables in the `finance` schema (user-layer tables come with M2).
