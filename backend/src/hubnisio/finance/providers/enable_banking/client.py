@@ -177,12 +177,15 @@ class EnableBankingClient:
         date_from: date | None = None,
         date_to: date | None = None,
         strategy: str = "default",
+        transaction_status: str | None = None,
         psu_headers: Mapping[str, str] | None = None,
     ) -> AsyncIterator[Fetched[TransactionsPage]]:
         """Every page of transactions. Each follow-up request repeats all parameters unchanged,
         plus the continuation key; a page can be empty and still carry a key."""
         path = f"/accounts/{quote(account_uid, safe='')}/transactions"
         params = {"strategy": strategy}
+        if transaction_status is not None:  # e.g. PDNG; by default the bank decides
+            params["transaction_status"] = transaction_status
         if date_from is not None:
             params["date_from"] = date_from.isoformat()
         if date_to is not None:

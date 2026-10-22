@@ -133,7 +133,7 @@ Observed through Enable Banking, restricted mode, first sync with `strategy=long
 Consequences:
 
 - **Identity:** the `entry_reference` path covers every transaction so far; the fingerprint fallback is unused. Keep it for banks that drop references.
-- **Pending:** neither bank returned pending items, so pending→booked matching (M2) has nothing to work on yet. Check again whether Enable Banking needs `transaction_status` to return them.
+- **Pending:** neither bank returned pending items, and asking Revolut explicitly (`transaction_status=PDNG`, last 10 days, main account) returned none either. The user-layer carry-over from pending to booked (M2) is built and tested for banks that do send them, but has nothing to do with these two.
 - **Categorization (M2):** rules can't rely on MCCs. Use Revolut's transaction codes and counterparty names, and BPI's description prefixes and text.
 - **History:** BPI's 90 days is the limit through this route; accepted, as there's no CSV backfill ([ADR-0003](0003-financial-data-sources.md)).
 - **Account names:** the hub uses `product`, else `details` unless it repeats the holder's name, else the IBAN's last four digits or the currency and type.

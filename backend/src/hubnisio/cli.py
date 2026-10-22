@@ -9,6 +9,7 @@ from sqlalchemy import select
 
 from hubnisio.core.db import get_engine, get_sessionmaker
 from hubnisio.core.models import Household, HouseholdMember, HouseholdRole, User
+from hubnisio.finance.categorize.run import run_all
 from hubnisio.finance.defaults import seed_household
 from hubnisio.finance.ingest.renormalize import renormalize_account
 from hubnisio.finance.models import Account
@@ -52,6 +53,24 @@ async def renormalize(account_id: uuid.UUID | None) -> int:
     return 0
 
 
+async def recategorize(household_id: uuid.UUID | None) -> int:
+    """Pair transfers and categorize every transaction again, one household per transaction."""
+    sessionmaker = get_sessionmaker()
+    if household_id is None:
+        async with sessionmaker() as session:
+            household_ids = list(await session.scalars(select(Household.id).order_by(Household.id)))
+    else:
+        household_ids = [household_id]
+    for current in household_ids:
+        async with sessionmaker() as session, session.begin():
+            result = await run_all(session, current)
+        print(
+            f"Household {current}: {result.processed} transactions, {result.categorized} with a "
+            f"category, {result.counterparties_created} new counterparties."
+        )
+    return 0
+
+
 async def _run(args: argparse.Namespace) -> int:
     try:
         match args.command:
@@ -59,6 +78,8 @@ async def _run(args: argparse.Namespace) -> int:
                 return await bootstrap(args.email, args.name, args.household)
             case "renormalize":
                 return await renormalize(args.account)
+            case "recategorize":
+                return await recategorize(args.household)
             case _:
                 raise AssertionError(args.command)
     finally:
@@ -82,6 +103,13 @@ def main(argv: list[str] | None = None) -> int:
     )
     renormalize_parser.add_argument(
         "--account", type=uuid.UUID, help="one account ID (default: every account)"
+    )
+
+    recategorize_parser = commands.add_parser(
+        "recategorize", help="pair transfers and run counterparties and rules on everything"
+    )
+    recategorize_parser.add_argument(
+        "--household", type=uuid.UUID, help="one household ID (default: every household)"
     )
 
     args = parser.parse_args(argv)

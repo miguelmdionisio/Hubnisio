@@ -7,7 +7,7 @@ from decimal import Decimal
 from typing import Any
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from hubnisio.core.db import get_sessionmaker
 from hubnisio.core.models import Household, User
@@ -17,10 +17,14 @@ from hubnisio.finance.ingest.store import BANK_FACTS, StoreResult
 from hubnisio.finance.models import (
     Account,
     BalanceSnapshot,
+    Category,
+    CategoryAssignment,
+    CategoryKind,
     Connection,
     ConnectionStatus,
     ProviderName,
     ProviderPayload,
+    Source,
     SyncRun,
     SyncStatus,
     Transaction,
@@ -354,3 +358,70 @@ async def test_renormalize_removes_rows_the_payloads_no_longer_produce(world: Wo
 
     assert (result.transactions, result.removed) == (1, 1)
     assert [row.entry_reference for row in await stored(world)] == ["R1"]
+
+
+async def annotate(world: World, transaction_id: uuid.UUID, note: str) -> None:
+    async with get_sessionmaker()() as session, session.begin():
+        category = Category(household_id=world.household_id, name=note, kind=CategoryKind.EXPENSE)
+        session.add(category)
+        await session.flush()
+        session.add_all(
+            [
+                TransactionAnnotation(
+                    transaction_id=transaction_id, household_id=world.household_id, note=note
+                ),
+                CategoryAssignment(
+                    household_id=world.household_id,
+                    transaction_id=transaction_id,
+                    category_id=category.id,
+                    source=Source.MANUAL,
+                ),
+            ]
+        )
+
+
+async def user_layer(transaction_id: uuid.UUID) -> tuple[str | None, int]:
+    async with get_sessionmaker()() as session:
+        annotation = await session.get(TransactionAnnotation, transaction_id)
+        assignments = await session.scalar(
+            select(func.count())
+            .select_from(CategoryAssignment)
+            .where(CategoryAssignment.transaction_id == transaction_id)
+        )
+    return (annotation.note if annotation else None, assignments or 0)
+
+
+async def test_edits_on_a_pending_transaction_follow_it_when_it_books(world: World) -> None:
+    await sync(world, [tx(None, "3.50", 10, status="PDNG")])
+    (pending,) = await stored(world)
+    await annotate(world, pending.id, "Coffee with Rui")
+
+    await sync(world, [tx("R9", "3.50", 11)])  # booked a day later
+
+    (booked,) = await stored(world)
+    assert booked.status is TransactionStatus.BOOKED
+    assert await user_layer(booked.id) == ("Coffee with Rui", 1)
+
+
+async def test_edits_follow_a_pending_transaction_that_is_still_pending(world: World) -> None:
+    await sync(world, [tx(None, "3.50", 10, status="PDNG")])
+    (first,) = await stored(world)
+    await annotate(world, first.id, "Coffee")
+
+    await sync(world, [tx(None, "3.50", 10, status="PDNG")])  # replaced by a new row
+
+    (second,) = await stored(world)
+    assert second.id != first.id
+    assert await user_layer(second.id) == ("Coffee", 1)
+
+
+async def test_edits_on_a_vanished_pending_transaction_go_with_it(world: World) -> None:
+    await sync(world, [tx(None, "3.50", 10, status="PDNG")])
+    (pending,) = await stored(world)
+    await annotate(world, pending.id, "Cancelled order")
+
+    await sync(world, [tx("R1", "99.00", 11)])  # nothing with the same amount
+
+    (other,) = await stored(world)
+    assert await user_layer(other.id) == (None, 0)
+    assert await user_layer(pending.id) == (None, 0)

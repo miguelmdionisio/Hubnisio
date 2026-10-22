@@ -24,6 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from hubnisio.core.db import get_sessionmaker
 from hubnisio.core.settings import get_settings
+from hubnisio.finance.categorize.run import after_sync
 from hubnisio.finance.ingest.apply import APPLY_FAILED, apply_payloads
 from hubnisio.finance.models import (
     Connection,
@@ -93,6 +94,7 @@ async def sync_connection(
     client_factory: Callable[[], EnableBankingClient] = default_client,
 ) -> SyncOutcome:
     sessionmaker = get_sessionmaker()
+    started_at = datetime.now(UTC)
     async with sessionmaker() as session, session.begin():
         connection = await session.get(Connection, connection_id)
         if connection is None or connection.status is not ConnectionStatus.ACTIVE:
@@ -142,6 +144,7 @@ async def sync_connection(
             connection = await session.get(Connection, connection_id)
             if connection is not None:
                 connection.last_synced_at = datetime.now(UTC)
+        await _refresh_user_layer(household_id, started_at)
     logger.info(
         "Synced connection %s: %d accounts succeeded, %d failed.",
         connection_id,
@@ -252,6 +255,22 @@ async def _sync_account(
             run.finished_at = datetime.now(UTC)
         return AccountResult.FAILED
     return AccountResult.SUCCEEDED
+
+
+async def _refresh_user_layer(household_id: uuid.UUID, started_at: datetime) -> None:
+    """Pair transfers and categorize what this sync touched. A failure here is logged, not
+    raised: the bank data is stored, and the next sync or "Run rules now" retries."""
+    try:
+        async with get_sessionmaker()() as session, session.begin():
+            result = await after_sync(session, household_id, started_at)
+        logger.info(
+            "Categorized %d transactions (%d with a category), %d new counterparties.",
+            result.processed,
+            result.categorized,
+            result.counterparties_created,
+        )
+    except Exception:
+        logger.exception("Categorizing after the sync failed.")
 
 
 async def _since(session: AsyncSession, account_id: uuid.UUID) -> date | None:

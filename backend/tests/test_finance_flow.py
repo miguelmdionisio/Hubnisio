@@ -14,7 +14,7 @@ import httpx
 import pytest
 from cryptography.hazmat.primitives.asymmetric import rsa
 from procrastinate.testing import InMemoryConnector
-from sqlalchemy import select
+from sqlalchemy import func, select
 from starlette.requests import Request
 
 from hubnisio.core.auth import Principal, get_principal
@@ -30,10 +30,12 @@ from hubnisio.finance.models import (
     AccountOwner,
     Connection,
     ConnectionStatus,
+    Counterparty,
     ProviderAccount,
     ProviderPayload,
     SyncRun,
     SyncStatus,
+    Transfer,
 )
 from hubnisio.finance.providers.enable_banking.client import EnableBankingClient
 from hubnisio.jobs import app as job_app
@@ -628,3 +630,32 @@ async def test_accounts_get_the_banks_label_or_a_distinct_default_name(
         "Banco BPI ••0155",
         "Mensal",
     ]
+
+
+async def test_a_sync_pairs_transfers_and_names_counterparties(hub: Hub, people: People) -> None:
+    connection = await hub.link(people.owner)
+    hub.bank.transactions["uid-1"] = [
+        tx("O1", "250.00", 2, text="TRF PARA REVOLUT"),
+        {**tx("O2", "4.20", 1, text="COMPRA"), "creditor": {"name": "Pastelaria Exemplo"}},
+    ]
+    hub.bank.transactions["uid-2"] = [
+        {**tx("I1", "250.00", 2, direction="CRDT", text="Top-up"), "debtor": {"name": "Ana"}},
+    ]
+
+    await hub.sync(connection, sync.SyncTrigger.INITIAL)
+
+    async with get_sessionmaker()() as session:
+        transfers = await session.scalar(
+            select(func.count())
+            .select_from(Transfer)
+            .where(Transfer.household_id == people.owner.household_id)
+        )
+        names = set(
+            await session.scalars(
+                select(Counterparty.name).where(
+                    Counterparty.household_id == people.owner.household_id
+                )
+            )
+        )
+    assert transfers == 1
+    assert names == {"Pastelaria Exemplo", "Ana"}
