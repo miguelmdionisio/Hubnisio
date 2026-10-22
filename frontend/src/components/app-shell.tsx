@@ -6,6 +6,7 @@ import {
   ListChecks,
   type LucideIcon,
   PiggyBank,
+  Repeat,
   Store,
   Tags,
   Wallet,
@@ -19,6 +20,7 @@ type Path =
   | '/finance/transactions'
   | '/finance/categories'
   | '/finance/budgets'
+  | '/finance/recurring'
   | '/finance/rules'
   | '/finance/merchants'
   | '/finance/connections';
@@ -81,6 +83,9 @@ export function AppShell() {
             </NavLink>
             <NavLink to="/finance/budgets" icon={PiggyBank}>
               Budgets
+            </NavLink>
+            <NavLink to="/finance/recurring" icon={Repeat}>
+              Recurring
             </NavLink>
             <NavLink to="/finance/rules" icon={ListChecks}>
               Rules

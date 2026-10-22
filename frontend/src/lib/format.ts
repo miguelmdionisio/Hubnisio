@@ -30,6 +30,13 @@ export function formatMonth(isoMonth: string, locale = LOCALE): string {
   );
 }
 
+/** "Mar 2026", from a date. */
+export function formatShortMonth(isoDate: string, locale = LOCALE): string {
+  return new Intl.DateTimeFormat(locale, { month: 'short', year: 'numeric' }).format(
+    parseDate(isoDate),
+  );
+}
+
 const UNITS: [Intl.RelativeTimeFormatUnit, number][] = [
   ['day', 86_400],
   ['hour', 3_600],

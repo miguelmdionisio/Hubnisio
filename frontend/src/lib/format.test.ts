@@ -1,5 +1,12 @@
 import { expect, test } from 'vitest';
-import { formatDate, formatMoney, formatMonth, formatRelative, parseDate } from './format';
+import {
+  formatDate,
+  formatMoney,
+  formatMonth,
+  formatRelative,
+  formatShortMonth,
+  parseDate,
+} from './format';
 import { isMonth, shiftMonth } from './months';
 
 test('formats money in the given locale', () => {
@@ -15,6 +22,7 @@ test('keeps calendar dates on their day in any timezone', () => {
 test('names months, from a month or any date in it', () => {
   expect(formatMonth('2026-10', 'en-GB')).toBe('October 2026');
   expect(formatMonth('2026-10-01', 'en-GB')).toBe('October 2026');
+  expect(formatShortMonth('2026-03-05', 'en-GB')).toBe('Mar 2026');
 });
 
 test('steps through months across year ends', () => {

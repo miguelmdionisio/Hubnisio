@@ -4,6 +4,7 @@ import type {
   BudgetsOut,
   CategoryGroupOut,
   CounterpartyOut,
+  RecurringOut,
   RuleOut,
   TransactionOut,
 } from '@/api/types.gen';
@@ -141,6 +142,35 @@ export function budgetsOut(budgets: BudgetOut[], overrides: Partial<BudgetsOut> 
     unbudgeted: '0.00',
     uncategorized: '0.00',
     unconverted: 0,
+    ...overrides,
+  };
+}
+
+/** A monthly 9.99 payment, detected but not yet reviewed; override what a test cares about. */
+export function recurring(
+  id: string,
+  name: string,
+  overrides: Partial<RecurringOut> = {},
+): RecurringOut {
+  return {
+    id,
+    account_id: 'a1',
+    account_name: 'Conta à Ordem',
+    name,
+    counterparty_id: null,
+    cadence: 'monthly',
+    kind: 'expense',
+    expected_amount: '-9.99',
+    currency: 'EUR',
+    amount_varies: false,
+    occurrences: 6,
+    first_seen_on: '2026-04-05',
+    last_seen_on: '2026-09-05',
+    next_expected_on: '2026-10-05',
+    previous_amount: null,
+    amount_changed_on: null,
+    status: 'active',
+    review: 'suggested',
     ...overrides,
   };
 }
