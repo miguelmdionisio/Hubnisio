@@ -1586,6 +1586,163 @@
           }
         }
       }
+    },
+    "/api/finance/recurring": {
+      "get": {
+        "tags": [
+          "finance"
+        ],
+        "summary": "List Recurring",
+        "description": "Active first, then by next expected date.",
+        "operationId": "listRecurring",
+        "parameters": [
+          {
+            "name": "review",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Review"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Review"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RecurringOut"
+                  },
+                  "title": "Response Listrecurring"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/finance/recurring/{series_id}": {
+      "patch": {
+        "tags": [
+          "finance"
+        ],
+        "summary": "Update Recurring",
+        "operationId": "updateRecurring",
+        "parameters": [
+          {
+            "name": "series_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Series Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecurringUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecurringOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/finance/recurring/upcoming": {
+      "get": {
+        "tags": [
+          "finance"
+        ],
+        "summary": "List Upcoming",
+        "description": "Expected dates of active, confirmed series in the next `days` days, soonest first. A\npayment that's due but not late yet shows on its expected date. Euro amounts use today's\nrate.",
+        "operationId": "listUpcomingPayments",
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 366,
+              "minimum": 1,
+              "default": 30,
+              "title": "Days"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/UpcomingPayment"
+                  },
+                  "title": "Response Listupcomingpayments"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -2048,6 +2205,16 @@
           "unconverted"
         ],
         "title": "BudgetsOut"
+      },
+      "Cadence": {
+        "type": "string",
+        "enum": [
+          "weekly",
+          "monthly",
+          "quarterly",
+          "yearly"
+        ],
+        "title": "Cadence"
       },
       "CashFlow": {
         "properties": {
@@ -2761,6 +2928,187 @@
         ],
         "title": "Overspend",
         "description": "What overspending a budget does to the next month (ADR-0007, \"Budgets\")."
+      },
+      "RecurringOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "account_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Account Id"
+          },
+          "account_name": {
+            "type": "string",
+            "title": "Account Name"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "counterparty_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Counterparty Id"
+          },
+          "cadence": {
+            "$ref": "#/components/schemas/Cadence"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/TransactionKind"
+          },
+          "expected_amount": {
+            "type": "string",
+            "title": "Expected Amount"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          },
+          "amount_varies": {
+            "type": "boolean",
+            "title": "Amount Varies"
+          },
+          "occurrences": {
+            "type": "integer",
+            "title": "Occurrences"
+          },
+          "first_seen_on": {
+            "type": "string",
+            "format": "date",
+            "title": "First Seen On"
+          },
+          "last_seen_on": {
+            "type": "string",
+            "format": "date",
+            "title": "Last Seen On"
+          },
+          "next_expected_on": {
+            "type": "string",
+            "format": "date",
+            "title": "Next Expected On"
+          },
+          "previous_amount": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previous Amount"
+          },
+          "amount_changed_on": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount Changed On"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RecurringStatus"
+          },
+          "review": {
+            "$ref": "#/components/schemas/Review"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "account_id",
+          "account_name",
+          "name",
+          "counterparty_id",
+          "cadence",
+          "kind",
+          "expected_amount",
+          "currency",
+          "amount_varies",
+          "occurrences",
+          "first_seen_on",
+          "last_seen_on",
+          "next_expected_on",
+          "previous_amount",
+          "amount_changed_on",
+          "status",
+          "review"
+        ],
+        "title": "RecurringOut"
+      },
+      "RecurringStatus": {
+        "type": "string",
+        "enum": [
+          "active",
+          "dormant",
+          "cancelled"
+        ],
+        "title": "RecurringStatus"
+      },
+      "RecurringUpdate": {
+        "properties": {
+          "review": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Review"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "cancelled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cancelled"
+          }
+        },
+        "type": "object",
+        "title": "RecurringUpdate",
+        "description": "Only the fields sent change. An empty `name` goes back to the detected one."
+      },
+      "Review": {
+        "type": "string",
+        "enum": [
+          "suggested",
+          "confirmed",
+          "dismissed"
+        ],
+        "title": "Review",
+        "description": "What the user made of a detected series. Only confirmed ones count (ADR-0007)."
       },
       "RuleIn": {
         "properties": {
@@ -3702,6 +4050,57 @@
           "incoming_id"
         ],
         "title": "TransferLink"
+      },
+      "UpcomingPayment": {
+        "properties": {
+          "series_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Series Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "on": {
+            "type": "string",
+            "format": "date",
+            "title": "On"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/TransactionKind"
+          },
+          "amount": {
+            "type": "string",
+            "title": "Amount"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          },
+          "amount_eur": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount Eur"
+          }
+        },
+        "type": "object",
+        "required": [
+          "series_id",
+          "name",
+          "on",
+          "kind",
+          "amount",
+          "currency",
+          "amount_eur"
+        ],
+        "title": "UpcomingPayment"
       },
       "ValidationError": {
         "properties": {

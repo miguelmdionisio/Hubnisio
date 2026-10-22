@@ -9,9 +9,12 @@ from pydantic import BaseModel, Field
 from hubnisio.finance.categorize.rules import Action, Condition
 from hubnisio.finance.models import (
     AccountVisibility,
+    Cadence,
     CategoryKind,
     ConnectionStatus,
     Overspend,
+    RecurringStatus,
+    Review,
     RuleMatch,
     Source,
     TransactionKind,
@@ -348,3 +351,45 @@ class BudgetsOut(BaseModel):
     unbudgeted: Decimal  # categorized spending that no budget covers
     uncategorized: Decimal
     unconverted: int
+
+
+# Recurring payments.
+
+
+class RecurringOut(BaseModel):
+    id: uuid.UUID
+    account_id: uuid.UUID
+    account_name: str
+    name: str  # the user's name for it, else the detected one
+    counterparty_id: uuid.UUID | None
+    cadence: Cadence
+    kind: TransactionKind  # expense or income
+    expected_amount: Decimal  # signed, like transactions; the latest price
+    currency: str
+    amount_varies: bool
+    occurrences: int
+    first_seen_on: date
+    last_seen_on: date
+    next_expected_on: date
+    previous_amount: Decimal | None  # before the latest price change
+    amount_changed_on: date | None
+    status: RecurringStatus
+    review: Review
+
+
+class RecurringUpdate(BaseModel):
+    """Only the fields sent change. An empty `name` goes back to the detected one."""
+
+    review: Review | None = None
+    name: str | None = Field(default=None, max_length=100)
+    cancelled: bool | None = None  # it stopped; false undoes that
+
+
+class UpcomingPayment(BaseModel):
+    series_id: uuid.UUID
+    name: str
+    on: date
+    kind: TransactionKind
+    amount: Decimal  # signed, in the series' currency
+    currency: str
+    amount_eur: Decimal | None  # at today's rate; None without one

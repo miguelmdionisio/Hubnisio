@@ -116,6 +116,27 @@ class Overspend(enum.StrEnum):
     CARRY = "carry"  # the overspend is taken from the next month
 
 
+class Cadence(enum.StrEnum):
+    WEEKLY = "weekly"
+    MONTHLY = "monthly"
+    QUARTERLY = "quarterly"
+    YEARLY = "yearly"
+
+
+class RecurringStatus(enum.StrEnum):
+    ACTIVE = "active"  # the next payment isn't late yet
+    DORMANT = "dormant"  # a payment is late
+    CANCELLED = "cancelled"  # three missed in a row, or the user said it stopped
+
+
+class Review(enum.StrEnum):
+    """What the user made of a detected series. Only confirmed ones count (ADR-0007)."""
+
+    SUGGESTED = "suggested"
+    CONFIRMED = "confirmed"
+    DISMISSED = "dismissed"  # not recurring: never suggested again
+
+
 class FxSource(enum.StrEnum):
     ECB = "ecb"  # ECB euro foreign exchange reference rates
     CURRENCY_API = "currency_api"  # fawazahmed0's currency-api, for currencies the ECB lacks
@@ -470,6 +491,10 @@ class TransactionAnnotation(Base):
     tags: Mapped[list[str]] = mapped_column(ARRAY(Text), server_default=text("'{}'"))
     # Recomputed by every rules run; kept apart so a run never touches tags added by hand.
     rule_tags: Mapped[list[str]] = mapped_column(ARRAY(Text), server_default=text("'{}'"))
+    # The recurring series it belongs to, found by detection (finance/recurring).
+    recurring_series_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("finance.recurring_series.id", ondelete="SET NULL"), index=True
+    )
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -595,3 +620,45 @@ class BudgetLimit(Base):
     )
     starts_on: Mapped[date] = mapped_column(Date, primary_key=True)
     amount: Mapped[Decimal] = mapped_column(Money)
+
+
+class RecurringSeries(Base):
+    """Payments (or income) that repeat on a cadence, found by detection (ADR-0007). Detection
+    rewrites everything but the user's choices: `review`, `custom_name`, `cancelled_on`."""
+
+    __tablename__ = "recurring_series"
+    __table_args__ = {"schema": SCHEMA}  # noqa: RUF012
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid7)
+    household_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("core.households.id", ondelete="CASCADE"), index=True
+    )
+    # One account's payments, so the series has that account's visibility.
+    account_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("finance.accounts.id", ondelete="CASCADE"), index=True
+    )
+    counterparty_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("finance.counterparties.id", ondelete="SET NULL")
+    )
+    match_key: Mapped[str] = mapped_column(Text)  # what its transactions were grouped by
+    name: Mapped[str] = mapped_column(String(100))
+    custom_name: Mapped[str | None] = mapped_column(String(100))
+    cadence: Mapped[Cadence] = mapped_column(_enum(Cadence, "cadence"))
+    kind: Mapped[TransactionKind] = mapped_column(_enum(TransactionKind, "transaction_kind"))
+    expected_amount: Mapped[Decimal] = mapped_column(Money)  # signed, like transactions
+    currency: Mapped[str] = mapped_column(String(3))
+    amount_varies: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
+    occurrences: Mapped[int] = mapped_column(Integer)
+    first_seen_on: Mapped[date] = mapped_column(Date)
+    last_seen_on: Mapped[date] = mapped_column(Date)
+    next_expected_on: Mapped[date] = mapped_column(Date)
+    # The latest price change: the amount before it, and when the new one first appeared.
+    previous_amount: Mapped[Decimal | None] = mapped_column(Money)
+    amount_changed_on: Mapped[date | None] = mapped_column(Date)
+    status: Mapped[RecurringStatus] = mapped_column(_enum(RecurringStatus, "recurring_status"))
+    review: Mapped[Review] = mapped_column(
+        _enum(Review, "recurring_review"), server_default=Review.SUGGESTED
+    )
+    cancelled_on: Mapped[date | None] = mapped_column(Date)  # set by the user
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

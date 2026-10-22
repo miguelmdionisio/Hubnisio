@@ -6,7 +6,7 @@ import sys
 import uuid
 from datetime import date
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from hubnisio.core.db import get_engine, get_sessionmaker
 from hubnisio.core.models import Household, HouseholdMember, HouseholdRole, User
@@ -15,7 +15,8 @@ from hubnisio.finance.defaults import seed_household
 from hubnisio.finance.fx.sources import FxClient
 from hubnisio.finance.fx.store import earliest_transaction_day, rate_summary, refresh_rates
 from hubnisio.finance.ingest.renormalize import renormalize_account
-from hubnisio.finance.models import Account
+from hubnisio.finance.models import Account, RecurringSeries
+from hubnisio.finance.recurring.run import detect_recurring
 
 
 async def bootstrap(email: str, name: str, household_name: str) -> int:
@@ -74,6 +75,40 @@ async def recategorize(household_id: uuid.UUID | None) -> int:
     return 0
 
 
+async def detect_recurring_series(household_id: uuid.UUID | None) -> int:
+    """Re-detect recurring series, then count them by cadence, kind, status and review."""
+    sessionmaker = get_sessionmaker()
+    if household_id is None:
+        async with sessionmaker() as session:
+            household_ids = list(await session.scalars(select(Household.id).order_by(Household.id)))
+    else:
+        household_ids = [household_id]
+    for current in household_ids:
+        async with sessionmaker() as session, session.begin():
+            result = await detect_recurring(session, current, date.today())
+            counts = await session.execute(
+                select(
+                    RecurringSeries.cadence,
+                    RecurringSeries.kind,
+                    RecurringSeries.status,
+                    RecurringSeries.review,
+                    func.count(),
+                )
+                .where(RecurringSeries.household_id == current)
+                .group_by(
+                    RecurringSeries.cadence,
+                    RecurringSeries.kind,
+                    RecurringSeries.status,
+                    RecurringSeries.review,
+                )
+                .order_by(RecurringSeries.cadence, RecurringSeries.kind, RecurringSeries.status)
+            )
+            print(f"Household {current}: {result.series} series detected, {result.created} new.")
+            for cadence, kind, status, review, count in counts:
+                print(f"  {cadence} {kind}, {status}, {review}: {count}")
+    return 0
+
+
 async def fx_backfill(since: date | None) -> int:
     """Fetch the exchange rates the hub's currencies are missing since `since` (default: the
     earliest transaction), then show what is stored."""
@@ -106,6 +141,8 @@ async def _run(args: argparse.Namespace) -> int:
                 return await renormalize(args.account)
             case "recategorize":
                 return await recategorize(args.household)
+            case "detect-recurring":
+                return await detect_recurring_series(args.household)
             case "fx-backfill":
                 return await fx_backfill(args.since)
             case _:
@@ -137,6 +174,13 @@ def main(argv: list[str] | None = None) -> int:
         "recategorize", help="pair transfers and run counterparties and rules on everything"
     )
     recategorize_parser.add_argument(
+        "--household", type=uuid.UUID, help="one household ID (default: every household)"
+    )
+
+    recurring_parser = commands.add_parser(
+        "detect-recurring", help="find recurring payments again and count them"
+    )
+    recurring_parser.add_argument(
         "--household", type=uuid.UUID, help="one household ID (default: every household)"
     )
 

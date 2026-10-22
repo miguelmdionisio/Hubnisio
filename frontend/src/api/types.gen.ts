@@ -288,6 +288,11 @@ export type BudgetsOut = {
 };
 
 /**
+ * Cadence
+ */
+export type Cadence = 'weekly' | 'monthly' | 'quarterly' | 'yearly';
+
+/**
  * CashFlow
  */
 export type CashFlow = {
@@ -667,6 +672,101 @@ export type NetWorthPoint = {
  * What overspending a budget does to the next month (ADR-0007, "Budgets").
  */
 export type Overspend = 'forgive' | 'carry';
+
+/**
+ * RecurringOut
+ */
+export type RecurringOut = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Account Id
+     */
+    account_id: string;
+    /**
+     * Account Name
+     */
+    account_name: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Counterparty Id
+     */
+    counterparty_id: string | null;
+    cadence: Cadence;
+    kind: TransactionKind;
+    /**
+     * Expected Amount
+     */
+    expected_amount: string;
+    /**
+     * Currency
+     */
+    currency: string;
+    /**
+     * Amount Varies
+     */
+    amount_varies: boolean;
+    /**
+     * Occurrences
+     */
+    occurrences: number;
+    /**
+     * First Seen On
+     */
+    first_seen_on: string;
+    /**
+     * Last Seen On
+     */
+    last_seen_on: string;
+    /**
+     * Next Expected On
+     */
+    next_expected_on: string;
+    /**
+     * Previous Amount
+     */
+    previous_amount: string | null;
+    /**
+     * Amount Changed On
+     */
+    amount_changed_on: string | null;
+    status: RecurringStatus;
+    review: Review;
+};
+
+/**
+ * RecurringStatus
+ */
+export type RecurringStatus = 'active' | 'dormant' | 'cancelled';
+
+/**
+ * RecurringUpdate
+ *
+ * Only the fields sent change. An empty `name` goes back to the detected one.
+ */
+export type RecurringUpdate = {
+    review?: Review | null;
+    /**
+     * Name
+     */
+    name?: string | null;
+    /**
+     * Cancelled
+     */
+    cancelled?: boolean | null;
+};
+
+/**
+ * Review
+ *
+ * What the user made of a detected series. Only confirmed ones count (ADR-0007).
+ */
+export type Review = 'suggested' | 'confirmed' | 'dismissed';
 
 /**
  * RuleIn
@@ -1142,6 +1242,37 @@ export type TransferLink = {
      * Incoming Id
      */
     incoming_id: string;
+};
+
+/**
+ * UpcomingPayment
+ */
+export type UpcomingPayment = {
+    /**
+     * Series Id
+     */
+    series_id: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * On
+     */
+    on: string;
+    kind: TransactionKind;
+    /**
+     * Amount
+     */
+    amount: string;
+    /**
+     * Currency
+     */
+    currency: string;
+    /**
+     * Amount Eur
+     */
+    amount_eur: string | null;
 };
 
 /**
@@ -2115,3 +2246,97 @@ export type SetBudgetResponses = {
 };
 
 export type SetBudgetResponse = SetBudgetResponses[keyof SetBudgetResponses];
+
+export type ListRecurringData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Review
+         */
+        review?: Review | null;
+    };
+    url: '/api/finance/recurring';
+};
+
+export type ListRecurringErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListRecurringError = ListRecurringErrors[keyof ListRecurringErrors];
+
+export type ListRecurringResponses = {
+    /**
+     * Response Listrecurring
+     *
+     * Successful Response
+     */
+    200: Array<RecurringOut>;
+};
+
+export type ListRecurringResponse = ListRecurringResponses[keyof ListRecurringResponses];
+
+export type UpdateRecurringData = {
+    body: RecurringUpdate;
+    path: {
+        /**
+         * Series Id
+         */
+        series_id: string;
+    };
+    query?: never;
+    url: '/api/finance/recurring/{series_id}';
+};
+
+export type UpdateRecurringErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdateRecurringError = UpdateRecurringErrors[keyof UpdateRecurringErrors];
+
+export type UpdateRecurringResponses = {
+    /**
+     * Successful Response
+     */
+    200: RecurringOut;
+};
+
+export type UpdateRecurringResponse = UpdateRecurringResponses[keyof UpdateRecurringResponses];
+
+export type ListUpcomingPaymentsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Days
+         */
+        days?: number;
+    };
+    url: '/api/finance/recurring/upcoming';
+};
+
+export type ListUpcomingPaymentsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListUpcomingPaymentsError = ListUpcomingPaymentsErrors[keyof ListUpcomingPaymentsErrors];
+
+export type ListUpcomingPaymentsResponses = {
+    /**
+     * Response Listupcomingpayments
+     *
+     * Successful Response
+     */
+    200: Array<UpcomingPayment>;
+};
+
+export type ListUpcomingPaymentsResponse = ListUpcomingPaymentsResponses[keyof ListUpcomingPaymentsResponses];

@@ -67,6 +67,20 @@ Findings that shape it ([research](../research/oss-finance-analysis.md)):
 - Each series stores its cadence, expected amount, last seen date, next expected date and status (active / dormant / cancelled).
 - It's used for the subscription list, expected upcoming payments (forecasting) and price-change alerts.
 - The user can confirm, edit, or dismiss a detected series.
+- **Decided in M3:**
+  - **Per account:** a series belongs to one account and has its visibility, so a private account's subscriptions never show to another member.
+  - **Grouping:** by merchant, else by the description without digits (BPI sends no merchant names), and by direction. Income such as a salary is detected too.
+  - **Chains:** within a group, chains are built in date order.
+    - Each gap must fit the cadence: weekly 7±2 days, monthly 30.4±5, quarterly 91±10, yearly 365±20. One missed payment is allowed, plus one more per six made.
+    - Each amount must be within 30% of the chain's recent ones, so a price rise stays one series and gives a price-change hint.
+    - A chain needs 3 payments and at most half as many other similar payments to the same payee in its span. Otherwise shopping every few days would pass as weekly.
+    - Payments left over get a second chance with any amount, on the monthly or slower cadences, marked "varies" (utilities).
+  - **Review state is separate from status.** Review is suggested, confirmed or dismissed. Status is active, dormant (a payment is late) or cancelled (three missed, or the user said it stopped).
+    - Only confirmed series count in upcoming payments and the dashboard.
+    - Each run updates the series that share a transaction with what it finds, keeping the review, the user's name and a cancellation. So a dismissal is never suggested again.
+    - A chain that's already over when first found isn't suggested.
+  - **Edit means rename in M3.** Changing the cadence or the expected amount by hand is deferred until it's needed.
+  - **When it runs:** after each sync and each rules run, and from `cli detect-recurring`.
 
 ### Budgets
 
@@ -207,5 +221,5 @@ What it showed:
 2. [x] Enable Banking provider: linking, `longest` first fetch, overlapping incremental sync, pending replacement.
 3. [x] Dedup test suite (synthetic payloads modelled on real ones). Pending→booked matching moves to M2, with the user layer.
 4. [ ] Rules engine plus the category precedence logic.
-5. [ ] Recurring detection job.
+5. [x] Recurring detection job.
 6. [x] Budget calculation with per-category rollover and overspend settings.
