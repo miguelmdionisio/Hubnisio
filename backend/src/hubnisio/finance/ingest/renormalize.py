@@ -1,8 +1,9 @@
 """Rebuild an account's bank facts from its raw payloads, so parser fixes never need a re-fetch.
 
-Every sync whose fetch completed is replayed in order, which reproduces the rows a live sync
-produced. Transaction IDs change. Nothing refers to them yet; once the user layer exists (M2),
-this has to carry categories and notes over to the rebuilt rows.
+Every sync whose fetch completed is replayed in order over the existing rows. A transaction
+that still has the same identity keeps its row, its ID and so its user layer (category, notes,
+transfer link). Booked rows the replay no longer produces are removed; pending rows are
+replaced, as on every sync.
 """
 
 import uuid
@@ -19,6 +20,7 @@ from hubnisio.finance.models import (
     SyncRun,
     SyncStatus,
     Transaction,
+    TransactionStatus,
 )
 
 
@@ -26,12 +28,20 @@ from hubnisio.finance.models import (
 class RenormalizeResult:
     syncs: int
     transactions: int
+    removed: int  # booked rows the replay no longer produces
 
 
 async def renormalize_account(session: AsyncSession, account_id: uuid.UUID) -> RenormalizeResult:
     """Run inside a transaction: on any error, the account is left as it was."""
-    await session.execute(delete(Transaction).where(Transaction.account_id == account_id))
     await session.execute(delete(BalanceSnapshot).where(BalanceSnapshot.account_id == account_id))
+    before = set(
+        await session.scalars(
+            select(Transaction.id).where(
+                Transaction.account_id == account_id,
+                Transaction.status == TransactionStatus.BOOKED,
+            )
+        )
+    )
 
     runs = (
         await session.execute(
@@ -44,6 +54,7 @@ async def renormalize_account(session: AsyncSession, account_id: uuid.UUID) -> R
             .order_by(SyncRun.started_at, SyncRun.id)
         )
     ).all()
+    produced: set[uuid.UUID] = set()
     for run in runs:
         payloads = (
             await session.scalars(
@@ -52,7 +63,7 @@ async def renormalize_account(session: AsyncSession, account_id: uuid.UUID) -> R
                 .order_by(ProviderPayload.fetched_at, ProviderPayload.id)
             )
         ).all()
-        await apply_payloads(
+        stored = await apply_payloads(
             session,
             provider=run.provider,
             household_id=run.household_id,
@@ -60,8 +71,12 @@ async def renormalize_account(session: AsyncSession, account_id: uuid.UUID) -> R
             sync_run_id=run.id,
             payloads=payloads,
         )
+        produced |= stored.booked_ids
 
+    orphans = before - produced
+    if orphans:
+        await session.execute(delete(Transaction).where(Transaction.id.in_(orphans)))
     count = await session.scalar(
         select(func.count()).select_from(Transaction).where(Transaction.account_id == account_id)
     )
-    return RenormalizeResult(syncs=len(runs), transactions=count or 0)
+    return RenormalizeResult(syncs=len(runs), transactions=count or 0, removed=len(orphans))

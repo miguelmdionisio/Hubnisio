@@ -49,6 +49,8 @@ _BY_FINGERPRINT = text("status = 'booked' AND entry_reference IS NULL")
 class StoreResult:
     seen: int
     added: int  # booked transactions stored for the first time
+    # Every booked transaction written (new or updated): what a sync touched.
+    booked_ids: frozenset[uuid.UUID] = frozenset()
 
 
 async def store_transactions(
@@ -66,13 +68,13 @@ async def store_transactions(
     def rows(items: list[Identified]) -> list[dict[str, Any]]:
         return [_row(item, household_id, account_id) for item in items]
 
-    added = await _upsert(
+    written = await _upsert(
         session,
         rows([item for item in booked if item.entry_reference is not None]),
         index_elements=("account_id", "entry_reference"),
         index_where=_BY_REFERENCE,
     )
-    added += await _upsert(
+    written += await _upsert(
         session,
         rows([item for item in booked if item.entry_reference is None]),
         index_elements=("account_id", "fingerprint", "occurrence_index"),
@@ -86,7 +88,11 @@ async def store_transactions(
     )
     if pending:
         await session.execute(insert(Transaction), rows(pending))
-    return StoreResult(seen=len(seen), added=added)
+    return StoreResult(
+        seen=len(seen),
+        added=sum(1 for _, inserted in written if inserted),
+        booked_ids=frozenset(id_ for id_, _ in written),
+    )
 
 
 async def store_balances(
@@ -143,16 +149,17 @@ async def _upsert(
     *,
     index_elements: tuple[str, ...],
     index_where: TextClause,
-) -> int:
-    """Insert new rows, update the bank facts of existing ones; return how many were new."""
-    added = 0
+) -> list[tuple[uuid.UUID, bool]]:
+    """Insert new rows and update the bank facts of existing ones. Returns each row's ID and
+    whether it was new."""
+    written: list[tuple[uuid.UUID, bool]] = []
     for start in range(0, len(rows), _CHUNK):
         statement = pg_insert(Transaction).values(rows[start : start + _CHUNK])
         statement = statement.on_conflict_do_update(
             index_elements=index_elements,
             index_where=index_where,
             set_={column: statement.excluded[column] for column in _UPDATED_ON_CONFLICT},
-        ).returning(literal_column("xmax = 0"))  # true for rows that were inserted
+        ).returning(Transaction.id, literal_column("xmax = 0"))  # true for inserted rows
         result = await session.execute(statement)
-        added += sum(1 for (inserted,) in result if inserted)
-    return added
+        written.extend((id_, inserted) for id_, inserted in result)
+    return written

@@ -1,8 +1,9 @@
-"""Finance tables (ADR-0007): provider connections, accounts, raw payloads and bank facts.
+"""Finance tables (ADR-0007): provider connections, accounts, raw payloads, bank facts, and
+the user layer.
 
 Only the sync writes `transactions` and `balance_snapshots`. Everything people, rules or the
-AI decide about a transaction lives in separate tables (the user layer, added later), so a
-sync never overwrites it.
+AI decide about a transaction (category, counterparty, notes, tags, transfer links) lives in
+the user-layer tables at the end of this module, so a sync never overwrites it.
 """
 
 import enum
@@ -27,7 +28,7 @@ from sqlalchemy import (
     func,
     text,
 )
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 # Finance foreign keys point at core tables (households, users). SQLAlchemy resolves them only
@@ -75,6 +76,36 @@ class SyncStatus(enum.StrEnum):
     RUNNING = "running"
     SUCCEEDED = "succeeded"
     FAILED = "failed"
+
+
+class CategoryKind(enum.StrEnum):
+    EXPENSE = "expense"
+    INCOME = "income"
+
+
+class TransactionKind(enum.StrEnum):
+    """What a transaction is. Derived from its sign unless it's a transfer or overridden."""
+
+    EXPENSE = "expense"
+    INCOME = "income"
+    TRANSFER = "transfer"  # between the household's own accounts: not income or spending
+
+
+class Source(enum.StrEnum):
+    """Who decided something in the user layer. Precedence (ADR-0007): manual > rule >
+    counterparty (a merchant's default category) > ai."""
+
+    MANUAL = "manual"
+    RULE = "rule"
+    COUNTERPARTY = "counterparty"
+    AI = "ai"
+    BANK = "bank"  # taken from the bank's data, e.g. its merchant name
+    AUTO = "auto"  # found by the hub's own matching, e.g. a transfer pair
+
+
+class RuleMatch(enum.StrEnum):
+    ALL = "all"
+    ANY = "any"
 
 
 class Connection(Base):
@@ -320,3 +351,177 @@ class BalanceSnapshot(Base):
     reference_date: Mapped[date | None] = mapped_column(Date)
     last_change_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+# User layer: written by people, rules, matching and (later) the AI; never by the sync.
+
+
+class Category(Base):
+    """Two levels: groups (no parent) and the categories within them."""
+
+    __tablename__ = "categories"
+    __table_args__ = (
+        Index("ix_categories_household_id_parent_id", "household_id", "parent_id"),
+        {"schema": SCHEMA},
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid7)
+    household_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("core.households.id", ondelete="CASCADE")
+    )
+    # Null: the household's. Room for personal categories later (ADR-0005).
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("core.users.id", ondelete="CASCADE")
+    )
+    parent_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("finance.categories.id", ondelete="CASCADE")
+    )
+    name: Mapped[str] = mapped_column(String(60))
+    kind: Mapped[CategoryKind] = mapped_column(_enum(CategoryKind, "category_kind"))
+    position: Mapped[int] = mapped_column(SmallInteger, server_default=text("0"))
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Counterparty(Base):
+    """A merchant, employer or person, under a clean name."""
+
+    __tablename__ = "counterparties"
+    __table_args__ = {"schema": SCHEMA}  # noqa: RUF012
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid7)
+    household_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("core.households.id", ondelete="CASCADE"), index=True
+    )
+    name: Mapped[str] = mapped_column(String(100))
+    default_category_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("finance.categories.id", ondelete="SET NULL")
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class CounterpartyAlias(Base):
+    """A name the bank uses (as a match key) and the counterparty it means."""
+
+    __tablename__ = "counterparty_aliases"
+    __table_args__ = {"schema": SCHEMA}  # noqa: RUF012
+
+    household_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("core.households.id", ondelete="CASCADE"), primary_key=True
+    )
+    alias_key: Mapped[str] = mapped_column(Text, primary_key=True)
+    counterparty_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("finance.counterparties.id", ondelete="CASCADE"), index=True
+    )
+
+
+class TransactionAnnotation(Base):
+    """Everything about one transaction that isn't a bank fact or its category."""
+
+    __tablename__ = "transaction_annotations"
+    __table_args__ = {"schema": SCHEMA}  # noqa: RUF012
+
+    transaction_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("finance.transactions.id", ondelete="CASCADE"), primary_key=True
+    )
+    household_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("core.households.id", ondelete="CASCADE")
+    )
+    counterparty_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("finance.counterparties.id", ondelete="SET NULL"), index=True
+    )
+    counterparty_source: Mapped[Source | None] = mapped_column(_enum(Source, "source"))
+    # Overrides the kind the sign implies, e.g. a deposit to a broker the hub doesn't sync yet.
+    kind_override: Mapped[TransactionKind | None] = mapped_column(
+        _enum(TransactionKind, "transaction_kind")
+    )
+    kind_source: Mapped[Source | None] = mapped_column(_enum(Source, "source"))
+    note: Mapped[str | None] = mapped_column(Text)
+    tags: Mapped[list[str]] = mapped_column(ARRAY(Text), server_default=text("'{}'"))
+    # Recomputed by every rules run; kept apart so a run never touches tags added by hand.
+    rule_tags: Mapped[list[str]] = mapped_column(ARRAY(Text), server_default=text("'{}'"))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Rule(Base):
+    """Ordered conditions and actions; the format is defined in categorize/rules.py."""
+
+    __tablename__ = "rules"
+    __table_args__ = {"schema": SCHEMA}  # noqa: RUF012
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid7)
+    household_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("core.households.id", ondelete="CASCADE"), index=True
+    )
+    name: Mapped[str] = mapped_column(String(100))
+    position: Mapped[int] = mapped_column(Integer)
+    enabled: Mapped[bool] = mapped_column(Boolean, server_default=text("true"))
+    match: Mapped[RuleMatch] = mapped_column(_enum(RuleMatch, "rule_match"))
+    conditions: Mapped[list[dict[str, Any]]] = mapped_column(JSONB)
+    actions: Mapped[list[dict[str, Any]]] = mapped_column(JSONB)
+    stop_processing: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class CategoryAssignment(Base):
+    """A transaction's category. One row per transaction for now; the table allows several,
+    so splits can come later without a schema change (ADR-0007)."""
+
+    __tablename__ = "category_assignments"
+    __table_args__ = {"schema": SCHEMA}  # noqa: RUF012
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid7)
+    household_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("core.households.id", ondelete="CASCADE")
+    )
+    transaction_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("finance.transactions.id", ondelete="CASCADE"), index=True
+    )
+    category_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("finance.categories.id", ondelete="CASCADE"), index=True
+    )
+    amount: Mapped[Decimal | None] = mapped_column(Money)  # null: the whole transaction
+    source: Mapped[Source] = mapped_column(_enum(Source, "source"))
+    rule_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("finance.rules.id", ondelete="SET NULL")
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Transfer(Base):
+    """Money moving between two of the household's accounts: not income, not spending."""
+
+    __tablename__ = "transfers"
+    __table_args__ = {"schema": SCHEMA}  # noqa: RUF012
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid7)
+    household_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("core.households.id", ondelete="CASCADE")
+    )
+    outgoing_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("finance.transactions.id", ondelete="CASCADE"), unique=True
+    )
+    incoming_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("finance.transactions.id", ondelete="CASCADE"), unique=True
+    )
+    source: Mapped[Source] = mapped_column(_enum(Source, "source"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class TransferDismissal(Base):
+    """A pair the user unlinked: transfer matching never links it again."""
+
+    __tablename__ = "transfer_dismissals"
+    __table_args__ = {"schema": SCHEMA}  # noqa: RUF012
+
+    outgoing_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("finance.transactions.id", ondelete="CASCADE"), primary_key=True
+    )
+    incoming_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("finance.transactions.id", ondelete="CASCADE"), primary_key=True
+    )
+    household_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("core.households.id", ondelete="CASCADE")
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

@@ -46,13 +46,20 @@ Findings that shape it ([research](../research/oss-finance-analysis.md)):
 
 ### Categorization
 
-- `categories`: a household-level tree (parent/child), with an optional per-user extension later ([ADR-0005](0005-household-data-model.md)).
+- `categories`: a household-level tree of two levels (groups and categories), each `expense` or `income`, with an optional per-user extension later ([ADR-0005](0005-household-data-model.md)). New households start with an editable default tree.
 - `category_assignments`: one row per transaction for now (category + amount + source). The table allows several rows per transaction, so splits (manual or from receipts) can be added later without changing the schema. **No split UI for now.**
-- **Precedence:** `manual` > `rule` > `ai`. A lower-precedence source never overwrites a higher one.
+- **Precedence:** `manual` > `rule` > `counterparty` (the merchant's default category) > `ai`. A lower-precedence source never overwrites a higher one, and a specific rule beats a merchant's general default. *(Amended in M2.)*
 - **Rules:**
   - Ordered rules; each has conditions (match all / any) on description, counterparty, amount range, account, MCC and direction, and actions (set category, tag, counterparty, mark as transfer).
   - They run when transactions arrive and can be re-run on demand. "Stop processing" is available per rule.
-- **Counterparties:** a cleaned-up name with aliases (e.g. "CONTINENTE MATOSINHOS 4450" → Continente) and an optional default category.
+- **Counterparties:** a cleaned-up name with aliases (e.g. "CONTINENTE MATOSINHOS 4450" → Continente) and an optional default category. A name the bank sends becomes a counterparty automatically; one set by hand is never replaced.
+- **Rule actions** are recomputed on every run, so editing or deleting a rule takes effect everywhere. Tags a rule adds are kept apart from tags added by hand, which a run never touches.
+
+### Transaction kind and transfers *(added in M2)*
+
+- A transaction's kind (expense, income or transfer) is derived, not stored: transfer if it's in a transfer pair or overridden, otherwise from its sign. An override (by hand or by a rule) covers moves the sign gets wrong, e.g. a deposit to a broker the hub doesn't sync yet.
+- **Transfer pairs** are linked automatically when exactly one match exists: same currency and amount, opposite directions on two of the household's accounts, at most 3 days apart. Ambiguous matches are left alone. Unlinking a pair records a dismissal, so matching never links it again.
+- Transfers are excluded from income, spending and categories.
 
 ### Recurring payments: detected, not scheduled
 
@@ -100,7 +107,7 @@ Findings that shape it ([research](../research/oss-finance-analysis.md)):
 
 ## Consequences
 
-- **Easier:** syncs are safe to re-run; bank corrections never destroy user work; history fixes come from re-normalizing raw data; joint accounts dedupe naturally.
+- **Easier:** syncs are safe to re-run; bank corrections never destroy user work; history fixes come from re-normalizing raw data, which keeps every transaction that keeps its identity (and so its user layer); joint accounts dedupe naturally.
 - **Harder:** pending→booked matching and fingerprinting need careful tests with real data from each bank; the user layer must follow a transaction through re-identification.
 - **Revisit:**
   - pending-match tolerance and fingerprint fields once a bank returns pending items or drops references (see below)

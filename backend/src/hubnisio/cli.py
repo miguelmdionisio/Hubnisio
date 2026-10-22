@@ -9,12 +9,14 @@ from sqlalchemy import select
 
 from hubnisio.core.db import get_engine, get_sessionmaker
 from hubnisio.core.models import Household, HouseholdMember, HouseholdRole, User
+from hubnisio.finance.defaults import seed_household
 from hubnisio.finance.ingest.renormalize import renormalize_account
 from hubnisio.finance.models import Account
 
 
 async def bootstrap(email: str, name: str, household_name: str) -> int:
-    """Create the first user, their household and their owner membership."""
+    """Create the first user, their household (with default categories and rules) and their
+    owner membership."""
     email = email.strip().lower()
     async with get_sessionmaker()() as session, session.begin():
         if await session.scalar(select(User.id).where(User.email == email)) is not None:
@@ -27,6 +29,7 @@ async def bootstrap(email: str, name: str, household_name: str) -> int:
         session.add(
             HouseholdMember(household_id=household.id, user_id=user.id, role=HouseholdRole.OWNER)
         )
+        await seed_household(session, household.id)
     print(f"Created {email}, owner of household {household_name!r}.")
     return 0
 
@@ -43,7 +46,8 @@ async def renormalize(account_id: uuid.UUID | None) -> int:
         async with sessionmaker() as session, session.begin():
             result = await renormalize_account(session, current)
         print(
-            f"Account {current}: replayed {result.syncs} syncs, {result.transactions} transactions."
+            f"Account {current}: replayed {result.syncs} syncs, {result.transactions} "
+            f"transactions, {result.removed} removed."
         )
     return 0
 

@@ -2,7 +2,8 @@
 
 import uuid
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
+from decimal import Decimal
 from typing import Any
 
 import pytest
@@ -23,6 +24,7 @@ from hubnisio.finance.models import (
     SyncRun,
     SyncStatus,
     Transaction,
+    TransactionAnnotation,
     TransactionStatus,
 )
 
@@ -303,10 +305,52 @@ async def test_renormalize_rebuilds_the_same_rows(world: World) -> None:
     )
     await sync(world, [tx("R1", "10.00", 1, text="CORRECTED"), tx("R2", "2.00", 6)])
     await sync(world, [tx("IGNORED", "999.00", 7)], status=SyncStatus.FAILED)
-    before = facts(await stored(world))
+    before = await stored(world)
+    noted = next(row for row in before if row.entry_reference == "R1")
+    async with get_sessionmaker()() as session, session.begin():
+        session.add(
+            TransactionAnnotation(
+                transaction_id=noted.id, household_id=world.household_id, note="Keep me"
+            )
+        )
 
     async with get_sessionmaker()() as session, session.begin():
         result = await renormalize_account(session, world.account_id)
 
-    assert (result.syncs, result.transactions) == (2, 4)
-    assert facts(await stored(world)) == before
+    after = await stored(world)
+    assert (result.syncs, result.transactions, result.removed) == (2, 4, 0)
+    assert facts(after) == facts(before)
+    assert [row.id for row in after] == [row.id for row in before]  # the user layer stays
+    async with get_sessionmaker()() as session:
+        annotation = await session.get(TransactionAnnotation, noted.id)
+    assert annotation is not None
+    assert annotation.note == "Keep me"
+
+
+async def test_renormalize_removes_rows_the_payloads_no_longer_produce(world: World) -> None:
+    await sync(world, [tx("R1", "10.00", 1)])
+    async with get_sessionmaker()() as session, session.begin():
+        payload_id = await session.scalar(
+            select(Transaction.payload_id).where(Transaction.account_id == world.account_id)
+        )
+        assert payload_id is not None
+        session.add(  # as if an older parser had produced a row the current one doesn't
+            Transaction(
+                household_id=world.household_id,
+                account_id=world.account_id,
+                status=TransactionStatus.BOOKED,
+                entry_reference="STALE",
+                fingerprint="0" * 64,
+                occurrence_index=0,
+                amount=Decimal("-1.00"),
+                currency="EUR",
+                occurred_on=date(2026, 10, 1),
+                payload_id=payload_id,
+            )
+        )
+
+    async with get_sessionmaker()() as session, session.begin():
+        result = await renormalize_account(session, world.account_id)
+
+    assert (result.transactions, result.removed) == (1, 1)
+    assert [row.entry_reference for row in await stored(world)] == ["R1"]
