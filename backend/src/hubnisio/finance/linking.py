@@ -113,13 +113,19 @@ async def complete_connection(
     state: str,
 ) -> tuple[Connection, bool]:
     """Finish linking. Returns the connection, and whether it was completed just now (False
-    when the callback was simply loaded again). The caller commits."""
+    when the callback was simply loaded again). The caller commits.
+
+    The row stays locked until the caller commits, so two simultaneous callbacks (a double
+    load) take turns: the second sees the connection already active, instead of redeeming the
+    single-use code a second time and failing."""
     connection = await session.scalar(
-        select(Connection).where(
+        select(Connection)
+        .where(
             Connection.auth_state_hash == hash_state(state),
             Connection.user_id == principal.user_id,
             Connection.household_id == principal.household_id,
         )
+        .with_for_update()
     )
     if connection is None:
         raise UnknownAuthorization
@@ -149,10 +155,12 @@ async def complete_connection(
         )
     )
 
+    linked: set[uuid.UUID] = set()
     for bank_account in bank_session.accounts:
         account = await _match_account(
             session, connection.household_id, bank_account, bank_session.aspsp.name
         )
+        linked.add(account.id)
         await session.execute(
             insert(AccountOwner)
             .values(account_id=account.id, user_id=principal.user_id)
@@ -167,7 +175,34 @@ async def complete_connection(
             )
             .on_conflict_do_nothing()
         )
+    await _retire_replaced(session, principal, connection.id, linked)
     return connection, True
+
+
+async def _retire_replaced(
+    session: AsyncSession,
+    principal: Principal,
+    connection_id: uuid.UUID,
+    linked: set[uuid.UUID],
+) -> None:
+    """A re-link replaces the user's expired connections whose accounts it now covers."""
+    expired = await session.scalars(
+        select(Connection).where(
+            Connection.user_id == principal.user_id,
+            Connection.household_id == principal.household_id,
+            Connection.status == ConnectionStatus.EXPIRED,
+            Connection.id != connection_id,
+        )
+    )
+    for old in expired:
+        covered = set(
+            await session.scalars(
+                select(ProviderAccount.account_id).where(ProviderAccount.connection_id == old.id)
+            )
+        )
+        if covered and covered <= linked:
+            old.status = ConnectionStatus.REVOKED
+            old.session_id_encrypted = None
 
 
 async def _match_account(

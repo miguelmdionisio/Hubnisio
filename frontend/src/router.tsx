@@ -1,26 +1,50 @@
-import { createRootRoute, createRoute, createRouter, Outlet } from '@tanstack/react-router';
+import {
+  createRootRoute,
+  createRoute,
+  createRouter,
+  type RouterHistory,
+} from '@tanstack/react-router';
+import { AppShell } from './components/app-shell';
+import { AccountsPage } from './routes/finance/accounts';
+import { CallbackPage, validateCallbackSearch } from './routes/finance/callback';
+import { ConnectionsPage } from './routes/finance/connections';
+import { TransactionsPage, validateTransactionSearch } from './routes/finance/transactions';
 import { HomePage } from './routes/home';
 
-const rootRoute = createRootRoute({
-  component: () => (
-    <div className="min-h-screen bg-neutral-50 text-neutral-900">
-      <header className="border-b border-neutral-200 bg-white px-6 py-4">
-        <h1 className="text-lg font-semibold">Hubnisio</h1>
-      </header>
-      <main className="p-6">
-        <Outlet />
-      </main>
-    </div>
-  ),
-});
+const rootRoute = createRootRoute({ component: AppShell });
 
-const homeRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: '/',
-  component: HomePage,
-});
+const routeTree = rootRoute.addChildren([
+  createRoute({ getParentRoute: () => rootRoute, path: '/', component: HomePage }),
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/finance/accounts',
+    component: AccountsPage,
+  }),
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/finance/transactions',
+    validateSearch: validateTransactionSearch,
+    component: TransactionsPage,
+  }),
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/finance/connections',
+    component: ConnectionsPage,
+  }),
+  // Where the bank sends the browser back after authorization (Enable Banking redirect URL).
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/finance/connections/callback',
+    validateSearch: validateCallbackSearch,
+    component: CallbackPage,
+  }),
+]);
 
-export const router = createRouter({ routeTree: rootRoute.addChildren([homeRoute]) });
+export function createAppRouter(history?: RouterHistory) {
+  return createRouter({ routeTree, history });
+}
+
+export const router = createAppRouter();
 
 declare module '@tanstack/react-router' {
   interface Register {

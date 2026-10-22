@@ -1,5 +1,6 @@
 """Linking, syncing and reading through the API, against a fake Enable Banking."""
 
+import asyncio
 import json
 import re
 import uuid
@@ -560,3 +561,37 @@ def test_psu_headers_only_for_public_addresses() -> None:
         "Psu-User-Agent": "Firefox",
         "Psu-Accept-language": "pt-PT",
     }
+
+
+async def test_two_simultaneous_callbacks_link_once(hub: Hub, people: People) -> None:
+    async with hub.api(people.owner) as client:
+        await client.post(
+            "/api/finance/connections", json={"institution_name": "Banco BPI", "country": "PT"}
+        )
+        body = {"code": "code-1", "state": hub.bank.state()}
+        first, second = await asyncio.gather(
+            client.post("/api/finance/connections/complete", json=body),
+            client.post("/api/finance/connections/complete", json=body),
+        )
+
+    assert (first.status_code, second.status_code) == (200, 200)
+    assert first.json()["status"] == second.json()["status"] == "active"
+    assert hub.bank.sessions_created == 1
+    assert len(hub.jobs.jobs) == 1
+
+
+async def test_linking_again_replaces_the_expired_connection(hub: Hub, people: People) -> None:
+    expired = await hub.link(people.owner)
+    hub.bank.errors["/accounts/uid-1/balances"] = failure(401, "EXPIRED_SESSION")
+    await hub.sync(expired)
+
+    hub.bank.session_accounts = [
+        bank_account("uid-3", "hash-1", IBAN_1),
+        bank_account("uid-4", "hash-2", IBAN_2),
+    ]
+    relinked = await hub.link(people.owner)
+
+    async with hub.api(people.owner) as client:
+        listed = (await client.get("/api/finance/connections")).json()
+    assert [connection["id"] for connection in listed] == [relinked["id"]]
+    assert relinked["account_ids"] == expired["account_ids"]
