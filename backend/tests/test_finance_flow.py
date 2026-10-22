@@ -595,3 +595,19 @@ async def test_linking_again_replaces_the_expired_connection(hub: Hub, people: P
         listed = (await client.get("/api/finance/connections")).json()
     assert [connection["id"] for connection in listed] == [relinked["id"]]
     assert relinked["account_ids"] == expired["account_ids"]
+
+
+async def test_accounts_without_a_product_name_are_told_apart_by_iban(
+    hub: Hub, people: People
+) -> None:
+    hub.bank.session_accounts = [
+        {**bank_account("uid-1", "hash-1", IBAN_1), "product": None},
+        {**bank_account("uid-2", "hash-2", IBAN_2), "product": None},
+    ]
+    await hub.link(people.owner)
+
+    async with hub.api(people.owner) as client:
+        names = sorted(
+            account["name"] for account in (await client.get("/api/finance/accounts")).json()
+        )
+    assert names == ["Banco BPI ••0154", "Banco BPI ••0155"]

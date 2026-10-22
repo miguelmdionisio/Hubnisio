@@ -454,7 +454,7 @@ def _account_out(
 ) -> schemas.AccountOut:
     return schemas.AccountOut(
         id=account.id,
-        name=account.display_name or account.product or account.institution_name,
+        name=account.display_name or account.product or _default_name(account),
         institution_name=account.institution_name,
         iban_masked=f"{account.iban[:4]} •••• {account.iban[-4:]}" if account.iban else None,
         currency=account.currency,
@@ -503,3 +503,10 @@ def _decode_cursor(cursor: str) -> tuple[date, uuid.UUID]:
         return date.fromisoformat(day), uuid.UUID(id_)
     except (binascii.Error, UnicodeDecodeError, ValueError) as exc:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid cursor.") from exc
+
+
+def _default_name(account: Account) -> str:
+    """Some banks (BPI) send no product name: tell accounts apart by their IBAN's end."""
+    if account.iban:
+        return f"{account.institution_name} ••{account.iban[-4:]}"
+    return account.institution_name

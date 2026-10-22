@@ -30,6 +30,9 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
+# Finance foreign keys point at core tables (households, users). SQLAlchemy resolves them only
+# if core's models are loaded too, which a process using only finance code (the worker) wouldn't.
+from hubnisio.core import models as core_models  # noqa: F401
 from hubnisio.core.db import Base
 
 SCHEMA = "finance"

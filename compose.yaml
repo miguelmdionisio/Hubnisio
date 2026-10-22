@@ -4,6 +4,9 @@ name: hubnisio
 x-backend: &backend
   build: ./backend
   image: hubnisio-backend
+  # Build (from cache, so it's quick) on every `up` and `run`: a stale image would run old
+  # migrations, e.g. `docker compose run` before the first `up --build`.
+  pull_policy: build
   environment:
     HUBNISIO_DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-hubnisio}
     HUBNISIO_DEV_USER_EMAIL: ${HUBNISIO_DEV_USER_EMAIL:?set HUBNISIO_DEV_USER_EMAIL in .env}
