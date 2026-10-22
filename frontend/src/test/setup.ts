@@ -26,3 +26,6 @@ globalThis.ResizeObserver ??= class {
   disconnect() {}
 };
 Element.prototype.scrollIntoView ??= () => {};
+
+// jsdom doesn't implement scrolling; navigating logs "not implemented" noise without this.
+window.scrollTo = () => {};

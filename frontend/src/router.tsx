@@ -8,7 +8,10 @@ import { AppShell } from './components/app-shell';
 import { errorMessage } from './lib/errors';
 import { AccountsPage } from './routes/finance/accounts';
 import { CallbackPage, validateCallbackSearch } from './routes/finance/callback';
+import { CategoriesPage } from './routes/finance/categories';
 import { ConnectionsPage } from './routes/finance/connections';
+import { MerchantsPage } from './routes/finance/merchants';
+import { RulesPage } from './routes/finance/rules';
 import { TransactionsPage, validateTransactionSearch } from './routes/finance/transactions';
 import { HomePage } from './routes/home';
 
@@ -34,6 +37,17 @@ const routeTree = rootRoute.addChildren([
     path: '/finance/transactions',
     validateSearch: validateTransactionSearch,
     component: TransactionsPage,
+  }),
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/finance/categories',
+    component: CategoriesPage,
+  }),
+  createRoute({ getParentRoute: () => rootRoute, path: '/finance/rules', component: RulesPage }),
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/finance/merchants',
+    component: MerchantsPage,
   }),
   createRoute({
     getParentRoute: () => rootRoute,

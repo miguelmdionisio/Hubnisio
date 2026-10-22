@@ -1,6 +1,6 @@
 import { QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, RouterProvider } from '@tanstack/react-router';
-import { render } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { StrictMode } from 'react';
 import { vi } from 'vitest';
 import { client } from '@/api/client.gen';
@@ -48,4 +48,10 @@ export function mockApi(handlers: Record<string, Handler>): ApiCall[] {
     }),
   );
   return calls;
+}
+
+/** Pick an option in a Radix select by keyboard: jsdom can't fake the pointer events it opens on. */
+export async function chooseOption(trigger: HTMLElement, option: string | RegExp) {
+  fireEvent.keyDown(trigger, { key: 'Enter' });
+  fireEvent.keyDown(await screen.findByRole('option', { name: option }), { key: 'Enter' });
 }

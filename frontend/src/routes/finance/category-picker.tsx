@@ -28,9 +28,19 @@ export function activeGroups(groups: CategoryGroupOut[] | undefined): CategoryGr
     .map((group) => ({ ...group, children: group.children.filter((child) => !child.archived) }));
 }
 
+/** Every category and group by ID, archived ones too: the name to show for a saved choice. */
+export function categoryNames(groups: CategoryGroupOut[] | undefined): Map<string, string> {
+  return new Map(
+    (groups ?? []).flatMap((group) => [
+      [group.id, group.name] as const,
+      ...group.children.map((child) => [child.id, child.name] as const),
+    ]),
+  );
+}
+
 /**
  * Pick a category, searchable. `onChange(null)` hands the choice back to rules and the
- * merchant's default ("Automatic").
+ * merchant's default ("Automatic"); `noneLabel` renames that entry, or hides it with `null`.
  */
 export function CategoryPicker({
   value,
@@ -38,12 +48,14 @@ export function CategoryPicker({
   children,
   disabled,
   className,
+  noneLabel = 'Automatic (rules and merchant)',
 }: {
   value: string | null;
   onChange: (categoryId: string | null) => void;
   children: ReactNode; // the trigger's label
   disabled?: boolean;
   className?: string;
+  noneLabel?: string | null;
 }) {
   const [open, setOpen] = useState(false);
   const categories = useCategories();
@@ -71,12 +83,16 @@ export function CategoryPicker({
           <CommandInput placeholder="Search categories" />
           <CommandList>
             <CommandEmpty>No category matches.</CommandEmpty>
-            <CommandGroup>
-              <CommandItem value="automatic" onSelect={() => choose(null)}>
-                <span className="text-muted-foreground">Automatic (rules and merchant)</span>
-              </CommandItem>
-            </CommandGroup>
-            <CommandSeparator />
+            {noneLabel !== null && (
+              <>
+                <CommandGroup>
+                  <CommandItem value="automatic" onSelect={() => choose(null)}>
+                    <span className="text-muted-foreground">{noneLabel}</span>
+                  </CommandItem>
+                </CommandGroup>
+                <CommandSeparator />
+              </>
+            )}
             {groups.map((group) => (
               <CommandGroup key={group.id} heading={group.name}>
                 {[group, ...group.children].map((category) => (

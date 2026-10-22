@@ -1,4 +1,10 @@
-import type { AccountOut, CategoryGroupOut, TransactionOut } from '@/api/types.gen';
+import type {
+  AccountOut,
+  CategoryGroupOut,
+  CounterpartyOut,
+  RuleOut,
+  TransactionOut,
+} from '@/api/types.gen';
 
 export const account: AccountOut = {
   id: 'a1',
@@ -70,3 +76,32 @@ export const categories: CategoryGroupOut[] = [
     ],
   },
 ];
+
+export function merchant(
+  id: string,
+  name: string,
+  overrides: Partial<CounterpartyOut> = {},
+): CounterpartyOut {
+  return {
+    id,
+    name,
+    default_category_id: null,
+    transactions: 0,
+    aliases: [name.toLowerCase()],
+    ...overrides,
+  };
+}
+
+export function rule(id: string, name: string, overrides: Partial<RuleOut> = {}): RuleOut {
+  return {
+    id,
+    name,
+    position: 0,
+    enabled: true,
+    match: 'all',
+    conditions: [{ field: 'description', op: 'contains', value: 'continente' }],
+    actions: [{ type: 'set_category', category_id: 'c-groceries' }],
+    stop_processing: false,
+    ...overrides,
+  };
+}

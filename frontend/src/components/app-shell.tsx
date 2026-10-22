@@ -1,9 +1,25 @@
 import { Link, Outlet } from '@tanstack/react-router';
-import { ArrowLeftRight, House, Landmark, type LucideIcon, Wallet } from 'lucide-react';
+import {
+  ArrowLeftRight,
+  House,
+  Landmark,
+  ListChecks,
+  type LucideIcon,
+  Store,
+  Tags,
+  Wallet,
+} from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Toaster } from '@/components/ui/sonner';
 
-type Path = '/' | '/finance/accounts' | '/finance/transactions' | '/finance/connections';
+type Path =
+  | '/'
+  | '/finance/accounts'
+  | '/finance/transactions'
+  | '/finance/categories'
+  | '/finance/rules'
+  | '/finance/merchants'
+  | '/finance/connections';
 
 function NavLink({
   to,
@@ -57,6 +73,15 @@ export function AppShell() {
             </NavLink>
             <NavLink to="/finance/transactions" icon={ArrowLeftRight}>
               Transactions
+            </NavLink>
+            <NavLink to="/finance/categories" icon={Tags}>
+              Categories
+            </NavLink>
+            <NavLink to="/finance/rules" icon={ListChecks}>
+              Rules
+            </NavLink>
+            <NavLink to="/finance/merchants" icon={Store}>
+              Merchants
             </NavLink>
             <NavLink to="/finance/connections" icon={Landmark}>
               Bank connections
