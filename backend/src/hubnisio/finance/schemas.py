@@ -11,6 +11,7 @@ from hubnisio.finance.models import (
     AccountVisibility,
     CategoryKind,
     ConnectionStatus,
+    Overspend,
     RuleMatch,
     Source,
     TransactionKind,
@@ -298,3 +299,52 @@ class NetWorthOut(BaseModel):
     points: list[NetWorthPoint]  # daily, oldest first
     accounts: list[NetWorthAccount]  # the accounts included in net worth
     unconverted: int  # account-days left out: no exchange rate
+
+
+# Budgets: amounts in euros.
+
+
+class BudgetIn(BaseModel):
+    amount: Decimal = Field(ge=0, max_digits=15, decimal_places=2)
+    from_month: date  # any day of the first month the amount applies to
+    rollover: bool = False
+    overspend: Overspend = Overspend.FORGIVE
+
+
+class BudgetLimitOut(BaseModel):
+    starts_on: date
+    amount: Decimal
+
+
+class BudgetSettings(BaseModel):
+    category_id: uuid.UUID
+    rollover: bool
+    overspend: Overspend
+    limits: list[BudgetLimitOut]  # oldest first; each holds until the next
+
+
+class BudgetOut(BaseModel):
+    category_id: uuid.UUID
+    name: str
+    group_id: uuid.UUID | None  # None: the budget is on a group
+    rollover: bool
+    overspend: Overspend
+    starts_on: date  # the budget's first month
+    limit: Decimal
+    carried_in: Decimal  # from last month: positive left over, negative overspend
+    available: Decimal
+    spent: Decimal
+    remaining: Decimal  # negative when over
+    children: list[BudgetOut]  # a group's budgeted categories: sub-limits within it
+
+
+class BudgetsOut(BaseModel):
+    month: date
+    budgets: list[BudgetOut]  # in category order; categories under a budgeted group nest in it
+    # Totals over the top-level budgets only, so nothing is counted twice.
+    total_limit: Decimal
+    total_available: Decimal
+    total_spent: Decimal
+    unbudgeted: Decimal  # categorized spending that no budget covers
+    uncategorized: Decimal
+    unconverted: int

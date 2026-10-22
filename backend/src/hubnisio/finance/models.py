@@ -109,6 +109,13 @@ class RuleMatch(enum.StrEnum):
     ANY = "any"
 
 
+class Overspend(enum.StrEnum):
+    """What overspending a budget does to the next month (ADR-0007, "Budgets")."""
+
+    FORGIVE = "forgive"  # the next month starts fresh
+    CARRY = "carry"  # the overspend is taken from the next month
+
+
 class FxSource(enum.StrEnum):
     ECB = "ecb"  # ECB euro foreign exchange reference rates
     CURRENCY_API = "currency_api"  # fawazahmed0's currency-api, for currencies the ECB lacks
@@ -548,3 +555,43 @@ class TransferDismissal(Base):
         ForeignKey("core.households.id", ondelete="CASCADE")
     )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Budget(Base):
+    """A monthly limit on an expense category or group (ADR-0007, "Budgets"). Its amounts are
+    in `budget_limits`; what's spent is computed on read (finance/budgets.py)."""
+
+    __tablename__ = "budgets"
+    __table_args__ = {"schema": SCHEMA}  # noqa: RUF012
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid7)
+    household_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("core.households.id", ondelete="CASCADE"), index=True
+    )
+    category_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("finance.categories.id", ondelete="CASCADE"), unique=True
+    )
+    # Whether money left over carries into the next month.
+    rollover: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
+    overspend: Mapped[Overspend] = mapped_column(
+        _enum(Overspend, "overspend"), server_default=Overspend.FORGIVE
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class BudgetLimit(Base):
+    """A budget's amount in euros from a month on, until its next row: changing a budget
+    "from this month" keeps past months as they were."""
+
+    __tablename__ = "budget_limits"
+    __table_args__ = (
+        CheckConstraint("amount >= 0", name="amount_not_negative"),
+        CheckConstraint("extract(day from starts_on) = 1", name="starts_on_first_of_month"),
+        {"schema": SCHEMA},
+    )
+
+    budget_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("finance.budgets.id", ondelete="CASCADE"), primary_key=True
+    )
+    starts_on: Mapped[date] = mapped_column(Date, primary_key=True)
+    amount: Mapped[Decimal] = mapped_column(Money)

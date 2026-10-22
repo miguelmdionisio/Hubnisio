@@ -1446,6 +1446,146 @@
           }
         }
       }
+    },
+    "/api/finance/budgets": {
+      "get": {
+        "tags": [
+          "finance"
+        ],
+        "summary": "List Budgets",
+        "description": "Each budget for `month`'s month (default: this one): its limit, what last month carried\nin, what's available, spent and remaining.",
+        "operationId": "listBudgets",
+        "parameters": [
+          {
+            "name": "month",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Month"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BudgetsOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/finance/budgets/{category_id}": {
+      "put": {
+        "tags": [
+          "finance"
+        ],
+        "summary": "Set Budget",
+        "description": "Budget the category from `from_month` on: earlier months keep their amounts, later\nchanges are replaced. Rollover and overspend apply to every month.",
+        "operationId": "setBudget",
+        "parameters": [
+          {
+            "name": "category_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Category Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BudgetIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BudgetSettings"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "finance"
+        ],
+        "summary": "Delete Budget",
+        "description": "Remove the budget, its past months included.",
+        "operationId": "deleteBudget",
+        "parameters": [
+          {
+            "name": "category_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Category Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1690,6 +1830,224 @@
           "beta"
         ],
         "title": "Bank"
+      },
+      "BudgetIn": {
+        "properties": {
+          "amount": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Amount"
+          },
+          "from_month": {
+            "type": "string",
+            "format": "date",
+            "title": "From Month"
+          },
+          "rollover": {
+            "type": "boolean",
+            "title": "Rollover",
+            "default": false
+          },
+          "overspend": {
+            "$ref": "#/components/schemas/Overspend",
+            "default": "forgive"
+          }
+        },
+        "type": "object",
+        "required": [
+          "amount",
+          "from_month"
+        ],
+        "title": "BudgetIn"
+      },
+      "BudgetLimitOut": {
+        "properties": {
+          "starts_on": {
+            "type": "string",
+            "format": "date",
+            "title": "Starts On"
+          },
+          "amount": {
+            "type": "string",
+            "title": "Amount"
+          }
+        },
+        "type": "object",
+        "required": [
+          "starts_on",
+          "amount"
+        ],
+        "title": "BudgetLimitOut"
+      },
+      "BudgetOut": {
+        "properties": {
+          "category_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Category Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "group_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group Id"
+          },
+          "rollover": {
+            "type": "boolean",
+            "title": "Rollover"
+          },
+          "overspend": {
+            "$ref": "#/components/schemas/Overspend"
+          },
+          "starts_on": {
+            "type": "string",
+            "format": "date",
+            "title": "Starts On"
+          },
+          "limit": {
+            "type": "string",
+            "title": "Limit"
+          },
+          "carried_in": {
+            "type": "string",
+            "title": "Carried In"
+          },
+          "available": {
+            "type": "string",
+            "title": "Available"
+          },
+          "spent": {
+            "type": "string",
+            "title": "Spent"
+          },
+          "remaining": {
+            "type": "string",
+            "title": "Remaining"
+          },
+          "children": {
+            "items": {
+              "$ref": "#/components/schemas/BudgetOut"
+            },
+            "type": "array",
+            "title": "Children"
+          }
+        },
+        "type": "object",
+        "required": [
+          "category_id",
+          "name",
+          "group_id",
+          "rollover",
+          "overspend",
+          "starts_on",
+          "limit",
+          "carried_in",
+          "available",
+          "spent",
+          "remaining",
+          "children"
+        ],
+        "title": "BudgetOut"
+      },
+      "BudgetSettings": {
+        "properties": {
+          "category_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Category Id"
+          },
+          "rollover": {
+            "type": "boolean",
+            "title": "Rollover"
+          },
+          "overspend": {
+            "$ref": "#/components/schemas/Overspend"
+          },
+          "limits": {
+            "items": {
+              "$ref": "#/components/schemas/BudgetLimitOut"
+            },
+            "type": "array",
+            "title": "Limits"
+          }
+        },
+        "type": "object",
+        "required": [
+          "category_id",
+          "rollover",
+          "overspend",
+          "limits"
+        ],
+        "title": "BudgetSettings"
+      },
+      "BudgetsOut": {
+        "properties": {
+          "month": {
+            "type": "string",
+            "format": "date",
+            "title": "Month"
+          },
+          "budgets": {
+            "items": {
+              "$ref": "#/components/schemas/BudgetOut"
+            },
+            "type": "array",
+            "title": "Budgets"
+          },
+          "total_limit": {
+            "type": "string",
+            "title": "Total Limit"
+          },
+          "total_available": {
+            "type": "string",
+            "title": "Total Available"
+          },
+          "total_spent": {
+            "type": "string",
+            "title": "Total Spent"
+          },
+          "unbudgeted": {
+            "type": "string",
+            "title": "Unbudgeted"
+          },
+          "uncategorized": {
+            "type": "string",
+            "title": "Uncategorized"
+          },
+          "unconverted": {
+            "type": "integer",
+            "title": "Unconverted"
+          }
+        },
+        "type": "object",
+        "required": [
+          "month",
+          "budgets",
+          "total_limit",
+          "total_available",
+          "total_spent",
+          "unbudgeted",
+          "uncategorized",
+          "unconverted"
+        ],
+        "title": "BudgetsOut"
       },
       "CashFlow": {
         "properties": {
@@ -2394,6 +2752,15 @@
           "amount"
         ],
         "title": "NetWorthPoint"
+      },
+      "Overspend": {
+        "type": "string",
+        "enum": [
+          "forgive",
+          "carry"
+        ],
+        "title": "Overspend",
+        "description": "What overspending a budget does to the next month (ADR-0007, \"Budgets\")."
       },
       "RuleIn": {
         "properties": {

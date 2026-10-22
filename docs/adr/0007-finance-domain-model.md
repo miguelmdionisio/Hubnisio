@@ -76,6 +76,13 @@ Findings that shape it ([research](../research/oss-finance-analysis.md)):
   - `overspend`: `forgive` (the next period starts fresh) or `carry` (the overspend is subtracted from the next period).
 - Defaults: everyday categories reset; when rollover is on, overspending carries.
 - Spending counts booked, non-transfer transactions assigned to the category, with child categories rolling up to their parent.
+- **Decided in M3:**
+  - **Month:** a budget month is the calendar month, from the 1st.
+  - **Currency:** budgets are in EUR. Spending is the net spending of "Spending and cash flow" below, so refunds lower it.
+  - **Limits are effective-dated** (`budget_limits`: an amount from a month on, until the next). Changing a budget "from this month" keeps past months, and their rollover, as they were.
+  - **Group and category budgets:** a budget can be on a group or on a category. A group's spending includes its categories. When both are budgeted, the group is the cap and its categories are sub-limits, and totals count only the top budgeted level. Income categories can't be budgeted.
+  - **Computed on read:** from the budget's first month to the month asked for, with no job. This differs from Firefly, which materializes each period's limit with a cron job.
+  - **Privacy:** budgets belong to the household, but the spending shown against one counts only the accounts the viewer may see.
 
 ### Balances and net worth
 
@@ -201,4 +208,4 @@ What it showed:
 3. [x] Dedup test suite (synthetic payloads modelled on real ones). Pending→booked matching moves to M2, with the user layer.
 4. [ ] Rules engine plus the category precedence logic.
 5. [ ] Recurring detection job.
-6. [ ] Budget calculation with per-category rollover and overspend settings.
+6. [x] Budget calculation with per-category rollover and overspend settings.

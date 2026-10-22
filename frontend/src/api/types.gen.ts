@@ -147,6 +147,147 @@ export type Bank = {
 };
 
 /**
+ * BudgetIn
+ */
+export type BudgetIn = {
+    /**
+     * Amount
+     */
+    amount: number | string;
+    /**
+     * From Month
+     */
+    from_month: string;
+    /**
+     * Rollover
+     */
+    rollover?: boolean;
+    overspend?: Overspend;
+};
+
+/**
+ * BudgetLimitOut
+ */
+export type BudgetLimitOut = {
+    /**
+     * Starts On
+     */
+    starts_on: string;
+    /**
+     * Amount
+     */
+    amount: string;
+};
+
+/**
+ * BudgetOut
+ */
+export type BudgetOut = {
+    /**
+     * Category Id
+     */
+    category_id: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Group Id
+     */
+    group_id: string | null;
+    /**
+     * Rollover
+     */
+    rollover: boolean;
+    overspend: Overspend;
+    /**
+     * Starts On
+     */
+    starts_on: string;
+    /**
+     * Limit
+     */
+    limit: string;
+    /**
+     * Carried In
+     */
+    carried_in: string;
+    /**
+     * Available
+     */
+    available: string;
+    /**
+     * Spent
+     */
+    spent: string;
+    /**
+     * Remaining
+     */
+    remaining: string;
+    /**
+     * Children
+     */
+    children: Array<BudgetOut>;
+};
+
+/**
+ * BudgetSettings
+ */
+export type BudgetSettings = {
+    /**
+     * Category Id
+     */
+    category_id: string;
+    /**
+     * Rollover
+     */
+    rollover: boolean;
+    overspend: Overspend;
+    /**
+     * Limits
+     */
+    limits: Array<BudgetLimitOut>;
+};
+
+/**
+ * BudgetsOut
+ */
+export type BudgetsOut = {
+    /**
+     * Month
+     */
+    month: string;
+    /**
+     * Budgets
+     */
+    budgets: Array<BudgetOut>;
+    /**
+     * Total Limit
+     */
+    total_limit: string;
+    /**
+     * Total Available
+     */
+    total_available: string;
+    /**
+     * Total Spent
+     */
+    total_spent: string;
+    /**
+     * Unbudgeted
+     */
+    unbudgeted: string;
+    /**
+     * Uncategorized
+     */
+    uncategorized: string;
+    /**
+     * Unconverted
+     */
+    unconverted: number;
+};
+
+/**
  * CashFlow
  */
 export type CashFlow = {
@@ -519,6 +660,13 @@ export type NetWorthPoint = {
      */
     amount: string;
 };
+
+/**
+ * Overspend
+ *
+ * What overspending a budget does to the next month (ADR-0007, "Budgets").
+ */
+export type Overspend = 'forgive' | 'carry';
 
 /**
  * RuleIn
@@ -1877,3 +2025,93 @@ export type GetNetWorthResponses = {
 };
 
 export type GetNetWorthResponse = GetNetWorthResponses[keyof GetNetWorthResponses];
+
+export type ListBudgetsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Month
+         */
+        month?: string | null;
+    };
+    url: '/api/finance/budgets';
+};
+
+export type ListBudgetsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListBudgetsError = ListBudgetsErrors[keyof ListBudgetsErrors];
+
+export type ListBudgetsResponses = {
+    /**
+     * Successful Response
+     */
+    200: BudgetsOut;
+};
+
+export type ListBudgetsResponse = ListBudgetsResponses[keyof ListBudgetsResponses];
+
+export type DeleteBudgetData = {
+    body?: never;
+    path: {
+        /**
+         * Category Id
+         */
+        category_id: string;
+    };
+    query?: never;
+    url: '/api/finance/budgets/{category_id}';
+};
+
+export type DeleteBudgetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeleteBudgetError = DeleteBudgetErrors[keyof DeleteBudgetErrors];
+
+export type DeleteBudgetResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type DeleteBudgetResponse = DeleteBudgetResponses[keyof DeleteBudgetResponses];
+
+export type SetBudgetData = {
+    body: BudgetIn;
+    path: {
+        /**
+         * Category Id
+         */
+        category_id: string;
+    };
+    query?: never;
+    url: '/api/finance/budgets/{category_id}';
+};
+
+export type SetBudgetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SetBudgetError = SetBudgetErrors[keyof SetBudgetErrors];
+
+export type SetBudgetResponses = {
+    /**
+     * Successful Response
+     */
+    200: BudgetSettings;
+};
+
+export type SetBudgetResponse = SetBudgetResponses[keyof SetBudgetResponses];
