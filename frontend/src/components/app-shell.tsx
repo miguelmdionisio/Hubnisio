@@ -1,6 +1,7 @@
 import { Link, Outlet } from '@tanstack/react-router';
 import { ArrowLeftRight, House, Landmark, type LucideIcon, Wallet } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { Toaster } from '@/components/ui/sonner';
 
 type Path = '/' | '/finance/accounts' | '/finance/transactions' | '/finance/connections';
 
@@ -66,6 +67,7 @@ export function AppShell() {
       <main className="min-w-0 flex-1 px-8 py-6">
         <Outlet />
       </main>
+      <Toaster />
     </div>
   );
 }

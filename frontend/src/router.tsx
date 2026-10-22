@@ -11,7 +11,15 @@ import { ConnectionsPage } from './routes/finance/connections';
 import { TransactionsPage, validateTransactionSearch } from './routes/finance/transactions';
 import { HomePage } from './routes/home';
 
-const rootRoute = createRootRoute({ component: AppShell });
+const rootRoute = createRootRoute({
+  component: AppShell,
+  errorComponent: ({ error }) => (
+    <div className="p-8">
+      <h1 className="text-2xl font-semibold">Something broke</h1>
+      <p className="mt-2 text-sm text-muted-foreground">{error.message}</p>
+    </div>
+  ),
+});
 
 const routeTree = rootRoute.addChildren([
   createRoute({ getParentRoute: () => rootRoute, path: '/', component: HomePage }),

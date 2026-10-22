@@ -1,54 +1,12 @@
 import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, expect, test, vi } from 'vitest';
-import type { AccountOut, TransactionOut } from '@/api/types.gen';
+import { account, transaction } from '@/test/fixtures';
 import { mockApi, renderAt } from '@/test/render';
 
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
 });
-
-const account: AccountOut = {
-  id: 'a1',
-  name: 'Conta à Ordem',
-  institution_name: 'Banco BPI',
-  iban_masked: 'PT50 •••• 0154',
-  currency: 'EUR',
-  cash_account_type: 'CACC',
-  visibility: 'shared',
-  include_in_net_worth: true,
-  is_owner: true,
-  balance: null,
-};
-
-function transaction(id: string, overrides: Partial<TransactionOut>): TransactionOut {
-  return {
-    id,
-    account_id: 'a1',
-    status: 'booked',
-    occurred_on: '2026-10-14',
-    booking_date: '2026-10-14',
-    value_date: null,
-    amount: '-42.1700',
-    currency: 'EUR',
-    original_amount: null,
-    original_currency: null,
-    counterparty_name: null,
-    description: null,
-    reference: null,
-    mcc: null,
-    bank_code: null,
-    kind: 'expense',
-    kind_source: null,
-    category: null,
-    counterparty: null,
-    transfer: null,
-    note: null,
-    tags: [],
-    rule_tags: [],
-    ...overrides,
-  };
-}
 
 function api() {
   return mockApi({
