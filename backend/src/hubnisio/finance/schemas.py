@@ -6,7 +6,16 @@ from decimal import Decimal
 
 from pydantic import BaseModel, Field
 
-from hubnisio.finance.models import AccountVisibility, ConnectionStatus, TransactionStatus
+from hubnisio.finance.categorize.rules import Action, Condition
+from hubnisio.finance.models import (
+    AccountVisibility,
+    CategoryKind,
+    ConnectionStatus,
+    RuleMatch,
+    Source,
+    TransactionKind,
+    TransactionStatus,
+)
 
 
 class Bank(BaseModel):
@@ -73,21 +82,166 @@ class AccountUpdate(BaseModel):
     include_in_net_worth: bool | None = None
 
 
+class TransactionCategory(BaseModel):
+    id: uuid.UUID
+    name: str
+    group_name: str | None
+    source: Source  # manual, rule, counterparty or ai
+
+
+class TransactionCounterparty(BaseModel):
+    id: uuid.UUID
+    name: str
+    source: Source | None
+
+
+class TransactionTransfer(BaseModel):
+    id: uuid.UUID
+    other_transaction_id: uuid.UUID
+    other_account_id: uuid.UUID
+    other_account_name: str
+    source: Source
+
+
 class TransactionOut(BaseModel):
     id: uuid.UUID
     account_id: uuid.UUID
     status: TransactionStatus
     occurred_on: date
     booking_date: date | None
+    value_date: date | None
     amount: Decimal
     currency: str
     original_amount: Decimal | None
     original_currency: str | None
-    counterparty_name: str | None
+    counterparty_name: str | None  # as the bank sent it
     description: str | None
+    reference: str | None
     mcc: str | None
+    bank_code: str | None
+    # The user layer.
+    kind: TransactionKind
+    kind_source: Source | None  # set when the kind isn't just the sign
+    category: TransactionCategory | None
+    counterparty: TransactionCounterparty | None
+    transfer: TransactionTransfer | None
+    note: str | None
+    tags: list[str]  # added by hand
+    rule_tags: list[str]  # added by rules
 
 
 class TransactionPage(BaseModel):
     items: list[TransactionOut]
     next_cursor: str | None
+
+
+class TransactionUpdate(BaseModel):
+    """Only the fields sent change. `null` hands a field back to the automatic layer
+    (category, counterparty, kind) or clears it (note)."""
+
+    category_id: uuid.UUID | None = None
+    counterparty_id: uuid.UUID | None = None
+    kind: TransactionKind | None = None
+    note: str | None = Field(default=None, max_length=2000)
+    tags: list[str] | None = Field(default=None, max_length=20)
+
+
+class ApplyToCounterparty(BaseModel):
+    """Offered after a category is set by hand: make it the counterparty's default too."""
+
+    counterparty_id: uuid.UUID
+    counterparty_name: str
+    category_id: uuid.UUID
+    other_transactions: int
+
+
+class TransactionUpdated(BaseModel):
+    transaction: TransactionOut
+    offer: ApplyToCounterparty | None
+
+
+class TransferLink(BaseModel):
+    outgoing_id: uuid.UUID
+    incoming_id: uuid.UUID
+
+
+# Categories, counterparties, rules
+
+
+class CategoryOut(BaseModel):
+    id: uuid.UUID
+    name: str
+    kind: CategoryKind
+    position: int
+    archived: bool
+    transactions: int  # visible transactions in it (a group's own count excludes children)
+
+
+class CategoryGroupOut(CategoryOut):
+    children: list[CategoryOut]
+
+
+class CategoryCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=60)
+    parent_id: uuid.UUID | None = None  # none: a new group
+    kind: CategoryKind | None = None  # groups only; categories take their group's kind
+
+
+class CategoryUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=60)
+    parent_id: uuid.UUID | None = None  # categories only: move to another group
+    position: int | None = Field(default=None, ge=0, le=1000)
+    archived: bool | None = None
+
+
+class CounterpartyOut(BaseModel):
+    id: uuid.UUID
+    name: str
+    default_category_id: uuid.UUID | None
+    transactions: int
+    aliases: list[str]
+
+
+class CounterpartyUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=100)
+    default_category_id: uuid.UUID | None = None  # null clears it
+
+
+class CounterpartyMerge(BaseModel):
+    into_id: uuid.UUID
+
+
+class RuleIn(BaseModel):
+    """The format of conditions and actions is described in categorize/rules.py."""
+
+    name: str = Field(min_length=1, max_length=100)
+    enabled: bool = True
+    match: RuleMatch = RuleMatch.ALL
+    conditions: list[Condition] = Field(min_length=1)
+    actions: list[Action] = Field(min_length=1)
+    stop_processing: bool = False
+
+
+class RuleOut(RuleIn):
+    id: uuid.UUID
+    position: int
+
+
+class RuleOrder(BaseModel):
+    ids: list[uuid.UUID]
+
+
+class RulePreviewIn(BaseModel):
+    match: RuleMatch = RuleMatch.ALL
+    conditions: list[Condition] = Field(min_length=1)
+
+
+class RulePreview(BaseModel):
+    matches: int
+    examples: list[TransactionOut]
+
+
+class RunResult(BaseModel):
+    processed: int
+    categorized: int
+    counterparties_created: int

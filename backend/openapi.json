@@ -353,7 +353,7 @@
           "finance"
         ],
         "summary": "List Transactions",
-        "description": "Newest first. Pass `next_cursor` back as `cursor` for the next page.",
+        "description": "Newest first. Pass `next_cursor` back as `cursor` for the next page. A group's\n`category_id` includes its categories; `uncategorized` leaves out transfers.",
         "operationId": "listTransactions",
         "parameters": [
           {
@@ -441,6 +441,66 @@
             }
           },
           {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/TransactionKind"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
+          },
+          {
+            "name": "category_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category Id"
+            }
+          },
+          {
+            "name": "uncategorized",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Uncategorized"
+            }
+          },
+          {
+            "name": "counterparty_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Counterparty Id"
+            }
+          },
+          {
             "name": "cursor",
             "in": "query",
             "required": false,
@@ -486,6 +546,723 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/finance/transactions/{transaction_id}": {
+      "patch": {
+        "tags": [
+          "finance"
+        ],
+        "summary": "Update Transaction",
+        "description": "Set what a transaction is. Values set here win over rules and defaults; `null` hands\nthe field back to them.",
+        "operationId": "updateTransaction",
+        "parameters": [
+          {
+            "name": "transaction_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Transaction Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransactionUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransactionUpdated"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/finance/transfers": {
+      "post": {
+        "tags": [
+          "finance"
+        ],
+        "summary": "Link Transfer",
+        "description": "Pair two transactions as a transfer by hand.",
+        "operationId": "linkTransfer",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransferLink"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TransactionOut"
+                  },
+                  "type": "array",
+                  "title": "Response Linktransfer"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/finance/transfers/{transfer_id}": {
+      "delete": {
+        "tags": [
+          "finance"
+        ],
+        "summary": "Unlink Transfer",
+        "description": "Undo a pair. Matching won't link these two again.",
+        "operationId": "unlinkTransfer",
+        "parameters": [
+          {
+            "name": "transfer_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Transfer Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/finance/categories": {
+      "get": {
+        "tags": [
+          "finance"
+        ],
+        "summary": "List Categories",
+        "description": "Groups and their categories, archived ones included (flagged).",
+        "operationId": "listCategories",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CategoryGroupOut"
+                  },
+                  "type": "array",
+                  "title": "Response Listcategories"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "finance"
+        ],
+        "summary": "Create Category",
+        "description": "A new group (no parent) or a category in a group.",
+        "operationId": "createCategory",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CategoryCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategoryOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/finance/categories/{category_id}": {
+      "patch": {
+        "tags": [
+          "finance"
+        ],
+        "summary": "Update Category",
+        "description": "Rename, reorder, move a category to another group, or archive (and unarchive).\nArchiving a group archives its categories; archived categories get no new transactions.",
+        "operationId": "updateCategory",
+        "parameters": [
+          {
+            "name": "category_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Category Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CategoryUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategoryOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "finance"
+        ],
+        "summary": "Delete Category",
+        "description": "Only unused categories can be deleted; archive the others.",
+        "operationId": "deleteCategory",
+        "parameters": [
+          {
+            "name": "category_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Category Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/finance/counterparties": {
+      "get": {
+        "tags": [
+          "finance"
+        ],
+        "summary": "List Counterparties",
+        "description": "Most used first.",
+        "operationId": "listCounterparties",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CounterpartyOut"
+                  },
+                  "title": "Response Listcounterparties"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/finance/counterparties/{counterparty_id}": {
+      "patch": {
+        "tags": [
+          "finance"
+        ],
+        "summary": "Update Counterparty",
+        "description": "Rename, or set the default category for all its transactions (past and future), unless\na rule or a choice made by hand says otherwise.",
+        "operationId": "updateCounterparty",
+        "parameters": [
+          {
+            "name": "counterparty_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Counterparty Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CounterpartyUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CounterpartyOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/finance/counterparties/{counterparty_id}/merge": {
+      "post": {
+        "tags": [
+          "finance"
+        ],
+        "summary": "Merge Counterparty",
+        "description": "Fold one counterparty into another: its bank names, transactions and rules follow.",
+        "operationId": "mergeCounterparty",
+        "parameters": [
+          {
+            "name": "counterparty_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Counterparty Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CounterpartyMerge"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CounterpartyOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/finance/rules": {
+      "get": {
+        "tags": [
+          "finance"
+        ],
+        "summary": "List Rules",
+        "operationId": "listRules",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RuleOut"
+                  },
+                  "type": "array",
+                  "title": "Response Listrules"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "finance"
+        ],
+        "summary": "Create Rule",
+        "description": "A new rule, last in order. Categorization re-runs.",
+        "operationId": "createRule",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RuleIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuleOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/finance/rules/{rule_id}": {
+      "put": {
+        "tags": [
+          "finance"
+        ],
+        "summary": "Update Rule",
+        "operationId": "updateRule",
+        "parameters": [
+          {
+            "name": "rule_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Rule Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RuleIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuleOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "finance"
+        ],
+        "summary": "Delete Rule",
+        "operationId": "deleteRule",
+        "parameters": [
+          {
+            "name": "rule_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Rule Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/finance/rules-order": {
+      "put": {
+        "tags": [
+          "finance"
+        ],
+        "summary": "Reorder Rules",
+        "description": "The new order of all the household's rules, first to last.",
+        "operationId": "reorderRules",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RuleOrder"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RuleOut"
+                  },
+                  "type": "array",
+                  "title": "Response Reorderrules"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/finance/rules/preview": {
+      "post": {
+        "tags": [
+          "finance"
+        ],
+        "summary": "Preview Rule",
+        "description": "How many visible transactions these conditions match, with the most recent examples.",
+        "operationId": "previewRule",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RulePreviewIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RulePreview"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/finance/rules/run": {
+      "post": {
+        "tags": [
+          "finance"
+        ],
+        "summary": "Run Rules",
+        "description": "Pair transfers and categorize everything again.",
+        "operationId": "runRules",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunResult"
                 }
               }
             }
@@ -621,6 +1398,58 @@
         ],
         "title": "AccountVisibility"
       },
+      "AddTag": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "add_tag",
+            "title": "Type"
+          },
+          "tag": {
+            "type": "string",
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Tag"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "tag"
+        ],
+        "title": "AddTag"
+      },
+      "ApplyToCounterparty": {
+        "properties": {
+          "counterparty_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Counterparty Id"
+          },
+          "counterparty_name": {
+            "type": "string",
+            "title": "Counterparty Name"
+          },
+          "category_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Category Id"
+          },
+          "other_transactions": {
+            "type": "integer",
+            "title": "Other Transactions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "counterparty_id",
+          "counterparty_name",
+          "category_id",
+          "other_transactions"
+        ],
+        "title": "ApplyToCounterparty",
+        "description": "Offered after a category is set by hand: make it the counterparty's default too."
+      },
       "Balance": {
         "properties": {
           "balance_type": {
@@ -685,6 +1514,190 @@
         ],
         "title": "Bank"
       },
+      "CategoryCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CategoryKind"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "CategoryCreate"
+      },
+      "CategoryGroupOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/CategoryKind"
+          },
+          "position": {
+            "type": "integer",
+            "title": "Position"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "transactions": {
+            "type": "integer",
+            "title": "Transactions"
+          },
+          "children": {
+            "items": {
+              "$ref": "#/components/schemas/CategoryOut"
+            },
+            "type": "array",
+            "title": "Children"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "position",
+          "archived",
+          "transactions",
+          "children"
+        ],
+        "title": "CategoryGroupOut"
+      },
+      "CategoryKind": {
+        "type": "string",
+        "enum": [
+          "expense",
+          "income"
+        ],
+        "title": "CategoryKind"
+      },
+      "CategoryOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/CategoryKind"
+          },
+          "position": {
+            "type": "integer",
+            "title": "Position"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived"
+          },
+          "transactions": {
+            "type": "integer",
+            "title": "Transactions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "position",
+          "archived",
+          "transactions"
+        ],
+        "title": "CategoryOut"
+      },
+      "CategoryUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 60,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          },
+          "position": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 1000.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Position"
+          },
+          "archived": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Archived"
+          }
+        },
+        "type": "object",
+        "title": "CategoryUpdate"
+      },
       "CompleteConnection": {
         "properties": {
           "code": {
@@ -704,6 +1717,118 @@
           "state"
         ],
         "title": "CompleteConnection"
+      },
+      "Condition-Input": {
+        "properties": {
+          "field": {
+            "type": "string",
+            "enum": [
+              "description",
+              "counterparty",
+              "bank_counterparty",
+              "bank_code",
+              "account",
+              "direction",
+              "amount"
+            ],
+            "title": "Field"
+          },
+          "op": {
+            "type": "string",
+            "enum": [
+              "contains",
+              "starts_with",
+              "equals",
+              "is",
+              "gte",
+              "lte",
+              "between"
+            ],
+            "title": "Op"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "string"
+                    }
+                  ]
+                },
+                "type": "array"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "type": "object",
+        "required": [
+          "field",
+          "op",
+          "value"
+        ],
+        "title": "Condition"
+      },
+      "Condition-Output": {
+        "properties": {
+          "field": {
+            "type": "string",
+            "enum": [
+              "description",
+              "counterparty",
+              "bank_counterparty",
+              "bank_code",
+              "account",
+              "direction",
+              "amount"
+            ],
+            "title": "Field"
+          },
+          "op": {
+            "type": "string",
+            "enum": [
+              "contains",
+              "starts_with",
+              "equals",
+              "is",
+              "gte",
+              "lte",
+              "between"
+            ],
+            "title": "Op"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "type": "object",
+        "required": [
+          "field",
+          "op",
+          "value"
+        ],
+        "title": "Condition"
       },
       "ConnectionOut": {
         "properties": {
@@ -808,6 +1933,96 @@
         ],
         "title": "ConnectionStatus"
       },
+      "CounterpartyMerge": {
+        "properties": {
+          "into_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Into Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "into_id"
+        ],
+        "title": "CounterpartyMerge"
+      },
+      "CounterpartyOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "default_category_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default Category Id"
+          },
+          "transactions": {
+            "type": "integer",
+            "title": "Transactions"
+          },
+          "aliases": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Aliases"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "default_category_id",
+          "transactions",
+          "aliases"
+        ],
+        "title": "CounterpartyOut"
+      },
+      "CounterpartyUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "default_category_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default Category Id"
+          }
+        },
+        "type": "object",
+        "title": "CounterpartyUpdate"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -838,6 +2053,317 @@
           "database"
         ],
         "title": "Health"
+      },
+      "RuleIn": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "default": true
+          },
+          "match": {
+            "$ref": "#/components/schemas/RuleMatch",
+            "default": "all"
+          },
+          "conditions": {
+            "items": {
+              "$ref": "#/components/schemas/Condition-Input"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Conditions"
+          },
+          "actions": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/SetCategory"
+                },
+                {
+                  "$ref": "#/components/schemas/SetCounterparty"
+                },
+                {
+                  "$ref": "#/components/schemas/AddTag"
+                },
+                {
+                  "$ref": "#/components/schemas/SetKind"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "type",
+                "mapping": {
+                  "add_tag": "#/components/schemas/AddTag",
+                  "set_category": "#/components/schemas/SetCategory",
+                  "set_counterparty": "#/components/schemas/SetCounterparty",
+                  "set_kind": "#/components/schemas/SetKind"
+                }
+              }
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Actions"
+          },
+          "stop_processing": {
+            "type": "boolean",
+            "title": "Stop Processing",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "conditions",
+          "actions"
+        ],
+        "title": "RuleIn",
+        "description": "The format of conditions and actions is described in categorize/rules.py."
+      },
+      "RuleMatch": {
+        "type": "string",
+        "enum": [
+          "all",
+          "any"
+        ],
+        "title": "RuleMatch"
+      },
+      "RuleOrder": {
+        "properties": {
+          "ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ids"
+        ],
+        "title": "RuleOrder"
+      },
+      "RuleOut": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "default": true
+          },
+          "match": {
+            "$ref": "#/components/schemas/RuleMatch",
+            "default": "all"
+          },
+          "conditions": {
+            "items": {
+              "$ref": "#/components/schemas/Condition-Output"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Conditions"
+          },
+          "actions": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/SetCategory"
+                },
+                {
+                  "$ref": "#/components/schemas/SetCounterparty"
+                },
+                {
+                  "$ref": "#/components/schemas/AddTag"
+                },
+                {
+                  "$ref": "#/components/schemas/SetKind"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "type",
+                "mapping": {
+                  "add_tag": "#/components/schemas/AddTag",
+                  "set_category": "#/components/schemas/SetCategory",
+                  "set_counterparty": "#/components/schemas/SetCounterparty",
+                  "set_kind": "#/components/schemas/SetKind"
+                }
+              }
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Actions"
+          },
+          "stop_processing": {
+            "type": "boolean",
+            "title": "Stop Processing",
+            "default": false
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "position": {
+            "type": "integer",
+            "title": "Position"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "conditions",
+          "actions",
+          "id",
+          "position"
+        ],
+        "title": "RuleOut"
+      },
+      "RulePreview": {
+        "properties": {
+          "matches": {
+            "type": "integer",
+            "title": "Matches"
+          },
+          "examples": {
+            "items": {
+              "$ref": "#/components/schemas/TransactionOut"
+            },
+            "type": "array",
+            "title": "Examples"
+          }
+        },
+        "type": "object",
+        "required": [
+          "matches",
+          "examples"
+        ],
+        "title": "RulePreview"
+      },
+      "RulePreviewIn": {
+        "properties": {
+          "match": {
+            "$ref": "#/components/schemas/RuleMatch",
+            "default": "all"
+          },
+          "conditions": {
+            "items": {
+              "$ref": "#/components/schemas/Condition-Input"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Conditions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "conditions"
+        ],
+        "title": "RulePreviewIn"
+      },
+      "RunResult": {
+        "properties": {
+          "processed": {
+            "type": "integer",
+            "title": "Processed"
+          },
+          "categorized": {
+            "type": "integer",
+            "title": "Categorized"
+          },
+          "counterparties_created": {
+            "type": "integer",
+            "title": "Counterparties Created"
+          }
+        },
+        "type": "object",
+        "required": [
+          "processed",
+          "categorized",
+          "counterparties_created"
+        ],
+        "title": "RunResult"
+      },
+      "SetCategory": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "set_category",
+            "title": "Type"
+          },
+          "category_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Category Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "category_id"
+        ],
+        "title": "SetCategory"
+      },
+      "SetCounterparty": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "set_counterparty",
+            "title": "Type"
+          },
+          "counterparty_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Counterparty Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "counterparty_id"
+        ],
+        "title": "SetCounterparty"
+      },
+      "SetKind": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "set_kind",
+            "title": "Type"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/TransactionKind"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "kind"
+        ],
+        "title": "SetKind"
+      },
+      "Source": {
+        "type": "string",
+        "enum": [
+          "manual",
+          "rule",
+          "counterparty",
+          "ai",
+          "bank",
+          "auto"
+        ],
+        "title": "Source",
+        "description": "Who decided something in the user layer. Precedence (ADR-0007): manual > rule >\ncounterparty (a merchant's default category) > ai."
       },
       "StartConnection": {
         "properties": {
@@ -886,6 +2412,81 @@
         ],
         "title": "SyncQueued"
       },
+      "TransactionCategory": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "group_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group Name"
+          },
+          "source": {
+            "$ref": "#/components/schemas/Source"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "group_name",
+          "source"
+        ],
+        "title": "TransactionCategory"
+      },
+      "TransactionCounterparty": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Source"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "source"
+        ],
+        "title": "TransactionCounterparty"
+      },
+      "TransactionKind": {
+        "type": "string",
+        "enum": [
+          "expense",
+          "income",
+          "transfer"
+        ],
+        "title": "TransactionKind",
+        "description": "What a transaction is. Derived from its sign unless it's a transfer or overridden."
+      },
       "TransactionOut": {
         "properties": {
           "id": {
@@ -917,6 +2518,18 @@
               }
             ],
             "title": "Booking Date"
+          },
+          "value_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value Date"
           },
           "amount": {
             "type": "string",
@@ -970,6 +2583,17 @@
             ],
             "title": "Description"
           },
+          "reference": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference"
+          },
           "mcc": {
             "anyOf": [
               {
@@ -980,6 +2604,85 @@
               }
             ],
             "title": "Mcc"
+          },
+          "bank_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bank Code"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/TransactionKind"
+          },
+          "kind_source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Source"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "category": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TransactionCategory"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "counterparty": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TransactionCounterparty"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "transfer": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TransactionTransfer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags"
+          },
+          "rule_tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Rule Tags"
           }
         },
         "type": "object",
@@ -989,13 +2692,24 @@
           "status",
           "occurred_on",
           "booking_date",
+          "value_date",
           "amount",
           "currency",
           "original_amount",
           "original_currency",
           "counterparty_name",
           "description",
-          "mcc"
+          "reference",
+          "mcc",
+          "bank_code",
+          "kind",
+          "kind_source",
+          "category",
+          "counterparty",
+          "transfer",
+          "note",
+          "tags",
+          "rule_tags"
         ],
         "title": "TransactionOut"
       },
@@ -1034,6 +2748,152 @@
           "pending"
         ],
         "title": "TransactionStatus"
+      },
+      "TransactionTransfer": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "other_transaction_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Other Transaction Id"
+          },
+          "other_account_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Other Account Id"
+          },
+          "other_account_name": {
+            "type": "string",
+            "title": "Other Account Name"
+          },
+          "source": {
+            "$ref": "#/components/schemas/Source"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "other_transaction_id",
+          "other_account_id",
+          "other_account_name",
+          "source"
+        ],
+        "title": "TransactionTransfer"
+      },
+      "TransactionUpdate": {
+        "properties": {
+          "category_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
+          },
+          "counterparty_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Counterparty Id"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TransactionKind"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "maxItems": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tags"
+          }
+        },
+        "type": "object",
+        "title": "TransactionUpdate",
+        "description": "Only the fields sent change. `null` hands a field back to the automatic layer\n(category, counterparty, kind) or clears it (note)."
+      },
+      "TransactionUpdated": {
+        "properties": {
+          "transaction": {
+            "$ref": "#/components/schemas/TransactionOut"
+          },
+          "offer": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ApplyToCounterparty"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "transaction",
+          "offer"
+        ],
+        "title": "TransactionUpdated"
+      },
+      "TransferLink": {
+        "properties": {
+          "outgoing_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Outgoing Id"
+          },
+          "incoming_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Incoming Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "outgoing_id",
+          "incoming_id"
+        ],
+        "title": "TransferLink"
       },
       "ValidationError": {
         "properties": {

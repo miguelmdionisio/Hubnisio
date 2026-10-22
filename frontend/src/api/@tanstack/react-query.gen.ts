@@ -3,8 +3,8 @@
 import { type DefaultError, type InfiniteData, infiniteQueryOptions, queryOptions, type UseMutationOptions } from '@tanstack/react-query';
 
 import { client } from '../client.gen';
-import { completeConnection, deleteConnection, getHealth, listAccounts, listBanks, listConnections, listTransactions, type Options, startConnection, syncConnection, updateAccount } from '../sdk.gen';
-import type { CompleteConnectionData, CompleteConnectionError, CompleteConnectionResponse, DeleteConnectionData, DeleteConnectionError, DeleteConnectionResponse, GetHealthData, GetHealthError, GetHealthResponse, ListAccountsData, ListAccountsResponse, ListBanksData, ListBanksError, ListBanksResponse, ListConnectionsData, ListConnectionsResponse, ListTransactionsData, ListTransactionsError, ListTransactionsResponse, StartConnectionData, StartConnectionError, StartConnectionResponse, SyncConnectionData, SyncConnectionError, SyncConnectionResponse, UpdateAccountData, UpdateAccountError, UpdateAccountResponse } from '../types.gen';
+import { completeConnection, createCategory, createRule, deleteCategory, deleteConnection, deleteRule, getHealth, linkTransfer, listAccounts, listBanks, listCategories, listConnections, listCounterparties, listRules, listTransactions, mergeCounterparty, type Options, previewRule, reorderRules, runRules, startConnection, syncConnection, unlinkTransfer, updateAccount, updateCategory, updateCounterparty, updateRule, updateTransaction } from '../sdk.gen';
+import type { CompleteConnectionData, CompleteConnectionError, CompleteConnectionResponse, CreateCategoryData, CreateCategoryError, CreateCategoryResponse, CreateRuleData, CreateRuleError, CreateRuleResponse, DeleteCategoryData, DeleteCategoryError, DeleteCategoryResponse, DeleteConnectionData, DeleteConnectionError, DeleteConnectionResponse, DeleteRuleData, DeleteRuleError, DeleteRuleResponse, GetHealthData, GetHealthError, GetHealthResponse, LinkTransferData, LinkTransferError, LinkTransferResponse, ListAccountsData, ListAccountsResponse, ListBanksData, ListBanksError, ListBanksResponse, ListCategoriesData, ListCategoriesResponse, ListConnectionsData, ListConnectionsResponse, ListCounterpartiesData, ListCounterpartiesError, ListCounterpartiesResponse, ListRulesData, ListRulesResponse, ListTransactionsData, ListTransactionsError, ListTransactionsResponse, MergeCounterpartyData, MergeCounterpartyError, MergeCounterpartyResponse, PreviewRuleData, PreviewRuleError, PreviewRuleResponse, ReorderRulesData, ReorderRulesError, ReorderRulesResponse, RunRulesData, RunRulesResponse, StartConnectionData, StartConnectionError, StartConnectionResponse, SyncConnectionData, SyncConnectionError, SyncConnectionResponse, UnlinkTransferData, UnlinkTransferError, UnlinkTransferResponse, UpdateAccountData, UpdateAccountError, UpdateAccountResponse, UpdateCategoryData, UpdateCategoryError, UpdateCategoryResponse, UpdateCounterpartyData, UpdateCounterpartyError, UpdateCounterpartyResponse, UpdateRuleData, UpdateRuleError, UpdateRuleResponse, UpdateTransactionData, UpdateTransactionError, UpdateTransactionResponse } from '../types.gen';
 
 export type QueryKey<TOptions extends Options> = [
     Pick<TOptions, 'baseUrl' | 'body' | 'headers' | 'path' | 'query'> & {
@@ -206,7 +206,8 @@ export const listTransactionsQueryKey = (options?: Options<ListTransactionsData>
 /**
  * List Transactions
  *
- * Newest first. Pass `next_cursor` back as `cursor` for the next page.
+ * Newest first. Pass `next_cursor` back as `cursor` for the next page. A group's
+ * `category_id` includes its categories; `uncategorized` leaves out transfers.
  */
 export const listTransactionsOptions = (options?: Options<ListTransactionsData>) => queryOptions<ListTransactionsResponse, ListTransactionsError, ListTransactionsResponse, ReturnType<typeof listTransactionsQueryKey>>({
     queryFn: async ({ queryKey, signal }) => {
@@ -255,7 +256,8 @@ export const listTransactionsInfiniteQueryKey = (options?: Options<ListTransacti
 /**
  * List Transactions
  *
- * Newest first. Pass `next_cursor` back as `cursor` for the next page.
+ * Newest first. Pass `next_cursor` back as `cursor` for the next page. A group's
+ * `category_id` includes its categories; `uncategorized` leaves out transfers.
  */
 export const listTransactionsInfiniteOptions = (options?: Options<ListTransactionsData>) => {
     const opts = infiniteQueryOptions<ListTransactionsResponse, ListTransactionsError, InfiniteData<ListTransactionsResponse>, QueryKey<Options<ListTransactionsData>>, string | null | Pick<QueryKey<Options<ListTransactionsData>>[0], 'body' | 'headers' | 'path' | 'query'>>(
@@ -280,4 +282,327 @@ export const listTransactionsInfiniteOptions = (options?: Options<ListTransactio
         queryKey: listTransactionsInfiniteQueryKey(options)
     });
     return opts as Omit<typeof opts, 'initialData'>;
+};
+
+/**
+ * Update Transaction
+ *
+ * Set what a transaction is. Values set here win over rules and defaults; `null` hands
+ * the field back to them.
+ */
+export const updateTransactionMutation = (options?: Partial<Options<UpdateTransactionData>>): UseMutationOptions<UpdateTransactionResponse, UpdateTransactionError, Options<UpdateTransactionData>> => {
+    const mutationOptions: UseMutationOptions<UpdateTransactionResponse, UpdateTransactionError, Options<UpdateTransactionData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await updateTransaction({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Link Transfer
+ *
+ * Pair two transactions as a transfer by hand.
+ */
+export const linkTransferMutation = (options?: Partial<Options<LinkTransferData>>): UseMutationOptions<LinkTransferResponse, LinkTransferError, Options<LinkTransferData>> => {
+    const mutationOptions: UseMutationOptions<LinkTransferResponse, LinkTransferError, Options<LinkTransferData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await linkTransfer({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Unlink Transfer
+ *
+ * Undo a pair. Matching won't link these two again.
+ */
+export const unlinkTransferMutation = (options?: Partial<Options<UnlinkTransferData>>): UseMutationOptions<UnlinkTransferResponse, UnlinkTransferError, Options<UnlinkTransferData>> => {
+    const mutationOptions: UseMutationOptions<UnlinkTransferResponse, UnlinkTransferError, Options<UnlinkTransferData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await unlinkTransfer({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const listCategoriesQueryKey = (options?: Options<ListCategoriesData>) => createQueryKey('listCategories', options);
+
+/**
+ * List Categories
+ *
+ * Groups and their categories, archived ones included (flagged).
+ */
+export const listCategoriesOptions = (options?: Options<ListCategoriesData>) => queryOptions<ListCategoriesResponse, DefaultError, ListCategoriesResponse, ReturnType<typeof listCategoriesQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await listCategories({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: listCategoriesQueryKey(options)
+});
+
+/**
+ * Create Category
+ *
+ * A new group (no parent) or a category in a group.
+ */
+export const createCategoryMutation = (options?: Partial<Options<CreateCategoryData>>): UseMutationOptions<CreateCategoryResponse, CreateCategoryError, Options<CreateCategoryData>> => {
+    const mutationOptions: UseMutationOptions<CreateCategoryResponse, CreateCategoryError, Options<CreateCategoryData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await createCategory({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Delete Category
+ *
+ * Only unused categories can be deleted; archive the others.
+ */
+export const deleteCategoryMutation = (options?: Partial<Options<DeleteCategoryData>>): UseMutationOptions<DeleteCategoryResponse, DeleteCategoryError, Options<DeleteCategoryData>> => {
+    const mutationOptions: UseMutationOptions<DeleteCategoryResponse, DeleteCategoryError, Options<DeleteCategoryData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await deleteCategory({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Update Category
+ *
+ * Rename, reorder, move a category to another group, or archive (and unarchive).
+ * Archiving a group archives its categories; archived categories get no new transactions.
+ */
+export const updateCategoryMutation = (options?: Partial<Options<UpdateCategoryData>>): UseMutationOptions<UpdateCategoryResponse, UpdateCategoryError, Options<UpdateCategoryData>> => {
+    const mutationOptions: UseMutationOptions<UpdateCategoryResponse, UpdateCategoryError, Options<UpdateCategoryData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await updateCategory({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const listCounterpartiesQueryKey = (options?: Options<ListCounterpartiesData>) => createQueryKey('listCounterparties', options);
+
+/**
+ * List Counterparties
+ *
+ * Most used first.
+ */
+export const listCounterpartiesOptions = (options?: Options<ListCounterpartiesData>) => queryOptions<ListCounterpartiesResponse, ListCounterpartiesError, ListCounterpartiesResponse, ReturnType<typeof listCounterpartiesQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await listCounterparties({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: listCounterpartiesQueryKey(options)
+});
+
+/**
+ * Update Counterparty
+ *
+ * Rename, or set the default category for all its transactions (past and future), unless
+ * a rule or a choice made by hand says otherwise.
+ */
+export const updateCounterpartyMutation = (options?: Partial<Options<UpdateCounterpartyData>>): UseMutationOptions<UpdateCounterpartyResponse, UpdateCounterpartyError, Options<UpdateCounterpartyData>> => {
+    const mutationOptions: UseMutationOptions<UpdateCounterpartyResponse, UpdateCounterpartyError, Options<UpdateCounterpartyData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await updateCounterparty({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Merge Counterparty
+ *
+ * Fold one counterparty into another: its bank names, transactions and rules follow.
+ */
+export const mergeCounterpartyMutation = (options?: Partial<Options<MergeCounterpartyData>>): UseMutationOptions<MergeCounterpartyResponse, MergeCounterpartyError, Options<MergeCounterpartyData>> => {
+    const mutationOptions: UseMutationOptions<MergeCounterpartyResponse, MergeCounterpartyError, Options<MergeCounterpartyData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await mergeCounterparty({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const listRulesQueryKey = (options?: Options<ListRulesData>) => createQueryKey('listRules', options);
+
+/**
+ * List Rules
+ */
+export const listRulesOptions = (options?: Options<ListRulesData>) => queryOptions<ListRulesResponse, DefaultError, ListRulesResponse, ReturnType<typeof listRulesQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await listRules({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: listRulesQueryKey(options)
+});
+
+/**
+ * Create Rule
+ *
+ * A new rule, last in order. Categorization re-runs.
+ */
+export const createRuleMutation = (options?: Partial<Options<CreateRuleData>>): UseMutationOptions<CreateRuleResponse, CreateRuleError, Options<CreateRuleData>> => {
+    const mutationOptions: UseMutationOptions<CreateRuleResponse, CreateRuleError, Options<CreateRuleData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await createRule({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Delete Rule
+ */
+export const deleteRuleMutation = (options?: Partial<Options<DeleteRuleData>>): UseMutationOptions<DeleteRuleResponse, DeleteRuleError, Options<DeleteRuleData>> => {
+    const mutationOptions: UseMutationOptions<DeleteRuleResponse, DeleteRuleError, Options<DeleteRuleData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await deleteRule({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Update Rule
+ */
+export const updateRuleMutation = (options?: Partial<Options<UpdateRuleData>>): UseMutationOptions<UpdateRuleResponse, UpdateRuleError, Options<UpdateRuleData>> => {
+    const mutationOptions: UseMutationOptions<UpdateRuleResponse, UpdateRuleError, Options<UpdateRuleData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await updateRule({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Reorder Rules
+ *
+ * The new order of all the household's rules, first to last.
+ */
+export const reorderRulesMutation = (options?: Partial<Options<ReorderRulesData>>): UseMutationOptions<ReorderRulesResponse, ReorderRulesError, Options<ReorderRulesData>> => {
+    const mutationOptions: UseMutationOptions<ReorderRulesResponse, ReorderRulesError, Options<ReorderRulesData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await reorderRules({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Preview Rule
+ *
+ * How many visible transactions these conditions match, with the most recent examples.
+ */
+export const previewRuleMutation = (options?: Partial<Options<PreviewRuleData>>): UseMutationOptions<PreviewRuleResponse, PreviewRuleError, Options<PreviewRuleData>> => {
+    const mutationOptions: UseMutationOptions<PreviewRuleResponse, PreviewRuleError, Options<PreviewRuleData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await previewRule({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Run Rules
+ *
+ * Pair transfers and categorize everything again.
+ */
+export const runRulesMutation = (options?: Partial<Options<RunRulesData>>): UseMutationOptions<RunRulesResponse, DefaultError, Options<RunRulesData>> => {
+    const mutationOptions: UseMutationOptions<RunRulesResponse, DefaultError, Options<RunRulesData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await runRules({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
 };

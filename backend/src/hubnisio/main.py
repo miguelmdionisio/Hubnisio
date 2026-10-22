@@ -9,6 +9,8 @@ from hubnisio.core.auth import check_auth_config
 from hubnisio.core.routes import router as core_router
 from hubnisio.core.settings import get_settings
 from hubnisio.finance.api import router as finance_router
+from hubnisio.finance.organize_api import router as organize_router
+from hubnisio.finance.transactions_api import router as transactions_router
 from hubnisio.jobs import app as job_app
 
 
@@ -23,3 +25,5 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 app = FastAPI(title="Hubnisio", version="0.1.0", lifespan=lifespan)
 app.include_router(core_router, prefix="/api")
 app.include_router(finance_router, prefix="/api")
+app.include_router(transactions_router, prefix="/api")
+app.include_router(organize_router, prefix="/api")

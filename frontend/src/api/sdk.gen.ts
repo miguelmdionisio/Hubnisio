@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { CompleteConnectionData, CompleteConnectionErrors, CompleteConnectionResponses, DeleteConnectionData, DeleteConnectionErrors, DeleteConnectionResponses, GetHealthData, GetHealthErrors, GetHealthResponses, ListAccountsData, ListAccountsResponses, ListBanksData, ListBanksErrors, ListBanksResponses, ListConnectionsData, ListConnectionsResponses, ListTransactionsData, ListTransactionsErrors, ListTransactionsResponses, StartConnectionData, StartConnectionErrors, StartConnectionResponses, SyncConnectionData, SyncConnectionErrors, SyncConnectionResponses, UpdateAccountData, UpdateAccountErrors, UpdateAccountResponses } from './types.gen';
+import type { CompleteConnectionData, CompleteConnectionErrors, CompleteConnectionResponses, CreateCategoryData, CreateCategoryErrors, CreateCategoryResponses, CreateRuleData, CreateRuleErrors, CreateRuleResponses, DeleteCategoryData, DeleteCategoryErrors, DeleteCategoryResponses, DeleteConnectionData, DeleteConnectionErrors, DeleteConnectionResponses, DeleteRuleData, DeleteRuleErrors, DeleteRuleResponses, GetHealthData, GetHealthErrors, GetHealthResponses, LinkTransferData, LinkTransferErrors, LinkTransferResponses, ListAccountsData, ListAccountsResponses, ListBanksData, ListBanksErrors, ListBanksResponses, ListCategoriesData, ListCategoriesResponses, ListConnectionsData, ListConnectionsResponses, ListCounterpartiesData, ListCounterpartiesErrors, ListCounterpartiesResponses, ListRulesData, ListRulesResponses, ListTransactionsData, ListTransactionsErrors, ListTransactionsResponses, MergeCounterpartyData, MergeCounterpartyErrors, MergeCounterpartyResponses, PreviewRuleData, PreviewRuleErrors, PreviewRuleResponses, ReorderRulesData, ReorderRulesErrors, ReorderRulesResponses, RunRulesData, RunRulesResponses, StartConnectionData, StartConnectionErrors, StartConnectionResponses, SyncConnectionData, SyncConnectionErrors, SyncConnectionResponses, UnlinkTransferData, UnlinkTransferErrors, UnlinkTransferResponses, UpdateAccountData, UpdateAccountErrors, UpdateAccountResponses, UpdateCategoryData, UpdateCategoryErrors, UpdateCategoryResponses, UpdateCounterpartyData, UpdateCounterpartyErrors, UpdateCounterpartyResponses, UpdateRuleData, UpdateRuleErrors, UpdateRuleResponses, UpdateTransactionData, UpdateTransactionErrors, UpdateTransactionResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -92,6 +92,193 @@ export const updateAccount = <ThrowOnError extends boolean = false>(options: Opt
 /**
  * List Transactions
  *
- * Newest first. Pass `next_cursor` back as `cursor` for the next page.
+ * Newest first. Pass `next_cursor` back as `cursor` for the next page. A group's
+ * `category_id` includes its categories; `uncategorized` leaves out transfers.
  */
 export const listTransactions = <ThrowOnError extends boolean = false>(options?: Options<ListTransactionsData, ThrowOnError>): RequestResult<ListTransactionsResponses, ListTransactionsErrors, ThrowOnError> => (options?.client ?? client).get<ListTransactionsResponses, ListTransactionsErrors, ThrowOnError>({ url: '/api/finance/transactions', ...options });
+
+/**
+ * Update Transaction
+ *
+ * Set what a transaction is. Values set here win over rules and defaults; `null` hands
+ * the field back to them.
+ */
+export const updateTransaction = <ThrowOnError extends boolean = false>(options: Options<UpdateTransactionData, ThrowOnError>): RequestResult<UpdateTransactionResponses, UpdateTransactionErrors, ThrowOnError> => (options.client ?? client).patch<UpdateTransactionResponses, UpdateTransactionErrors, ThrowOnError>({
+    url: '/api/finance/transactions/{transaction_id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Link Transfer
+ *
+ * Pair two transactions as a transfer by hand.
+ */
+export const linkTransfer = <ThrowOnError extends boolean = false>(options: Options<LinkTransferData, ThrowOnError>): RequestResult<LinkTransferResponses, LinkTransferErrors, ThrowOnError> => (options.client ?? client).post<LinkTransferResponses, LinkTransferErrors, ThrowOnError>({
+    url: '/api/finance/transfers',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Unlink Transfer
+ *
+ * Undo a pair. Matching won't link these two again.
+ */
+export const unlinkTransfer = <ThrowOnError extends boolean = false>(options: Options<UnlinkTransferData, ThrowOnError>): RequestResult<UnlinkTransferResponses, UnlinkTransferErrors, ThrowOnError> => (options.client ?? client).delete<UnlinkTransferResponses, UnlinkTransferErrors, ThrowOnError>({ url: '/api/finance/transfers/{transfer_id}', ...options });
+
+/**
+ * List Categories
+ *
+ * Groups and their categories, archived ones included (flagged).
+ */
+export const listCategories = <ThrowOnError extends boolean = false>(options?: Options<ListCategoriesData, ThrowOnError>): RequestResult<ListCategoriesResponses, unknown, ThrowOnError> => (options?.client ?? client).get<ListCategoriesResponses, unknown, ThrowOnError>({ url: '/api/finance/categories', ...options });
+
+/**
+ * Create Category
+ *
+ * A new group (no parent) or a category in a group.
+ */
+export const createCategory = <ThrowOnError extends boolean = false>(options: Options<CreateCategoryData, ThrowOnError>): RequestResult<CreateCategoryResponses, CreateCategoryErrors, ThrowOnError> => (options.client ?? client).post<CreateCategoryResponses, CreateCategoryErrors, ThrowOnError>({
+    url: '/api/finance/categories',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Delete Category
+ *
+ * Only unused categories can be deleted; archive the others.
+ */
+export const deleteCategory = <ThrowOnError extends boolean = false>(options: Options<DeleteCategoryData, ThrowOnError>): RequestResult<DeleteCategoryResponses, DeleteCategoryErrors, ThrowOnError> => (options.client ?? client).delete<DeleteCategoryResponses, DeleteCategoryErrors, ThrowOnError>({ url: '/api/finance/categories/{category_id}', ...options });
+
+/**
+ * Update Category
+ *
+ * Rename, reorder, move a category to another group, or archive (and unarchive).
+ * Archiving a group archives its categories; archived categories get no new transactions.
+ */
+export const updateCategory = <ThrowOnError extends boolean = false>(options: Options<UpdateCategoryData, ThrowOnError>): RequestResult<UpdateCategoryResponses, UpdateCategoryErrors, ThrowOnError> => (options.client ?? client).patch<UpdateCategoryResponses, UpdateCategoryErrors, ThrowOnError>({
+    url: '/api/finance/categories/{category_id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * List Counterparties
+ *
+ * Most used first.
+ */
+export const listCounterparties = <ThrowOnError extends boolean = false>(options?: Options<ListCounterpartiesData, ThrowOnError>): RequestResult<ListCounterpartiesResponses, ListCounterpartiesErrors, ThrowOnError> => (options?.client ?? client).get<ListCounterpartiesResponses, ListCounterpartiesErrors, ThrowOnError>({ url: '/api/finance/counterparties', ...options });
+
+/**
+ * Update Counterparty
+ *
+ * Rename, or set the default category for all its transactions (past and future), unless
+ * a rule or a choice made by hand says otherwise.
+ */
+export const updateCounterparty = <ThrowOnError extends boolean = false>(options: Options<UpdateCounterpartyData, ThrowOnError>): RequestResult<UpdateCounterpartyResponses, UpdateCounterpartyErrors, ThrowOnError> => (options.client ?? client).patch<UpdateCounterpartyResponses, UpdateCounterpartyErrors, ThrowOnError>({
+    url: '/api/finance/counterparties/{counterparty_id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Merge Counterparty
+ *
+ * Fold one counterparty into another: its bank names, transactions and rules follow.
+ */
+export const mergeCounterparty = <ThrowOnError extends boolean = false>(options: Options<MergeCounterpartyData, ThrowOnError>): RequestResult<MergeCounterpartyResponses, MergeCounterpartyErrors, ThrowOnError> => (options.client ?? client).post<MergeCounterpartyResponses, MergeCounterpartyErrors, ThrowOnError>({
+    url: '/api/finance/counterparties/{counterparty_id}/merge',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * List Rules
+ */
+export const listRules = <ThrowOnError extends boolean = false>(options?: Options<ListRulesData, ThrowOnError>): RequestResult<ListRulesResponses, unknown, ThrowOnError> => (options?.client ?? client).get<ListRulesResponses, unknown, ThrowOnError>({ url: '/api/finance/rules', ...options });
+
+/**
+ * Create Rule
+ *
+ * A new rule, last in order. Categorization re-runs.
+ */
+export const createRule = <ThrowOnError extends boolean = false>(options: Options<CreateRuleData, ThrowOnError>): RequestResult<CreateRuleResponses, CreateRuleErrors, ThrowOnError> => (options.client ?? client).post<CreateRuleResponses, CreateRuleErrors, ThrowOnError>({
+    url: '/api/finance/rules',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Delete Rule
+ */
+export const deleteRule = <ThrowOnError extends boolean = false>(options: Options<DeleteRuleData, ThrowOnError>): RequestResult<DeleteRuleResponses, DeleteRuleErrors, ThrowOnError> => (options.client ?? client).delete<DeleteRuleResponses, DeleteRuleErrors, ThrowOnError>({ url: '/api/finance/rules/{rule_id}', ...options });
+
+/**
+ * Update Rule
+ */
+export const updateRule = <ThrowOnError extends boolean = false>(options: Options<UpdateRuleData, ThrowOnError>): RequestResult<UpdateRuleResponses, UpdateRuleErrors, ThrowOnError> => (options.client ?? client).put<UpdateRuleResponses, UpdateRuleErrors, ThrowOnError>({
+    url: '/api/finance/rules/{rule_id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Reorder Rules
+ *
+ * The new order of all the household's rules, first to last.
+ */
+export const reorderRules = <ThrowOnError extends boolean = false>(options: Options<ReorderRulesData, ThrowOnError>): RequestResult<ReorderRulesResponses, ReorderRulesErrors, ThrowOnError> => (options.client ?? client).put<ReorderRulesResponses, ReorderRulesErrors, ThrowOnError>({
+    url: '/api/finance/rules-order',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Preview Rule
+ *
+ * How many visible transactions these conditions match, with the most recent examples.
+ */
+export const previewRule = <ThrowOnError extends boolean = false>(options: Options<PreviewRuleData, ThrowOnError>): RequestResult<PreviewRuleResponses, PreviewRuleErrors, ThrowOnError> => (options.client ?? client).post<PreviewRuleResponses, PreviewRuleErrors, ThrowOnError>({
+    url: '/api/finance/rules/preview',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Run Rules
+ *
+ * Pair transfers and categorize everything again.
+ */
+export const runRules = <ThrowOnError extends boolean = false>(options?: Options<RunRulesData, ThrowOnError>): RequestResult<RunRulesResponses, unknown, ThrowOnError> => (options?.client ?? client).post<RunRulesResponses, unknown, ThrowOnError>({ url: '/api/finance/rules/run', ...options });

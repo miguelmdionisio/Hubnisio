@@ -3,25 +3,23 @@
 Every query that returns account data is scoped through `finance.scoping` (ADR-0005).
 """
 
-import base64
-import binascii
 import ipaddress
 import time
 import uuid
 from collections.abc import AsyncIterator, Sequence
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
-from sqlalchemy import func, or_, select, tuple_
+from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import distinct_on
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from hubnisio.core.auth import Principal, get_principal
+from hubnisio.core.auth import Principal
 from hubnisio.core.crypto import SecretBox, get_secret_box
-from hubnisio.core.db import get_session
 from hubnisio.core.settings import get_settings
 from hubnisio.finance import linking, schemas, tasks
+from hubnisio.finance.deps import CurrentPrincipal, DbSession
 from hubnisio.finance.models import (
     Account,
     AccountOwner,
@@ -31,9 +29,8 @@ from hubnisio.finance.models import (
     ProviderAccount,
     SyncRun,
     SyncStatus,
-    Transaction,
-    TransactionStatus,
 )
+from hubnisio.finance.naming import account_name
 from hubnisio.finance.providers.enable_banking.client import (
     EnableBankingClient,
     psu_headers_from_request,
@@ -49,8 +46,6 @@ BANK_LIST_TTL = 6 * 3600  # seconds
 STALE_RUN = timedelta(minutes=30)
 # Shown first: what's spendable, then the booked balance.
 BALANCE_PREFERENCE = ("ITAV", "CLAV", "ITBD", "CLBD", "XPCD", "OPAV", "OPBD")
-# ISO 20022 cash account types, for default names (current accounts need no word).
-ACCOUNT_TYPES = {"SVGS": "savings", "CARD": "card", "LOAN": "loan"}
 
 _bank_cache: dict[str, tuple[float, list[schemas.Bank]]] = {}
 
@@ -75,8 +70,6 @@ def get_box() -> SecretBox:
         ) from exc
 
 
-DbSession = Annotated[AsyncSession, Depends(get_session)]
-CurrentPrincipal = Annotated[Principal, Depends(get_principal)]
 Banking = Annotated[EnableBankingClient, Depends(get_enable_banking)]
 Box = Annotated[SecretBox, Depends(get_box)]
 
@@ -279,58 +272,6 @@ async def update_account(
     return _account_out(account, True, balances.get(account.id))
 
 
-# Transactions
-
-
-@router.get("/transactions", operation_id="listTransactions")
-async def list_transactions(
-    session: DbSession,
-    principal: CurrentPrincipal,
-    account_id: uuid.UUID | None = None,
-    date_from: date | None = None,
-    date_to: date | None = None,
-    q: Annotated[str | None, Query(max_length=100)] = None,
-    transaction_status: Annotated[TransactionStatus | None, Query(alias="status")] = None,
-    cursor: str | None = None,
-    limit: Annotated[int, Query(ge=1, le=200)] = 50,
-) -> schemas.TransactionPage:
-    """Newest first. Pass `next_cursor` back as `cursor` for the next page."""
-    query = select(Transaction).where(Transaction.account_id.in_(visible_account_ids(principal)))
-    if account_id is not None:
-        query = query.where(Transaction.account_id == account_id)
-    if date_from is not None:
-        query = query.where(Transaction.occurred_on >= date_from)
-    if date_to is not None:
-        query = query.where(Transaction.occurred_on <= date_to)
-    if transaction_status is not None:
-        query = query.where(Transaction.status == transaction_status)
-    if q and q.strip():
-        pattern = f"%{_escape_like(q.strip())}%"
-        query = query.where(
-            or_(
-                Transaction.description.ilike(pattern, escape="\\"),
-                Transaction.counterparty_name.ilike(pattern, escape="\\"),
-            )
-        )
-    if cursor is not None:
-        after_date, after_id = _decode_cursor(cursor)
-        query = query.where(
-            tuple_(Transaction.occurred_on, Transaction.id) < tuple_(after_date, after_id)
-        )
-
-    rows = list(
-        await session.scalars(
-            query.order_by(Transaction.occurred_on.desc(), Transaction.id.desc()).limit(limit + 1)
-        )
-    )
-    page = rows[:limit]
-    next_cursor = _encode_cursor(page[-1]) if len(rows) > limit else None
-    return schemas.TransactionPage(
-        items=[schemas.TransactionOut.model_validate(row, from_attributes=True) for row in page],
-        next_cursor=next_cursor,
-    )
-
-
 # Helpers
 
 
@@ -456,7 +397,7 @@ def _account_out(
 ) -> schemas.AccountOut:
     return schemas.AccountOut(
         id=account.id,
-        name=account.display_name or account.product or _default_name(account),
+        name=account_name(account),
         institution_name=account.institution_name,
         iban_masked=f"{account.iban[:4]} •••• {account.iban[-4:]}" if account.iban else None,
         currency=account.currency,
@@ -487,29 +428,3 @@ def _psu_headers(request: Request) -> dict[str, str] | None:
     except ValueError:
         return None
     return psu_headers_from_request(host, request.headers)
-
-
-def _escape_like(value: str) -> str:
-    return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-
-
-def _encode_cursor(row: Transaction) -> str:
-    raw = f"{row.occurred_on.isoformat()}|{row.id}"
-    return base64.urlsafe_b64encode(raw.encode()).decode().rstrip("=")
-
-
-def _decode_cursor(cursor: str) -> tuple[date, uuid.UUID]:
-    try:
-        padded = cursor + "=" * (-len(cursor) % 4)
-        day, _, id_ = base64.urlsafe_b64decode(padded).decode().partition("|")
-        return date.fromisoformat(day), uuid.UUID(id_)
-    except (binascii.Error, UnicodeDecodeError, ValueError) as exc:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid cursor.") from exc
-
-
-def _default_name(account: Account) -> str:
-    """When the bank gives an account no name: its IBAN's end, else its currency and type."""
-    if account.iban:
-        return f"{account.institution_name} ••{account.iban[-4:]}"
-    kind = ACCOUNT_TYPES.get(account.cash_account_type or "", "")
-    return " ".join(part for part in (account.institution_name, account.currency, kind) if part)

@@ -17,7 +17,7 @@ from typing import Annotated, Literal, Self
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from hubnisio.finance.categorize.text import match_key
-from hubnisio.finance.models import RuleMatch, TransactionKind
+from hubnisio.finance.models import RuleMatch, Transaction, TransactionKind
 
 TEXT_FIELDS = ("description", "counterparty", "bank_counterparty")
 TEXT_OPS = ("contains", "starts_with", "equals")
@@ -123,6 +123,19 @@ class Facts:
     account_id: uuid.UUID
     direction: str  # in / out
     amount: Decimal  # absolute
+
+
+def facts_for(transaction: Transaction, counterparty_name: str | None) -> Facts:
+    """The facts of one transaction, with its counterparty as currently resolved."""
+    return Facts(
+        description=match_key(transaction.description),
+        counterparty=match_key(counterparty_name),
+        bank_counterparty=match_key(transaction.counterparty_name),
+        bank_code=(transaction.bank_transaction_code or {}).get("code") or "",
+        account_id=transaction.account_id,
+        direction="in" if transaction.amount > 0 else "out",
+        amount=abs(transaction.amount),
+    )
 
 
 def matches(spec: RuleSpec, facts: Facts) -> bool:

@@ -20,11 +20,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from hubnisio.finance.categorize.rules import (
     AddTag,
-    Facts,
     RuleSpec,
     SetCategory,
     SetCounterparty,
     SetKind,
+    facts_for,
     matches,
 )
 from hubnisio.finance.categorize.text import match_key
@@ -186,15 +186,8 @@ async def _categorize_one(
         counterparty_source = Source.BANK if counterparty_id else None
 
     # 2. Rules, in order.
-    facts = Facts(
-        description=match_key(transaction.description),
-        counterparty=_counterparty_key(context, counterparty_id),
-        bank_counterparty=match_key(transaction.counterparty_name),
-        bank_code=(transaction.bank_transaction_code or {}).get("code") or "",
-        account_id=transaction.account_id,
-        direction="in" if transaction.amount > 0 else "out",
-        amount=abs(transaction.amount),
-    )
+    counterparty = context.counterparties.get(counterparty_id) if counterparty_id else None
+    facts = facts_for(transaction, counterparty.name if counterparty else None)
     rule_category: tuple[uuid.UUID, uuid.UUID] | None = None  # (category, rule)
     rule_kind: TransactionKind | None = None
     rule_tags: set[str] = set()
@@ -303,4 +296,3 @@ async def _counterparty_from_bank(
 def _counterparty_key(context: _Context, counterparty_id: uuid.UUID | None) -> str:
     counterparty = context.counterparties.get(counterparty_id) if counterparty_id else None
     return match_key(counterparty.name) if counterparty else ""
-

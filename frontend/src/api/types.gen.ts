@@ -65,6 +65,44 @@ export type AccountUpdate = {
 export type AccountVisibility = 'shared' | 'private';
 
 /**
+ * AddTag
+ */
+export type AddTag = {
+    /**
+     * Type
+     */
+    type: 'add_tag';
+    /**
+     * Tag
+     */
+    tag: string;
+};
+
+/**
+ * ApplyToCounterparty
+ *
+ * Offered after a category is set by hand: make it the counterparty's default too.
+ */
+export type ApplyToCounterparty = {
+    /**
+     * Counterparty Id
+     */
+    counterparty_id: string;
+    /**
+     * Counterparty Name
+     */
+    counterparty_name: string;
+    /**
+     * Category Id
+     */
+    category_id: string;
+    /**
+     * Other Transactions
+     */
+    other_transactions: number;
+};
+
+/**
  * Balance
  */
 export type Balance = {
@@ -109,6 +147,106 @@ export type Bank = {
 };
 
 /**
+ * CategoryCreate
+ */
+export type CategoryCreate = {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Parent Id
+     */
+    parent_id?: string | null;
+    kind?: CategoryKind | null;
+};
+
+/**
+ * CategoryGroupOut
+ */
+export type CategoryGroupOut = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Name
+     */
+    name: string;
+    kind: CategoryKind;
+    /**
+     * Position
+     */
+    position: number;
+    /**
+     * Archived
+     */
+    archived: boolean;
+    /**
+     * Transactions
+     */
+    transactions: number;
+    /**
+     * Children
+     */
+    children: Array<CategoryOut>;
+};
+
+/**
+ * CategoryKind
+ */
+export type CategoryKind = 'expense' | 'income';
+
+/**
+ * CategoryOut
+ */
+export type CategoryOut = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Name
+     */
+    name: string;
+    kind: CategoryKind;
+    /**
+     * Position
+     */
+    position: number;
+    /**
+     * Archived
+     */
+    archived: boolean;
+    /**
+     * Transactions
+     */
+    transactions: number;
+};
+
+/**
+ * CategoryUpdate
+ */
+export type CategoryUpdate = {
+    /**
+     * Name
+     */
+    name?: string | null;
+    /**
+     * Parent Id
+     */
+    parent_id?: string | null;
+    /**
+     * Position
+     */
+    position?: number | null;
+    /**
+     * Archived
+     */
+    archived?: boolean | null;
+};
+
+/**
  * CompleteConnection
  */
 export type CompleteConnection = {
@@ -120,6 +258,42 @@ export type CompleteConnection = {
      * State
      */
     state: string;
+};
+
+/**
+ * Condition
+ */
+export type ConditionInput = {
+    /**
+     * Field
+     */
+    field: 'description' | 'counterparty' | 'bank_counterparty' | 'bank_code' | 'account' | 'direction' | 'amount';
+    /**
+     * Op
+     */
+    op: 'contains' | 'starts_with' | 'equals' | 'is' | 'gte' | 'lte' | 'between';
+    /**
+     * Value
+     */
+    value: string | number | Array<number | string>;
+};
+
+/**
+ * Condition
+ */
+export type ConditionOutput = {
+    /**
+     * Field
+     */
+    field: 'description' | 'counterparty' | 'bank_counterparty' | 'bank_code' | 'account' | 'direction' | 'amount';
+    /**
+     * Op
+     */
+    op: 'contains' | 'starts_with' | 'equals' | 'is' | 'gte' | 'lte' | 'between';
+    /**
+     * Value
+     */
+    value: string | Array<string>;
 };
 
 /**
@@ -171,6 +345,56 @@ export type ConnectionOut = {
 export type ConnectionStatus = 'pending' | 'active' | 'expired' | 'revoked' | 'failed';
 
 /**
+ * CounterpartyMerge
+ */
+export type CounterpartyMerge = {
+    /**
+     * Into Id
+     */
+    into_id: string;
+};
+
+/**
+ * CounterpartyOut
+ */
+export type CounterpartyOut = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Default Category Id
+     */
+    default_category_id: string | null;
+    /**
+     * Transactions
+     */
+    transactions: number;
+    /**
+     * Aliases
+     */
+    aliases: Array<string>;
+};
+
+/**
+ * CounterpartyUpdate
+ */
+export type CounterpartyUpdate = {
+    /**
+     * Name
+     */
+    name?: string | null;
+    /**
+     * Default Category Id
+     */
+    default_category_id?: string | null;
+};
+
+/**
  * HTTPValidationError
  */
 export type HttpValidationError = {
@@ -193,6 +417,175 @@ export type Health = {
      */
     database: string;
 };
+
+/**
+ * RuleIn
+ *
+ * The format of conditions and actions is described in categorize/rules.py.
+ */
+export type RuleIn = {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Enabled
+     */
+    enabled?: boolean;
+    match?: RuleMatch;
+    /**
+     * Conditions
+     */
+    conditions: Array<ConditionInput>;
+    /**
+     * Actions
+     */
+    actions: Array<SetCategory | SetCounterparty | AddTag | SetKind>;
+    /**
+     * Stop Processing
+     */
+    stop_processing?: boolean;
+};
+
+/**
+ * RuleMatch
+ */
+export type RuleMatch = 'all' | 'any';
+
+/**
+ * RuleOrder
+ */
+export type RuleOrder = {
+    /**
+     * Ids
+     */
+    ids: Array<string>;
+};
+
+/**
+ * RuleOut
+ */
+export type RuleOut = {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Enabled
+     */
+    enabled?: boolean;
+    match?: RuleMatch;
+    /**
+     * Conditions
+     */
+    conditions: Array<ConditionOutput>;
+    /**
+     * Actions
+     */
+    actions: Array<SetCategory | SetCounterparty | AddTag | SetKind>;
+    /**
+     * Stop Processing
+     */
+    stop_processing?: boolean;
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Position
+     */
+    position: number;
+};
+
+/**
+ * RulePreview
+ */
+export type RulePreview = {
+    /**
+     * Matches
+     */
+    matches: number;
+    /**
+     * Examples
+     */
+    examples: Array<TransactionOut>;
+};
+
+/**
+ * RulePreviewIn
+ */
+export type RulePreviewIn = {
+    match?: RuleMatch;
+    /**
+     * Conditions
+     */
+    conditions: Array<ConditionInput>;
+};
+
+/**
+ * RunResult
+ */
+export type RunResult = {
+    /**
+     * Processed
+     */
+    processed: number;
+    /**
+     * Categorized
+     */
+    categorized: number;
+    /**
+     * Counterparties Created
+     */
+    counterparties_created: number;
+};
+
+/**
+ * SetCategory
+ */
+export type SetCategory = {
+    /**
+     * Type
+     */
+    type: 'set_category';
+    /**
+     * Category Id
+     */
+    category_id: string;
+};
+
+/**
+ * SetCounterparty
+ */
+export type SetCounterparty = {
+    /**
+     * Type
+     */
+    type: 'set_counterparty';
+    /**
+     * Counterparty Id
+     */
+    counterparty_id: string;
+};
+
+/**
+ * SetKind
+ */
+export type SetKind = {
+    /**
+     * Type
+     */
+    type: 'set_kind';
+    kind: TransactionKind;
+};
+
+/**
+ * Source
+ *
+ * Who decided something in the user layer. Precedence (ADR-0007): manual > rule >
+ * counterparty (a merchant's default category) > ai.
+ */
+export type Source = 'manual' | 'rule' | 'counterparty' | 'ai' | 'bank' | 'auto';
 
 /**
  * StartConnection
@@ -229,6 +622,47 @@ export type SyncQueued = {
 };
 
 /**
+ * TransactionCategory
+ */
+export type TransactionCategory = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Group Name
+     */
+    group_name: string | null;
+    source: Source;
+};
+
+/**
+ * TransactionCounterparty
+ */
+export type TransactionCounterparty = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Name
+     */
+    name: string;
+    source: Source | null;
+};
+
+/**
+ * TransactionKind
+ *
+ * What a transaction is. Derived from its sign unless it's a transfer or overridden.
+ */
+export type TransactionKind = 'expense' | 'income' | 'transfer';
+
+/**
  * TransactionOut
  */
 export type TransactionOut = {
@@ -249,6 +683,10 @@ export type TransactionOut = {
      * Booking Date
      */
     booking_date: string | null;
+    /**
+     * Value Date
+     */
+    value_date: string | null;
     /**
      * Amount
      */
@@ -274,9 +712,34 @@ export type TransactionOut = {
      */
     description: string | null;
     /**
+     * Reference
+     */
+    reference: string | null;
+    /**
      * Mcc
      */
     mcc: string | null;
+    /**
+     * Bank Code
+     */
+    bank_code: string | null;
+    kind: TransactionKind;
+    kind_source: Source | null;
+    category: TransactionCategory | null;
+    counterparty: TransactionCounterparty | null;
+    transfer: TransactionTransfer | null;
+    /**
+     * Note
+     */
+    note: string | null;
+    /**
+     * Tags
+     */
+    tags: Array<string>;
+    /**
+     * Rule Tags
+     */
+    rule_tags: Array<string>;
 };
 
 /**
@@ -297,6 +760,77 @@ export type TransactionPage = {
  * TransactionStatus
  */
 export type TransactionStatus = 'booked' | 'pending';
+
+/**
+ * TransactionTransfer
+ */
+export type TransactionTransfer = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Other Transaction Id
+     */
+    other_transaction_id: string;
+    /**
+     * Other Account Id
+     */
+    other_account_id: string;
+    /**
+     * Other Account Name
+     */
+    other_account_name: string;
+    source: Source;
+};
+
+/**
+ * TransactionUpdate
+ *
+ * Only the fields sent change. `null` hands a field back to the automatic layer
+ * (category, counterparty, kind) or clears it (note).
+ */
+export type TransactionUpdate = {
+    /**
+     * Category Id
+     */
+    category_id?: string | null;
+    /**
+     * Counterparty Id
+     */
+    counterparty_id?: string | null;
+    kind?: TransactionKind | null;
+    /**
+     * Note
+     */
+    note?: string | null;
+    /**
+     * Tags
+     */
+    tags?: Array<string> | null;
+};
+
+/**
+ * TransactionUpdated
+ */
+export type TransactionUpdated = {
+    transaction: TransactionOut;
+    offer: ApplyToCounterparty | null;
+};
+
+/**
+ * TransferLink
+ */
+export type TransferLink = {
+    /**
+     * Outgoing Id
+     */
+    outgoing_id: string;
+    /**
+     * Incoming Id
+     */
+    incoming_id: string;
+};
 
 /**
  * ValidationError
@@ -584,6 +1118,22 @@ export type ListTransactionsData = {
          */
         status?: TransactionStatus | null;
         /**
+         * Kind
+         */
+        kind?: TransactionKind | null;
+        /**
+         * Category Id
+         */
+        category_id?: string | null;
+        /**
+         * Uncategorized
+         */
+        uncategorized?: boolean;
+        /**
+         * Counterparty Id
+         */
+        counterparty_id?: string | null;
+        /**
          * Cursor
          */
         cursor?: string | null;
@@ -612,3 +1162,456 @@ export type ListTransactionsResponses = {
 };
 
 export type ListTransactionsResponse = ListTransactionsResponses[keyof ListTransactionsResponses];
+
+export type UpdateTransactionData = {
+    body: TransactionUpdate;
+    path: {
+        /**
+         * Transaction Id
+         */
+        transaction_id: string;
+    };
+    query?: never;
+    url: '/api/finance/transactions/{transaction_id}';
+};
+
+export type UpdateTransactionErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdateTransactionError = UpdateTransactionErrors[keyof UpdateTransactionErrors];
+
+export type UpdateTransactionResponses = {
+    /**
+     * Successful Response
+     */
+    200: TransactionUpdated;
+};
+
+export type UpdateTransactionResponse = UpdateTransactionResponses[keyof UpdateTransactionResponses];
+
+export type LinkTransferData = {
+    body: TransferLink;
+    path?: never;
+    query?: never;
+    url: '/api/finance/transfers';
+};
+
+export type LinkTransferErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LinkTransferError = LinkTransferErrors[keyof LinkTransferErrors];
+
+export type LinkTransferResponses = {
+    /**
+     * Response Linktransfer
+     *
+     * Successful Response
+     */
+    201: Array<TransactionOut>;
+};
+
+export type LinkTransferResponse = LinkTransferResponses[keyof LinkTransferResponses];
+
+export type UnlinkTransferData = {
+    body?: never;
+    path: {
+        /**
+         * Transfer Id
+         */
+        transfer_id: string;
+    };
+    query?: never;
+    url: '/api/finance/transfers/{transfer_id}';
+};
+
+export type UnlinkTransferErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UnlinkTransferError = UnlinkTransferErrors[keyof UnlinkTransferErrors];
+
+export type UnlinkTransferResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type UnlinkTransferResponse = UnlinkTransferResponses[keyof UnlinkTransferResponses];
+
+export type ListCategoriesData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/finance/categories';
+};
+
+export type ListCategoriesResponses = {
+    /**
+     * Response Listcategories
+     *
+     * Successful Response
+     */
+    200: Array<CategoryGroupOut>;
+};
+
+export type ListCategoriesResponse = ListCategoriesResponses[keyof ListCategoriesResponses];
+
+export type CreateCategoryData = {
+    body: CategoryCreate;
+    path?: never;
+    query?: never;
+    url: '/api/finance/categories';
+};
+
+export type CreateCategoryErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreateCategoryError = CreateCategoryErrors[keyof CreateCategoryErrors];
+
+export type CreateCategoryResponses = {
+    /**
+     * Successful Response
+     */
+    201: CategoryOut;
+};
+
+export type CreateCategoryResponse = CreateCategoryResponses[keyof CreateCategoryResponses];
+
+export type DeleteCategoryData = {
+    body?: never;
+    path: {
+        /**
+         * Category Id
+         */
+        category_id: string;
+    };
+    query?: never;
+    url: '/api/finance/categories/{category_id}';
+};
+
+export type DeleteCategoryErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeleteCategoryError = DeleteCategoryErrors[keyof DeleteCategoryErrors];
+
+export type DeleteCategoryResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type DeleteCategoryResponse = DeleteCategoryResponses[keyof DeleteCategoryResponses];
+
+export type UpdateCategoryData = {
+    body: CategoryUpdate;
+    path: {
+        /**
+         * Category Id
+         */
+        category_id: string;
+    };
+    query?: never;
+    url: '/api/finance/categories/{category_id}';
+};
+
+export type UpdateCategoryErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdateCategoryError = UpdateCategoryErrors[keyof UpdateCategoryErrors];
+
+export type UpdateCategoryResponses = {
+    /**
+     * Successful Response
+     */
+    200: CategoryOut;
+};
+
+export type UpdateCategoryResponse = UpdateCategoryResponses[keyof UpdateCategoryResponses];
+
+export type ListCounterpartiesData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Q
+         */
+        q?: string | null;
+    };
+    url: '/api/finance/counterparties';
+};
+
+export type ListCounterpartiesErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListCounterpartiesError = ListCounterpartiesErrors[keyof ListCounterpartiesErrors];
+
+export type ListCounterpartiesResponses = {
+    /**
+     * Response Listcounterparties
+     *
+     * Successful Response
+     */
+    200: Array<CounterpartyOut>;
+};
+
+export type ListCounterpartiesResponse = ListCounterpartiesResponses[keyof ListCounterpartiesResponses];
+
+export type UpdateCounterpartyData = {
+    body: CounterpartyUpdate;
+    path: {
+        /**
+         * Counterparty Id
+         */
+        counterparty_id: string;
+    };
+    query?: never;
+    url: '/api/finance/counterparties/{counterparty_id}';
+};
+
+export type UpdateCounterpartyErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdateCounterpartyError = UpdateCounterpartyErrors[keyof UpdateCounterpartyErrors];
+
+export type UpdateCounterpartyResponses = {
+    /**
+     * Successful Response
+     */
+    200: CounterpartyOut;
+};
+
+export type UpdateCounterpartyResponse = UpdateCounterpartyResponses[keyof UpdateCounterpartyResponses];
+
+export type MergeCounterpartyData = {
+    body: CounterpartyMerge;
+    path: {
+        /**
+         * Counterparty Id
+         */
+        counterparty_id: string;
+    };
+    query?: never;
+    url: '/api/finance/counterparties/{counterparty_id}/merge';
+};
+
+export type MergeCounterpartyErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type MergeCounterpartyError = MergeCounterpartyErrors[keyof MergeCounterpartyErrors];
+
+export type MergeCounterpartyResponses = {
+    /**
+     * Successful Response
+     */
+    200: CounterpartyOut;
+};
+
+export type MergeCounterpartyResponse = MergeCounterpartyResponses[keyof MergeCounterpartyResponses];
+
+export type ListRulesData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/finance/rules';
+};
+
+export type ListRulesResponses = {
+    /**
+     * Response Listrules
+     *
+     * Successful Response
+     */
+    200: Array<RuleOut>;
+};
+
+export type ListRulesResponse = ListRulesResponses[keyof ListRulesResponses];
+
+export type CreateRuleData = {
+    body: RuleIn;
+    path?: never;
+    query?: never;
+    url: '/api/finance/rules';
+};
+
+export type CreateRuleErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreateRuleError = CreateRuleErrors[keyof CreateRuleErrors];
+
+export type CreateRuleResponses = {
+    /**
+     * Successful Response
+     */
+    201: RuleOut;
+};
+
+export type CreateRuleResponse = CreateRuleResponses[keyof CreateRuleResponses];
+
+export type DeleteRuleData = {
+    body?: never;
+    path: {
+        /**
+         * Rule Id
+         */
+        rule_id: string;
+    };
+    query?: never;
+    url: '/api/finance/rules/{rule_id}';
+};
+
+export type DeleteRuleErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeleteRuleError = DeleteRuleErrors[keyof DeleteRuleErrors];
+
+export type DeleteRuleResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type DeleteRuleResponse = DeleteRuleResponses[keyof DeleteRuleResponses];
+
+export type UpdateRuleData = {
+    body: RuleIn;
+    path: {
+        /**
+         * Rule Id
+         */
+        rule_id: string;
+    };
+    query?: never;
+    url: '/api/finance/rules/{rule_id}';
+};
+
+export type UpdateRuleErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdateRuleError = UpdateRuleErrors[keyof UpdateRuleErrors];
+
+export type UpdateRuleResponses = {
+    /**
+     * Successful Response
+     */
+    200: RuleOut;
+};
+
+export type UpdateRuleResponse = UpdateRuleResponses[keyof UpdateRuleResponses];
+
+export type ReorderRulesData = {
+    body: RuleOrder;
+    path?: never;
+    query?: never;
+    url: '/api/finance/rules-order';
+};
+
+export type ReorderRulesErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ReorderRulesError = ReorderRulesErrors[keyof ReorderRulesErrors];
+
+export type ReorderRulesResponses = {
+    /**
+     * Response Reorderrules
+     *
+     * Successful Response
+     */
+    200: Array<RuleOut>;
+};
+
+export type ReorderRulesResponse = ReorderRulesResponses[keyof ReorderRulesResponses];
+
+export type PreviewRuleData = {
+    body: RulePreviewIn;
+    path?: never;
+    query?: never;
+    url: '/api/finance/rules/preview';
+};
+
+export type PreviewRuleErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PreviewRuleError = PreviewRuleErrors[keyof PreviewRuleErrors];
+
+export type PreviewRuleResponses = {
+    /**
+     * Successful Response
+     */
+    200: RulePreview;
+};
+
+export type PreviewRuleResponse = PreviewRuleResponses[keyof PreviewRuleResponses];
+
+export type RunRulesData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/finance/rules/run';
+};
+
+export type RunRulesResponses = {
+    /**
+     * Successful Response
+     */
+    200: RunResult;
+};
+
+export type RunRulesResponse = RunRulesResponses[keyof RunRulesResponses];
