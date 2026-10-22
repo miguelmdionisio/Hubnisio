@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { GetHealthData, GetHealthErrors, GetHealthResponses } from './types.gen';
+import type { CompleteConnectionData, CompleteConnectionErrors, CompleteConnectionResponses, DeleteConnectionData, DeleteConnectionErrors, DeleteConnectionResponses, GetHealthData, GetHealthErrors, GetHealthResponses, ListAccountsData, ListAccountsResponses, ListBanksData, ListBanksErrors, ListBanksResponses, ListConnectionsData, ListConnectionsResponses, ListTransactionsData, ListTransactionsErrors, ListTransactionsResponses, StartConnectionData, StartConnectionErrors, StartConnectionResponses, SyncConnectionData, SyncConnectionErrors, SyncConnectionResponses, UpdateAccountData, UpdateAccountErrors, UpdateAccountResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -22,3 +22,76 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
  * Health
  */
 export const getHealth = <ThrowOnError extends boolean = false>(options?: Options<GetHealthData, ThrowOnError>): RequestResult<GetHealthResponses, GetHealthErrors, ThrowOnError> => (options?.client ?? client).get<GetHealthResponses, GetHealthErrors, ThrowOnError>({ url: '/api/health', ...options });
+
+/**
+ * List Banks
+ */
+export const listBanks = <ThrowOnError extends boolean = false>(options: Options<ListBanksData, ThrowOnError>): RequestResult<ListBanksResponses, ListBanksErrors, ThrowOnError> => (options.client ?? client).get<ListBanksResponses, ListBanksErrors, ThrowOnError>({ url: '/api/finance/banks', ...options });
+
+/**
+ * List Connections
+ */
+export const listConnections = <ThrowOnError extends boolean = false>(options?: Options<ListConnectionsData, ThrowOnError>): RequestResult<ListConnectionsResponses, unknown, ThrowOnError> => (options?.client ?? client).get<ListConnectionsResponses, unknown, ThrowOnError>({ url: '/api/finance/connections', ...options });
+
+/**
+ * Start Connection
+ */
+export const startConnection = <ThrowOnError extends boolean = false>(options: Options<StartConnectionData, ThrowOnError>): RequestResult<StartConnectionResponses, StartConnectionErrors, ThrowOnError> => (options.client ?? client).post<StartConnectionResponses, StartConnectionErrors, ThrowOnError>({
+    url: '/api/finance/connections',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Complete Connection
+ */
+export const completeConnection = <ThrowOnError extends boolean = false>(options: Options<CompleteConnectionData, ThrowOnError>): RequestResult<CompleteConnectionResponses, CompleteConnectionErrors, ThrowOnError> => (options.client ?? client).post<CompleteConnectionResponses, CompleteConnectionErrors, ThrowOnError>({
+    url: '/api/finance/connections/complete',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Delete Connection
+ *
+ * Close the bank session (and consent, where the bank supports it). The accounts and
+ * their history stay.
+ */
+export const deleteConnection = <ThrowOnError extends boolean = false>(options: Options<DeleteConnectionData, ThrowOnError>): RequestResult<DeleteConnectionResponses, DeleteConnectionErrors, ThrowOnError> => (options.client ?? client).delete<DeleteConnectionResponses, DeleteConnectionErrors, ThrowOnError>({ url: '/api/finance/connections/{connection_id}', ...options });
+
+/**
+ * Sync Connection
+ */
+export const syncConnection = <ThrowOnError extends boolean = false>(options: Options<SyncConnectionData, ThrowOnError>): RequestResult<SyncConnectionResponses, SyncConnectionErrors, ThrowOnError> => (options.client ?? client).post<SyncConnectionResponses, SyncConnectionErrors, ThrowOnError>({ url: '/api/finance/connections/{connection_id}/sync', ...options });
+
+/**
+ * List Accounts
+ */
+export const listAccounts = <ThrowOnError extends boolean = false>(options?: Options<ListAccountsData, ThrowOnError>): RequestResult<ListAccountsResponses, unknown, ThrowOnError> => (options?.client ?? client).get<ListAccountsResponses, unknown, ThrowOnError>({ url: '/api/finance/accounts', ...options });
+
+/**
+ * Update Account
+ *
+ * Only an account's owners can change it.
+ */
+export const updateAccount = <ThrowOnError extends boolean = false>(options: Options<UpdateAccountData, ThrowOnError>): RequestResult<UpdateAccountResponses, UpdateAccountErrors, ThrowOnError> => (options.client ?? client).patch<UpdateAccountResponses, UpdateAccountErrors, ThrowOnError>({
+    url: '/api/finance/accounts/{account_id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * List Transactions
+ *
+ * Newest first. Pass `next_cursor` back as `cursor` for the next page.
+ */
+export const listTransactions = <ThrowOnError extends boolean = false>(options?: Options<ListTransactionsData, ThrowOnError>): RequestResult<ListTransactionsResponses, ListTransactionsErrors, ThrowOnError> => (options?.client ?? client).get<ListTransactionsResponses, ListTransactionsErrors, ThrowOnError>({ url: '/api/finance/transactions', ...options });

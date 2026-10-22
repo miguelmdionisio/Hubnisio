@@ -1,17 +1,17 @@
 """Rebuild an account's bank facts from its raw payloads, so parser fixes never need a re-fetch.
 
-Every successful sync is replayed in order, which reproduces the rows a live sync produced.
-Transaction IDs change. Nothing refers to them yet; once the user layer exists (M2), this has
-to carry categories and notes over to the rebuilt rows.
+Every sync whose fetch completed is replayed in order, which reproduces the rows a live sync
+produced. Transaction IDs change. Nothing refers to them yet; once the user layer exists (M2),
+this has to carry categories and notes over to the rebuilt rows.
 """
 
 import uuid
 from dataclasses import dataclass
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from hubnisio.finance.ingest.apply import apply_payloads
+from hubnisio.finance.ingest.apply import APPLY_FAILED, apply_payloads
 from hubnisio.finance.models import (
     BalanceSnapshot,
     Connection,
@@ -37,7 +37,10 @@ async def renormalize_account(session: AsyncSession, account_id: uuid.UUID) -> R
         await session.execute(
             select(SyncRun.id, SyncRun.household_id, Connection.provider)
             .join(Connection, Connection.id == SyncRun.connection_id)
-            .where(SyncRun.account_id == account_id, SyncRun.status == SyncStatus.SUCCEEDED)
+            .where(
+                SyncRun.account_id == account_id,
+                or_(SyncRun.status == SyncStatus.SUCCEEDED, SyncRun.error_code == APPLY_FAILED),
+            )
             .order_by(SyncRun.started_at, SyncRun.id)
         )
     ).all()

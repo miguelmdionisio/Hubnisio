@@ -8,13 +8,18 @@ from fastapi import FastAPI
 from hubnisio.core.auth import check_auth_config
 from hubnisio.core.routes import router as core_router
 from hubnisio.core.settings import get_settings
+from hubnisio.finance.api import router as finance_router
+from hubnisio.jobs import app as job_app
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     check_auth_config(get_settings())
-    yield
+    # The API defers jobs (e.g. a bank's first sync), so it needs the queue open.
+    async with job_app.open_async():
+        yield
 
 
 app = FastAPI(title="Hubnisio", version="0.1.0", lifespan=lifespan)
 app.include_router(core_router, prefix="/api")
+app.include_router(finance_router, prefix="/api")

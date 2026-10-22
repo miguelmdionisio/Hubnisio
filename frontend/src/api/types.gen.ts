@@ -5,6 +5,182 @@ export type ClientOptions = {
 };
 
 /**
+ * AccountOut
+ */
+export type AccountOut = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Institution Name
+     */
+    institution_name: string;
+    /**
+     * Iban Masked
+     */
+    iban_masked: string | null;
+    /**
+     * Currency
+     */
+    currency: string;
+    /**
+     * Cash Account Type
+     */
+    cash_account_type: string | null;
+    visibility: AccountVisibility;
+    /**
+     * Include In Net Worth
+     */
+    include_in_net_worth: boolean;
+    /**
+     * Is Owner
+     */
+    is_owner: boolean;
+    balance: Balance | null;
+};
+
+/**
+ * AccountUpdate
+ */
+export type AccountUpdate = {
+    /**
+     * Display Name
+     */
+    display_name?: string | null;
+    visibility?: AccountVisibility | null;
+    /**
+     * Include In Net Worth
+     */
+    include_in_net_worth?: boolean | null;
+};
+
+/**
+ * AccountVisibility
+ */
+export type AccountVisibility = 'shared' | 'private';
+
+/**
+ * Balance
+ */
+export type Balance = {
+    /**
+     * Balance Type
+     */
+    balance_type: string;
+    /**
+     * Amount
+     */
+    amount: string;
+    /**
+     * Currency
+     */
+    currency: string;
+    /**
+     * Fetched At
+     */
+    fetched_at: string;
+};
+
+/**
+ * Bank
+ */
+export type Bank = {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Country
+     */
+    country: string;
+    /**
+     * Logo
+     */
+    logo: string | null;
+    /**
+     * Beta
+     */
+    beta: boolean;
+};
+
+/**
+ * CompleteConnection
+ */
+export type CompleteConnection = {
+    /**
+     * Code
+     */
+    code: string;
+    /**
+     * State
+     */
+    state: string;
+};
+
+/**
+ * ConnectionOut
+ */
+export type ConnectionOut = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Institution Name
+     */
+    institution_name: string;
+    /**
+     * Institution Country
+     */
+    institution_country: string;
+    status: ConnectionStatus;
+    /**
+     * Valid Until
+     */
+    valid_until: string | null;
+    /**
+     * Days Left
+     */
+    days_left: number | null;
+    /**
+     * Last Synced At
+     */
+    last_synced_at: string | null;
+    /**
+     * Syncing
+     */
+    syncing: boolean;
+    /**
+     * Last Error
+     */
+    last_error: string | null;
+    /**
+     * Account Ids
+     */
+    account_ids: Array<string>;
+};
+
+/**
+ * ConnectionStatus
+ */
+export type ConnectionStatus = 'pending' | 'active' | 'expired' | 'revoked' | 'failed';
+
+/**
+ * HTTPValidationError
+ */
+export type HttpValidationError = {
+    /**
+     * Detail
+     */
+    detail?: Array<ValidationError>;
+};
+
+/**
  * Health
  */
 export type Health = {
@@ -16,6 +192,138 @@ export type Health = {
      * Database
      */
     database: string;
+};
+
+/**
+ * StartConnection
+ */
+export type StartConnection = {
+    /**
+     * Institution Name
+     */
+    institution_name: string;
+    /**
+     * Country
+     */
+    country: string;
+};
+
+/**
+ * StartedConnection
+ */
+export type StartedConnection = {
+    /**
+     * Url
+     */
+    url: string;
+};
+
+/**
+ * SyncQueued
+ */
+export type SyncQueued = {
+    /**
+     * Queued
+     */
+    queued: boolean;
+};
+
+/**
+ * TransactionOut
+ */
+export type TransactionOut = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Account Id
+     */
+    account_id: string;
+    status: TransactionStatus;
+    /**
+     * Occurred On
+     */
+    occurred_on: string;
+    /**
+     * Booking Date
+     */
+    booking_date: string | null;
+    /**
+     * Amount
+     */
+    amount: string;
+    /**
+     * Currency
+     */
+    currency: string;
+    /**
+     * Original Amount
+     */
+    original_amount: string | null;
+    /**
+     * Original Currency
+     */
+    original_currency: string | null;
+    /**
+     * Counterparty Name
+     */
+    counterparty_name: string | null;
+    /**
+     * Description
+     */
+    description: string | null;
+    /**
+     * Mcc
+     */
+    mcc: string | null;
+};
+
+/**
+ * TransactionPage
+ */
+export type TransactionPage = {
+    /**
+     * Items
+     */
+    items: Array<TransactionOut>;
+    /**
+     * Next Cursor
+     */
+    next_cursor: string | null;
+};
+
+/**
+ * TransactionStatus
+ */
+export type TransactionStatus = 'booked' | 'pending';
+
+/**
+ * ValidationError
+ */
+export type ValidationError = {
+    /**
+     * Location
+     */
+    loc: Array<string | number>;
+    /**
+     * Message
+     */
+    msg: string;
+    /**
+     * Error Type
+     */
+    type: string;
+    /**
+     * Input
+     */
+    input?: unknown;
+    /**
+     * Context
+     */
+    ctx?: {
+        [key: string]: unknown;
+    };
 };
 
 export type GetHealthData = {
@@ -42,3 +350,265 @@ export type GetHealthResponses = {
 };
 
 export type GetHealthResponse = GetHealthResponses[keyof GetHealthResponses];
+
+export type ListBanksData = {
+    body?: never;
+    path?: never;
+    query: {
+        /**
+         * Country
+         */
+        country: string;
+    };
+    url: '/api/finance/banks';
+};
+
+export type ListBanksErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListBanksError = ListBanksErrors[keyof ListBanksErrors];
+
+export type ListBanksResponses = {
+    /**
+     * Response Listbanks
+     *
+     * Successful Response
+     */
+    200: Array<Bank>;
+};
+
+export type ListBanksResponse = ListBanksResponses[keyof ListBanksResponses];
+
+export type ListConnectionsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/finance/connections';
+};
+
+export type ListConnectionsResponses = {
+    /**
+     * Response Listconnections
+     *
+     * Successful Response
+     */
+    200: Array<ConnectionOut>;
+};
+
+export type ListConnectionsResponse = ListConnectionsResponses[keyof ListConnectionsResponses];
+
+export type StartConnectionData = {
+    body: StartConnection;
+    path?: never;
+    query?: never;
+    url: '/api/finance/connections';
+};
+
+export type StartConnectionErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type StartConnectionError = StartConnectionErrors[keyof StartConnectionErrors];
+
+export type StartConnectionResponses = {
+    /**
+     * Successful Response
+     */
+    201: StartedConnection;
+};
+
+export type StartConnectionResponse = StartConnectionResponses[keyof StartConnectionResponses];
+
+export type CompleteConnectionData = {
+    body: CompleteConnection;
+    path?: never;
+    query?: never;
+    url: '/api/finance/connections/complete';
+};
+
+export type CompleteConnectionErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CompleteConnectionError = CompleteConnectionErrors[keyof CompleteConnectionErrors];
+
+export type CompleteConnectionResponses = {
+    /**
+     * Successful Response
+     */
+    200: ConnectionOut;
+};
+
+export type CompleteConnectionResponse = CompleteConnectionResponses[keyof CompleteConnectionResponses];
+
+export type DeleteConnectionData = {
+    body?: never;
+    path: {
+        /**
+         * Connection Id
+         */
+        connection_id: string;
+    };
+    query?: never;
+    url: '/api/finance/connections/{connection_id}';
+};
+
+export type DeleteConnectionErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeleteConnectionError = DeleteConnectionErrors[keyof DeleteConnectionErrors];
+
+export type DeleteConnectionResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type DeleteConnectionResponse = DeleteConnectionResponses[keyof DeleteConnectionResponses];
+
+export type SyncConnectionData = {
+    body?: never;
+    path: {
+        /**
+         * Connection Id
+         */
+        connection_id: string;
+    };
+    query?: never;
+    url: '/api/finance/connections/{connection_id}/sync';
+};
+
+export type SyncConnectionErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SyncConnectionError = SyncConnectionErrors[keyof SyncConnectionErrors];
+
+export type SyncConnectionResponses = {
+    /**
+     * Successful Response
+     */
+    202: SyncQueued;
+};
+
+export type SyncConnectionResponse = SyncConnectionResponses[keyof SyncConnectionResponses];
+
+export type ListAccountsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/finance/accounts';
+};
+
+export type ListAccountsResponses = {
+    /**
+     * Response Listaccounts
+     *
+     * Successful Response
+     */
+    200: Array<AccountOut>;
+};
+
+export type ListAccountsResponse = ListAccountsResponses[keyof ListAccountsResponses];
+
+export type UpdateAccountData = {
+    body: AccountUpdate;
+    path: {
+        /**
+         * Account Id
+         */
+        account_id: string;
+    };
+    query?: never;
+    url: '/api/finance/accounts/{account_id}';
+};
+
+export type UpdateAccountErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdateAccountError = UpdateAccountErrors[keyof UpdateAccountErrors];
+
+export type UpdateAccountResponses = {
+    /**
+     * Successful Response
+     */
+    200: AccountOut;
+};
+
+export type UpdateAccountResponse = UpdateAccountResponses[keyof UpdateAccountResponses];
+
+export type ListTransactionsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Account Id
+         */
+        account_id?: string | null;
+        /**
+         * Date From
+         */
+        date_from?: string | null;
+        /**
+         * Date To
+         */
+        date_to?: string | null;
+        /**
+         * Q
+         */
+        q?: string | null;
+        /**
+         * Status
+         */
+        status?: TransactionStatus | null;
+        /**
+         * Cursor
+         */
+        cursor?: string | null;
+        /**
+         * Limit
+         */
+        limit?: number;
+    };
+    url: '/api/finance/transactions';
+};
+
+export type ListTransactionsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListTransactionsError = ListTransactionsErrors[keyof ListTransactionsErrors];
+
+export type ListTransactionsResponses = {
+    /**
+     * Successful Response
+     */
+    200: TransactionPage;
+};
+
+export type ListTransactionsResponse = ListTransactionsResponses[keyof ListTransactionsResponses];

@@ -91,7 +91,7 @@ class Connection(Base):
     status: Mapped[ConnectionStatus] = mapped_column(_enum(ConnectionStatus, "connection_status"))
     # Encrypted with core.crypto; null until authorization completes.
     session_id_encrypted: Mapped[str | None] = mapped_column(Text)
-    # SHA-256 of the OAuth-style `state` sent to the bank; cleared once it's used.
+    # SHA-256 of the `state` sent to the bank; lets the callback (even reloaded) find this row.
     auth_state_hash: Mapped[str | None] = mapped_column(String(64), unique=True)
     valid_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

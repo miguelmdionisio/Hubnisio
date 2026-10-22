@@ -47,6 +47,7 @@ name = "Entrypoints on top, domain modules in the middle, core at the bottom"
 type = "layers"
 layers = [
     "main | worker | cli",
+    "jobs",
     "finance",
     "core",
 ]

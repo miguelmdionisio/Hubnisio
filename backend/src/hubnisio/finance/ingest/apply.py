@@ -13,6 +13,10 @@ from hubnisio.finance.providers.enable_banking.normalize import normalizer as en
 
 NORMALIZERS: dict[ProviderName, Normalizer] = {ProviderName.ENABLE_BANKING: enable_banking}
 
+# The error code of a sync whose fetch completed but whose payloads couldn't be applied (a
+# parser bug). Its payloads are complete, so renormalize replays it once the bug is fixed.
+APPLY_FAILED = "APPLY_FAILED"
+
 
 async def apply_payloads(
     session: AsyncSession,

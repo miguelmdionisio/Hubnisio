@@ -67,12 +67,13 @@ class EnableBankingClient:
         private_key: RSAPrivateKey,
         *,
         http: httpx.AsyncClient | None = None,
+        transport: httpx.AsyncBaseTransport | None = None,
         clock: Callable[[], float] = time.time,
     ) -> None:
         self._app_id = app_id
         self._private_key = private_key
         self._owns_http = http is None
-        self._http = http or httpx.AsyncClient(base_url=API_URL, timeout=60)
+        self._http = http or httpx.AsyncClient(base_url=API_URL, timeout=60, transport=transport)
         self._clock = clock
         self._token: str | None = None
         self._token_expires_at = 0.0
