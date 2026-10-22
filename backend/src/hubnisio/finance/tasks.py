@@ -7,7 +7,10 @@ import procrastinate
 from procrastinate.exceptions import AlreadyEnqueued
 from procrastinate.types import JSONDict, TimeDeltaParams
 
+from hubnisio.core.db import get_sessionmaker
 from hubnisio.finance import sync
+from hubnisio.finance.fx.sources import FxClient
+from hubnisio.finance.fx.store import refresh_rates
 
 blueprint = procrastinate.Blueprint()
 
@@ -35,6 +38,21 @@ async def sync_connection(
 async def schedule_syncs(timestamp: int) -> None:
     for connection_id in await sync.active_connection_ids():
         await defer_sync(connection_id)
+
+
+# The ECB publishes its reference rates around 16:00 Central European Time, which is 14:00 to
+# 15:00 UTC. The cron runs in the worker's timezone (UTC in the container).
+@blueprint.periodic(cron="0 16 * * *")
+@blueprint.task(name="fetch_fx_rates")
+async def fetch_fx_rates(timestamp: int) -> None:
+    """Fill in the rates missing since the last run. What was fetched is kept even if some
+    currency failed; the failure then fails the job, and the next run fills the gap."""
+    async with FxClient() as client, get_sessionmaker()() as session, session.begin():
+        result = await refresh_rates(session, client)
+    if result.failed:
+        raise RuntimeError(
+            "Exchange rates not fetched for " + ", ".join(sorted(result.failed)) + "."
+        )
 
 
 async def defer_sync(

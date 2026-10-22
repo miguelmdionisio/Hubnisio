@@ -14,6 +14,7 @@ from typing import Any
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     Date,
     DateTime,
     Enum,
@@ -106,6 +107,11 @@ class Source(enum.StrEnum):
 class RuleMatch(enum.StrEnum):
     ALL = "all"
     ANY = "any"
+
+
+class FxSource(enum.StrEnum):
+    ECB = "ecb"  # ECB euro foreign exchange reference rates
+    CURRENCY_API = "currency_api"  # fawazahmed0's currency-api, for currencies the ECB lacks
 
 
 class Connection(Base):
@@ -350,6 +356,23 @@ class BalanceSnapshot(Base):
     currency: Mapped[str] = mapped_column(String(3))
     reference_date: Mapped[date | None] = mapped_column(Date)
     last_change_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class FxRate(Base):
+    """Public reference data, so global (no household): how many units of a currency one euro
+    bought on a day. A euro amount is the amount divided by the rate (finance/fx/convert.py)."""
+
+    __tablename__ = "fx_rates"
+    __table_args__ = (
+        CheckConstraint("rate > 0", name="rate_positive"),  # the rate is a divisor
+        {"schema": SCHEMA},
+    )
+
+    quote_currency: Mapped[str] = mapped_column(String(3), primary_key=True)
+    on: Mapped[date] = mapped_column(Date, primary_key=True)
+    rate: Mapped[Decimal] = mapped_column(Numeric(20, 10))  # units of quote_currency per 1 EUR
+    source: Mapped[FxSource] = mapped_column(_enum(FxSource, "fx_source"))
     fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

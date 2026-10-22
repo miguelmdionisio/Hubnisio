@@ -4,6 +4,7 @@ import argparse
 import asyncio
 import sys
 import uuid
+from datetime import date
 
 from sqlalchemy import select
 
@@ -11,6 +12,8 @@ from hubnisio.core.db import get_engine, get_sessionmaker
 from hubnisio.core.models import Household, HouseholdMember, HouseholdRole, User
 from hubnisio.finance.categorize.run import run_all
 from hubnisio.finance.defaults import seed_household
+from hubnisio.finance.fx.sources import FxClient
+from hubnisio.finance.fx.store import earliest_transaction_day, rate_summary, refresh_rates
 from hubnisio.finance.ingest.renormalize import renormalize_account
 from hubnisio.finance.models import Account
 
@@ -71,6 +74,29 @@ async def recategorize(household_id: uuid.UUID | None) -> int:
     return 0
 
 
+async def fx_backfill(since: date | None) -> int:
+    """Fetch the exchange rates the hub's currencies are missing since `since` (default: the
+    earliest transaction), then show what is stored."""
+    async with FxClient() as client, get_sessionmaker()() as session, session.begin():
+        if since is None:
+            since = await earliest_transaction_day(session)
+        result = await refresh_rates(session, client, since=since)
+        stored = await rate_summary(session)
+    print(f"Fetched rates since {since or 'the first day each currency appears'}.")
+    for (currency, source), rows in sorted(result.written.items()):
+        print(f"{currency} ({source}): {rows} rows written.")
+    if not result.written:
+        print("Nothing new to write.")
+    for item in stored:
+        print(
+            f"Stored {item.currency} ({item.source}): {item.rows} rows, "
+            f"{item.first} to {item.last}."
+        )
+    for currency, error in sorted(result.failed.items()):
+        print(f"{currency} failed: {error}", file=sys.stderr)
+    return 1 if result.failed else 0
+
+
 async def _run(args: argparse.Namespace) -> int:
     try:
         match args.command:
@@ -80,6 +106,8 @@ async def _run(args: argparse.Namespace) -> int:
                 return await renormalize(args.account)
             case "recategorize":
                 return await recategorize(args.household)
+            case "fx-backfill":
+                return await fx_backfill(args.since)
             case _:
                 raise AssertionError(args.command)
     finally:
@@ -110,6 +138,16 @@ def main(argv: list[str] | None = None) -> int:
     )
     recategorize_parser.add_argument(
         "--household", type=uuid.UUID, help="one household ID (default: every household)"
+    )
+
+    fx_backfill_parser = commands.add_parser(
+        "fx-backfill", help="fetch the exchange rates into EUR that are missing"
+    )
+    fx_backfill_parser.add_argument(
+        "--since",
+        type=date.fromisoformat,
+        metavar="YYYY-MM-DD",
+        help="check from this day (default: the earliest transaction)",
     )
 
     args = parser.parse_args(argv)

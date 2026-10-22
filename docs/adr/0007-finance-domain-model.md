@@ -83,6 +83,26 @@ Findings that shape it ([research](../research/oss-finance-analysis.md)):
 - Transactions explain the movement between snapshots. Balances between snapshots are interpolated from transactions.
 - Net worth = the sum of the latest balances across accounts (investments at market value), in EUR via `fx_rates` (daily rates). Accounts can be excluded from net worth.
 
+### FX rates *(added in M3)*
+
+- **Base currency:** EUR, a constant rather than a setting. Every insight is in EUR.
+- **Table:** `fx_rates` has one row per currency and day: how many units of the currency one euro buys. It is global (public data, no household) and records each rate's source.
+- **Sources:**
+  - **ECB reference rates** (ECB Data Portal API, no key) for every currency the ECB still publishes. It is the official daily reference, and one request returns a whole range.
+  - **fawazahmed0's currency-api** (keyless, CC0, one dated file a day since 2024-03-02, jsDelivr with a pages.dev fallback) only for the rest. Today that is the Moroccan dirham.
+  - **"Covered" means current.** The ECB does have a dirham series, but it stopped on 2020-10-30 and is marked indicative. A currency counts as the ECB's only if its newest rate is under 30 days old.
+- **Which currencies:** every non-euro currency of an account, a transaction (its own or its original currency) or a balance snapshot.
+- **Filling:**
+  - The daily task `fetch_fx_rates` (16:00 UTC, after the ECB publishes) fetches what is missing since each currency's last stored day. A currency with nothing stored starts at the earliest transaction.
+  - `cli fx-backfill [--since]` checks the whole range from a day (default: the earliest transaction) and writes only missing or changed rates.
+  - currency-api needs a request per day, so a backfill samples it weekly and the last two weeks daily. The dirham is pegged to a basket and moves well under 1% a week.
+  - One currency failing doesn't stop the others. The job then fails, and the next day's run fills the gap.
+- **Conversion (`finance/fx/convert.py`):**
+  - An amount is divided by the latest rate on or before its date, if that rate is at most 10 days old. That covers weekends, bank holidays and the weekly sampling.
+  - With no such rate the result is NULL, and callers leave the amount out and count it as unconverted. There is no 1:1 fallback: Firefly silently treats a missing rate as 1, which would put a dirham amount in the totals as euros.
+  - The SQL expression `eur_amount` is unrounded so that sums stay exact; `to_eur` rounds a single value to 4 decimal places.
+- **Gaps:** dirham amounts before 2024-03-02 can't be converted.
+
 ### Investments (Trading 212)
 
 - A separate sub-model: instruments (ISIN, ticker, currency), trades, dividends, cash movements, holdings, prices.
