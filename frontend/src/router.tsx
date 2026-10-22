@@ -5,6 +5,7 @@ import {
   type RouterHistory,
 } from '@tanstack/react-router';
 import { AppShell } from './components/app-shell';
+import { errorMessage } from './lib/errors';
 import { AccountsPage } from './routes/finance/accounts';
 import { CallbackPage, validateCallbackSearch } from './routes/finance/callback';
 import { ConnectionsPage } from './routes/finance/connections';
@@ -16,7 +17,7 @@ const rootRoute = createRootRoute({
   errorComponent: ({ error }) => (
     <div className="p-8">
       <h1 className="text-2xl font-semibold">Something broke</h1>
-      <p className="mt-2 text-sm text-muted-foreground">{error.message}</p>
+      <p className="mt-2 text-sm text-muted-foreground">{errorMessage(error)}</p>
     </div>
   ),
 });
