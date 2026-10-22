@@ -6,6 +6,7 @@ from sqlalchemy import create_engine, text
 
 from hubnisio.core import models as core_models
 from hubnisio.core.db import MODULE_SCHEMAS, Base
+from hubnisio.finance import models as finance_models
 
 
 def _sync_url(database_url: str) -> str:
@@ -14,7 +15,7 @@ def _sync_url(database_url: str) -> str:
 
 def test_models_match_migrations(migrated_database: str) -> None:
     """Autogenerate finds nothing to do, so the migrations and the models agree."""
-    _ = (core_models,)
+    _ = (core_models, finance_models)
     engine = create_engine(_sync_url(migrated_database))
     with engine.connect() as connection:
         context = MigrationContext.configure(
