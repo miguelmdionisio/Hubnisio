@@ -5,7 +5,9 @@ day, if it is at most MAX_RATE_AGE_DAYS old. Without one the result is NULL (Non
 amount unconverted, so callers can leave it out and say so.
 """
 
-from datetime import date
+from bisect import bisect_right
+from collections.abc import Iterable
+from datetime import date, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
@@ -68,3 +70,44 @@ async def to_eur(session: AsyncSession, amount: Decimal, currency: str, on: date
     if rate is None:
         return None
     return (amount / rate).quantize(_MONEY_STEP, rounding=ROUND_HALF_UP)
+
+
+class RateTable:
+    """Rates loaded once for many conversions, e.g. a balance on every day of a chart."""
+
+    def __init__(self, rates: dict[str, list[tuple[date, Decimal]]]) -> None:
+        self._rates = rates  # per currency, oldest first
+
+    @classmethod
+    async def load(
+        cls, session: AsyncSession, currencies: Iterable[str], first: date, last: date
+    ) -> RateTable:
+        wanted = {currency for currency in currencies if currency != BASE_CURRENCY}
+        rates: dict[str, list[tuple[date, Decimal]]] = {currency: [] for currency in wanted}
+        if wanted:
+            rows = await session.execute(
+                select(FxRate.quote_currency, FxRate.on, FxRate.rate)
+                .where(
+                    FxRate.quote_currency.in_(wanted),
+                    FxRate.on >= first - timedelta(days=MAX_RATE_AGE_DAYS),
+                    FxRate.on <= last,
+                )
+                .order_by(FxRate.on)
+            )
+            for currency, on, rate in rows:
+                rates[currency].append((on, rate))
+        return cls(rates)
+
+    def rate(self, currency: str, on: date) -> Decimal | None:
+        if currency == BASE_CURRENCY:
+            return Decimal(1)
+        rates = self._rates.get(currency, [])
+        index = bisect_right(rates, on, key=lambda item: item[0]) - 1
+        if index < 0 or (on - rates[index][0]).days > MAX_RATE_AGE_DAYS:
+            return None
+        return rates[index][1]
+
+    def to_eur(self, amount: Decimal, currency: str, on: date) -> Decimal | None:
+        """Not rounded, so sums stay exact; None without a rate."""
+        rate = self.rate(currency, on)
+        return None if rate is None else amount / rate

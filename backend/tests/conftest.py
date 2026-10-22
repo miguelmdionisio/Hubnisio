@@ -10,6 +10,7 @@ from pathlib import Path
 
 import pytest
 from alembic.config import Config
+from households import Home, make_home
 
 from hubnisio.core.db import get_engine, get_sessionmaker
 from hubnisio.core.settings import get_settings
@@ -67,3 +68,9 @@ def migrated_database(alembic_config: Config, database_url: str) -> Iterator[str
         del os.environ["HUBNISIO_DATABASE_URL"]
     else:
         os.environ["HUBNISIO_DATABASE_URL"] = previous
+
+
+@pytest.fixture
+async def home(migrated_database: str) -> Home:
+    """A household with two members and three accounts (see households.py)."""
+    return await make_home()

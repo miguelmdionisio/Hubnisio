@@ -147,6 +147,42 @@ export type Bank = {
 };
 
 /**
+ * CashFlow
+ */
+export type CashFlow = {
+    /**
+     * Months
+     */
+    months: Array<CashFlowMonth>;
+    /**
+     * Unconverted
+     */
+    unconverted: number;
+};
+
+/**
+ * CashFlowMonth
+ */
+export type CashFlowMonth = {
+    /**
+     * Month
+     */
+    month: string;
+    /**
+     * Income
+     */
+    income: string;
+    /**
+     * Spending
+     */
+    spending: string;
+    /**
+     * Net
+     */
+    net: string;
+};
+
+/**
  * CategoryCreate
  */
 export type CategoryCreate = {
@@ -419,6 +455,72 @@ export type Health = {
 };
 
 /**
+ * NetWorthAccount
+ */
+export type NetWorthAccount = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Currency
+     */
+    currency: string;
+    /**
+     * Balance
+     */
+    balance: string | null;
+    /**
+     * Balance Eur
+     */
+    balance_eur: string | null;
+    /**
+     * As Of
+     */
+    as_of: string | null;
+};
+
+/**
+ * NetWorthOut
+ */
+export type NetWorthOut = {
+    /**
+     * Total
+     */
+    total: string;
+    /**
+     * Points
+     */
+    points: Array<NetWorthPoint>;
+    /**
+     * Accounts
+     */
+    accounts: Array<NetWorthAccount>;
+    /**
+     * Unconverted
+     */
+    unconverted: number;
+};
+
+/**
+ * NetWorthPoint
+ */
+export type NetWorthPoint = {
+    /**
+     * On
+     */
+    on: string;
+    /**
+     * Amount
+     */
+    amount: string;
+};
+
+/**
  * RuleIn
  *
  * The format of conditions and actions is described in categorize/rules.py.
@@ -586,6 +688,68 @@ export type SetKind = {
  * counterparty (a merchant's default category) > ai.
  */
 export type Source = 'manual' | 'rule' | 'counterparty' | 'ai' | 'bank' | 'auto';
+
+/**
+ * Spending
+ */
+export type Spending = {
+    /**
+     * Months
+     */
+    months: Array<string>;
+    /**
+     * Groups
+     */
+    groups: Array<SpendingGroup>;
+    /**
+     * Uncategorized
+     */
+    uncategorized: Array<string>;
+    /**
+     * Unconverted
+     */
+    unconverted: number;
+};
+
+/**
+ * SpendingCategory
+ */
+export type SpendingCategory = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Amounts
+     */
+    amounts: Array<string>;
+};
+
+/**
+ * SpendingGroup
+ */
+export type SpendingGroup = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Amounts
+     */
+    amounts: Array<string>;
+    /**
+     * Categories
+     */
+    categories: Array<SpendingCategory>;
+};
 
 /**
  * StartConnection
@@ -1615,3 +1779,101 @@ export type RunRulesResponses = {
 };
 
 export type RunRulesResponse = RunRulesResponses[keyof RunRulesResponses];
+
+export type GetSpendingData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Months
+         */
+        months?: number;
+        /**
+         * Until
+         */
+        until?: string | null;
+    };
+    url: '/api/finance/insights/spending';
+};
+
+export type GetSpendingErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetSpendingError = GetSpendingErrors[keyof GetSpendingErrors];
+
+export type GetSpendingResponses = {
+    /**
+     * Successful Response
+     */
+    200: Spending;
+};
+
+export type GetSpendingResponse = GetSpendingResponses[keyof GetSpendingResponses];
+
+export type GetCashFlowData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Months
+         */
+        months?: number;
+        /**
+         * Until
+         */
+        until?: string | null;
+    };
+    url: '/api/finance/insights/cash-flow';
+};
+
+export type GetCashFlowErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetCashFlowError = GetCashFlowErrors[keyof GetCashFlowErrors];
+
+export type GetCashFlowResponses = {
+    /**
+     * Successful Response
+     */
+    200: CashFlow;
+};
+
+export type GetCashFlowResponse = GetCashFlowResponses[keyof GetCashFlowResponses];
+
+export type GetNetWorthData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Date From
+         */
+        date_from?: string | null;
+    };
+    url: '/api/finance/insights/net-worth';
+};
+
+export type GetNetWorthErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetNetWorthError = GetNetWorthErrors[keyof GetNetWorthErrors];
+
+export type GetNetWorthResponses = {
+    /**
+     * Successful Response
+     */
+    200: NetWorthOut;
+};
+
+export type GetNetWorthResponse = GetNetWorthResponses[keyof GetNetWorthResponses];

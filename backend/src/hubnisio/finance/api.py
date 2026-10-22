@@ -11,7 +11,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import distinct_on
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -19,6 +19,7 @@ from hubnisio.core.auth import Principal
 from hubnisio.core.crypto import SecretBox, get_secret_box
 from hubnisio.core.settings import get_settings
 from hubnisio.finance import linking, schemas, tasks
+from hubnisio.finance.balances import latest_balances
 from hubnisio.finance.deps import CurrentPrincipal, DbSession
 from hubnisio.finance.models import (
     Account,
@@ -44,8 +45,6 @@ router = APIRouter(prefix="/finance", tags=["finance"])
 BANK_LIST_TTL = 6 * 3600  # seconds
 # A run still "running" after this long crashed; don't show it as syncing forever.
 STALE_RUN = timedelta(minutes=30)
-# Shown first: what's spendable, then the booked balance.
-BALANCE_PREFERENCE = ("ITAV", "CLAV", "ITBD", "CLBD", "XPCD", "OPAV", "OPBD")
 
 _bank_cache: dict[str, tuple[float, list[schemas.Bank]]] = {}
 
@@ -238,7 +237,7 @@ async def list_accounts(
             select(AccountOwner.account_id).where(AccountOwner.user_id == principal.user_id)
         )
     )
-    balances = await _latest_balances(session, [account.id for account in accounts])
+    balances = await latest_balances(session, [account.id for account in accounts])
     return [
         _account_out(account, account.id in owned, balances.get(account.id)) for account in accounts
     ]
@@ -268,7 +267,7 @@ async def update_account(
     if body.include_in_net_worth is not None:
         account.include_in_net_worth = body.include_in_net_worth
     await session.commit()
-    balances = await _latest_balances(session, [account.id])
+    balances = await latest_balances(session, [account.id])
     return _account_out(account, True, balances.get(account.id))
 
 
@@ -357,39 +356,6 @@ async def _connections_out(
         )
         for connection in connections
     ]
-
-
-async def _latest_balances(
-    session: AsyncSession, account_ids: Sequence[uuid.UUID]
-) -> dict[uuid.UUID, BalanceSnapshot]:
-    """Per account, the preferred balance from its most recent sync."""
-    if not account_ids:
-        return {}
-    latest = (
-        select(BalanceSnapshot.account_id, func.max(BalanceSnapshot.fetched_at).label("at"))
-        .where(BalanceSnapshot.account_id.in_(account_ids))
-        .group_by(BalanceSnapshot.account_id)
-        .subquery()
-    )
-    snapshots = await session.scalars(
-        select(BalanceSnapshot).join(
-            latest,
-            (BalanceSnapshot.account_id == latest.c.account_id)
-            & (BalanceSnapshot.fetched_at == latest.c.at),
-        )
-    )
-    chosen: dict[uuid.UUID, BalanceSnapshot] = {}
-    for snapshot in snapshots:
-        current = chosen.get(snapshot.account_id)
-        if current is None or _balance_rank(snapshot) < _balance_rank(current):
-            chosen[snapshot.account_id] = snapshot
-    return chosen
-
-
-def _balance_rank(snapshot: BalanceSnapshot) -> int:
-    if snapshot.balance_type in BALANCE_PREFERENCE:
-        return BALANCE_PREFERENCE.index(snapshot.balance_type)
-    return len(BALANCE_PREFERENCE)
 
 
 def _account_out(

@@ -1269,6 +1269,183 @@
           }
         }
       }
+    },
+    "/api/finance/insights/spending": {
+      "get": {
+        "tags": [
+          "finance"
+        ],
+        "summary": "Get Spending",
+        "description": "Spending per expense group and category, per month: booked transactions that aren't\ntransfers, net of refunds. The months end with `until`'s (default: this month).",
+        "operationId": "getSpending",
+        "parameters": [
+          {
+            "name": "months",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 36,
+              "minimum": 1,
+              "default": 12,
+              "title": "Months"
+            }
+          },
+          {
+            "name": "until",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Until"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Spending"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/finance/insights/cash-flow": {
+      "get": {
+        "tags": [
+          "finance"
+        ],
+        "summary": "Get Cash Flow",
+        "description": "Income and spending per month, from the same sums as the spending chart.",
+        "operationId": "getCashFlow",
+        "parameters": [
+          {
+            "name": "months",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 36,
+              "minimum": 1,
+              "default": 12,
+              "title": "Months"
+            }
+          },
+          {
+            "name": "until",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Until"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CashFlow"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/finance/insights/net-worth": {
+      "get": {
+        "tags": [
+          "finance"
+        ],
+        "summary": "Get Net Worth",
+        "description": "Net worth per day, from the first day every included account has data for (or\n`date_from`, if later) to today, plus each included account's balance today.",
+        "operationId": "getNetWorth",
+        "parameters": [
+          {
+            "name": "date_from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date From"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NetWorthOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1513,6 +1690,56 @@
           "beta"
         ],
         "title": "Bank"
+      },
+      "CashFlow": {
+        "properties": {
+          "months": {
+            "items": {
+              "$ref": "#/components/schemas/CashFlowMonth"
+            },
+            "type": "array",
+            "title": "Months"
+          },
+          "unconverted": {
+            "type": "integer",
+            "title": "Unconverted"
+          }
+        },
+        "type": "object",
+        "required": [
+          "months",
+          "unconverted"
+        ],
+        "title": "CashFlow"
+      },
+      "CashFlowMonth": {
+        "properties": {
+          "month": {
+            "type": "string",
+            "format": "date",
+            "title": "Month"
+          },
+          "income": {
+            "type": "string",
+            "title": "Income"
+          },
+          "spending": {
+            "type": "string",
+            "title": "Spending"
+          },
+          "net": {
+            "type": "string",
+            "title": "Net"
+          }
+        },
+        "type": "object",
+        "required": [
+          "month",
+          "income",
+          "spending",
+          "net"
+        ],
+        "title": "CashFlowMonth"
       },
       "CategoryCreate": {
         "properties": {
@@ -2054,6 +2281,120 @@
         ],
         "title": "Health"
       },
+      "NetWorthAccount": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          },
+          "balance": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Balance"
+          },
+          "balance_eur": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Balance Eur"
+          },
+          "as_of": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "As Of"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "currency",
+          "balance",
+          "balance_eur",
+          "as_of"
+        ],
+        "title": "NetWorthAccount"
+      },
+      "NetWorthOut": {
+        "properties": {
+          "total": {
+            "type": "string",
+            "title": "Total"
+          },
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/NetWorthPoint"
+            },
+            "type": "array",
+            "title": "Points"
+          },
+          "accounts": {
+            "items": {
+              "$ref": "#/components/schemas/NetWorthAccount"
+            },
+            "type": "array",
+            "title": "Accounts"
+          },
+          "unconverted": {
+            "type": "integer",
+            "title": "Unconverted"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "points",
+          "accounts",
+          "unconverted"
+        ],
+        "title": "NetWorthOut"
+      },
+      "NetWorthPoint": {
+        "properties": {
+          "on": {
+            "type": "string",
+            "format": "date",
+            "title": "On"
+          },
+          "amount": {
+            "type": "string",
+            "title": "Amount"
+          }
+        },
+        "type": "object",
+        "required": [
+          "on",
+          "amount"
+        ],
+        "title": "NetWorthPoint"
+      },
       "RuleIn": {
         "properties": {
           "name": {
@@ -2364,6 +2705,106 @@
         ],
         "title": "Source",
         "description": "Who decided something in the user layer. Precedence (ADR-0007): manual > rule >\ncounterparty (a merchant's default category) > ai."
+      },
+      "Spending": {
+        "properties": {
+          "months": {
+            "items": {
+              "type": "string",
+              "format": "date"
+            },
+            "type": "array",
+            "title": "Months"
+          },
+          "groups": {
+            "items": {
+              "$ref": "#/components/schemas/SpendingGroup"
+            },
+            "type": "array",
+            "title": "Groups"
+          },
+          "uncategorized": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Uncategorized"
+          },
+          "unconverted": {
+            "type": "integer",
+            "title": "Unconverted"
+          }
+        },
+        "type": "object",
+        "required": [
+          "months",
+          "groups",
+          "uncategorized",
+          "unconverted"
+        ],
+        "title": "Spending"
+      },
+      "SpendingCategory": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "amounts": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Amounts"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "amounts"
+        ],
+        "title": "SpendingCategory"
+      },
+      "SpendingGroup": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "amounts": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Amounts"
+          },
+          "categories": {
+            "items": {
+              "$ref": "#/components/schemas/SpendingCategory"
+            },
+            "type": "array",
+            "title": "Categories"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "amounts",
+          "categories"
+        ],
+        "title": "SpendingGroup"
       },
       "StartConnection": {
         "properties": {

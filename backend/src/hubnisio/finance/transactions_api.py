@@ -11,7 +11,7 @@ from datetime import date
 from typing import Annotated, Any
 
 from fastapi import APIRouter, HTTPException, Query, Response, status
-from sqlalchemy import Select, and_, case, delete, func, not_, or_, select, tuple_
+from sqlalchemy import Select, case, delete, func, not_, or_, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
@@ -19,6 +19,7 @@ from hubnisio.core.auth import Principal
 from hubnisio.finance import schemas
 from hubnisio.finance.categorize.engine import categorize
 from hubnisio.finance.deps import CurrentPrincipal, DbSession
+from hubnisio.finance.kinds import IS_TRANSFER, kind_is
 from hubnisio.finance.models import (
     Account,
     Category,
@@ -55,12 +56,6 @@ _Parent = aliased(Category)
 _Other = aliased(Transaction)
 _OtherAccount = aliased(Account)
 
-# A transaction is a transfer when it's in a pair or its kind says so (NULL-safe).
-_IS_TRANSFER = or_(
-    Transfer.id.is_not(None),
-    TransactionAnnotation.kind_override.is_not_distinct_from(TransactionKind.TRANSFER),
-)
-
 
 @router.get("/transactions", operation_id="listTransactions")
 async def list_transactions(
@@ -90,13 +85,13 @@ async def list_transactions(
     if transaction_status is not None:
         query = query.where(Transaction.status == transaction_status)
     if kind is not None:
-        query = query.where(_kind_is(kind))
+        query = query.where(kind_is(kind))
     if category_id is not None:
         query = query.where(
             or_(CategoryAssignment.category_id == category_id, Category.parent_id == category_id)
         )
     if uncategorized:
-        query = query.where(CategoryAssignment.id.is_(None), not_(_IS_TRANSFER))
+        query = query.where(CategoryAssignment.id.is_(None), not_(IS_TRANSFER))
     if counterparty_id is not None:
         query = query.where(TransactionAnnotation.counterparty_id == counterparty_id)
     if q and q.strip():
@@ -327,18 +322,6 @@ def _query(principal: Principal) -> TransactionRows:
         .outerjoin(_OtherAccount, _OtherAccount.id == _Other.account_id)
         .where(Transaction.account_id.in_(visible_account_ids(principal)))
     )
-
-
-def _kind_is(kind: TransactionKind) -> Any:
-    override = TransactionAnnotation.kind_override
-    match kind:
-        case TransactionKind.TRANSFER:
-            return _IS_TRANSFER
-        case TransactionKind.INCOME:
-            sign = and_(override.is_(None), Transaction.amount > 0)
-        case _:
-            sign = and_(override.is_(None), Transaction.amount <= 0)
-    return and_(not_(_IS_TRANSFER), or_(override.is_not_distinct_from(kind), sign))
 
 
 def _out(row: Any, visible: set[uuid.UUID]) -> schemas.TransactionOut:

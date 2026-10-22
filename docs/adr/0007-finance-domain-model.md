@@ -82,6 +82,23 @@ Findings that shape it ([research](../research/oss-finance-analysis.md)):
 - `balance_snapshots`: the bank-reported balance (booked and available) for each account on each sync. This is the source of truth for balances.
 - Transactions explain the movement between snapshots. Balances between snapshots are interpolated from transactions.
 - Net worth = the sum of the latest balances across accounts (investments at market value), in EUR via `fx_rates` (daily rates). Accounts can be excluded from net worth.
+- **Net worth over time** *(added in M3)*. It's computed on read, over the accounts the viewer may see.
+  - **Anchor:** each account's latest snapshot. The booked balance (CLBD, ITBD, XPCD) is preferred over an available one, which can include an overdraft. The Accounts page still shows the spendable balance first.
+  - **Earlier days:** the balance on a day is the anchor moved by the booked transactions between that day and the anchor's date (its reference date, else the day it was fetched). Each day is converted at that day's rate.
+  - **Start:** the first day for which every included account has data. Before that, at least one account's movements are unknown (BPI gives about 90 days).
+    - A bank gives every account of one consent the same history, so an account's data starts with the earliest transaction of any account on its connection. An account opened later was simply empty before its first transaction. Going by each account's own first transaction would have started on 2026-08-03 instead of 2026-07-24, because one BPI account had nothing in its first ten days.
+    - Accounts without transactions count at their anchor throughout.
+    - A later `date_from` can shorten the series, not lengthen it.
+  - **Missing data:** an account without a snapshot is listed without a balance. An account-day without a rate is left out of that day's total and counted.
+
+### Spending and cash flow *(added in M3)*
+
+- **What counts:** booked transactions that aren't transfers, in EUR at the rate on their date. Pending transactions don't count.
+- **Net per category:** a category's sum is net, so a refund categorized as Groceries lowers Groceries. Child categories roll up into their group.
+- **Split-ready:** sums use the assignment's amount when it has one, so splits will work without a change.
+- **Without a category:** a transaction counts by its kind (expense or income) and shows as "Uncategorized".
+- **Cash flow** is built from the same sums: income categories plus uncategorized income, against expense categories plus uncategorized spending. So it always agrees with the category chart.
+- **Computed on read,** with no job and no cache tables (unlike Firefly's `period_statistics`). Revisit if it gets slow.
 
 ### FX rates *(added in M3)*
 

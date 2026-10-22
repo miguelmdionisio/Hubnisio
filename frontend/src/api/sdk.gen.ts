@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { CompleteConnectionData, CompleteConnectionErrors, CompleteConnectionResponses, CreateCategoryData, CreateCategoryErrors, CreateCategoryResponses, CreateRuleData, CreateRuleErrors, CreateRuleResponses, DeleteCategoryData, DeleteCategoryErrors, DeleteCategoryResponses, DeleteConnectionData, DeleteConnectionErrors, DeleteConnectionResponses, DeleteRuleData, DeleteRuleErrors, DeleteRuleResponses, GetHealthData, GetHealthErrors, GetHealthResponses, LinkTransferData, LinkTransferErrors, LinkTransferResponses, ListAccountsData, ListAccountsResponses, ListBanksData, ListBanksErrors, ListBanksResponses, ListCategoriesData, ListCategoriesResponses, ListConnectionsData, ListConnectionsResponses, ListCounterpartiesData, ListCounterpartiesErrors, ListCounterpartiesResponses, ListRulesData, ListRulesResponses, ListTransactionsData, ListTransactionsErrors, ListTransactionsResponses, MergeCounterpartyData, MergeCounterpartyErrors, MergeCounterpartyResponses, PreviewRuleData, PreviewRuleErrors, PreviewRuleResponses, ReorderRulesData, ReorderRulesErrors, ReorderRulesResponses, RunRulesData, RunRulesResponses, StartConnectionData, StartConnectionErrors, StartConnectionResponses, SyncConnectionData, SyncConnectionErrors, SyncConnectionResponses, UnlinkTransferData, UnlinkTransferErrors, UnlinkTransferResponses, UpdateAccountData, UpdateAccountErrors, UpdateAccountResponses, UpdateCategoryData, UpdateCategoryErrors, UpdateCategoryResponses, UpdateCounterpartyData, UpdateCounterpartyErrors, UpdateCounterpartyResponses, UpdateRuleData, UpdateRuleErrors, UpdateRuleResponses, UpdateTransactionData, UpdateTransactionErrors, UpdateTransactionResponses } from './types.gen';
+import type { CompleteConnectionData, CompleteConnectionErrors, CompleteConnectionResponses, CreateCategoryData, CreateCategoryErrors, CreateCategoryResponses, CreateRuleData, CreateRuleErrors, CreateRuleResponses, DeleteCategoryData, DeleteCategoryErrors, DeleteCategoryResponses, DeleteConnectionData, DeleteConnectionErrors, DeleteConnectionResponses, DeleteRuleData, DeleteRuleErrors, DeleteRuleResponses, GetCashFlowData, GetCashFlowErrors, GetCashFlowResponses, GetHealthData, GetHealthErrors, GetHealthResponses, GetNetWorthData, GetNetWorthErrors, GetNetWorthResponses, GetSpendingData, GetSpendingErrors, GetSpendingResponses, LinkTransferData, LinkTransferErrors, LinkTransferResponses, ListAccountsData, ListAccountsResponses, ListBanksData, ListBanksErrors, ListBanksResponses, ListCategoriesData, ListCategoriesResponses, ListConnectionsData, ListConnectionsResponses, ListCounterpartiesData, ListCounterpartiesErrors, ListCounterpartiesResponses, ListRulesData, ListRulesResponses, ListTransactionsData, ListTransactionsErrors, ListTransactionsResponses, MergeCounterpartyData, MergeCounterpartyErrors, MergeCounterpartyResponses, PreviewRuleData, PreviewRuleErrors, PreviewRuleResponses, ReorderRulesData, ReorderRulesErrors, ReorderRulesResponses, RunRulesData, RunRulesResponses, StartConnectionData, StartConnectionErrors, StartConnectionResponses, SyncConnectionData, SyncConnectionErrors, SyncConnectionResponses, UnlinkTransferData, UnlinkTransferErrors, UnlinkTransferResponses, UpdateAccountData, UpdateAccountErrors, UpdateAccountResponses, UpdateCategoryData, UpdateCategoryErrors, UpdateCategoryResponses, UpdateCounterpartyData, UpdateCounterpartyErrors, UpdateCounterpartyResponses, UpdateRuleData, UpdateRuleErrors, UpdateRuleResponses, UpdateTransactionData, UpdateTransactionErrors, UpdateTransactionResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -282,3 +282,26 @@ export const previewRule = <ThrowOnError extends boolean = false>(options: Optio
  * Pair transfers and categorize everything again.
  */
 export const runRules = <ThrowOnError extends boolean = false>(options?: Options<RunRulesData, ThrowOnError>): RequestResult<RunRulesResponses, unknown, ThrowOnError> => (options?.client ?? client).post<RunRulesResponses, unknown, ThrowOnError>({ url: '/api/finance/rules/run', ...options });
+
+/**
+ * Get Spending
+ *
+ * Spending per expense group and category, per month: booked transactions that aren't
+ * transfers, net of refunds. The months end with `until`'s (default: this month).
+ */
+export const getSpending = <ThrowOnError extends boolean = false>(options?: Options<GetSpendingData, ThrowOnError>): RequestResult<GetSpendingResponses, GetSpendingErrors, ThrowOnError> => (options?.client ?? client).get<GetSpendingResponses, GetSpendingErrors, ThrowOnError>({ url: '/api/finance/insights/spending', ...options });
+
+/**
+ * Get Cash Flow
+ *
+ * Income and spending per month, from the same sums as the spending chart.
+ */
+export const getCashFlow = <ThrowOnError extends boolean = false>(options?: Options<GetCashFlowData, ThrowOnError>): RequestResult<GetCashFlowResponses, GetCashFlowErrors, ThrowOnError> => (options?.client ?? client).get<GetCashFlowResponses, GetCashFlowErrors, ThrowOnError>({ url: '/api/finance/insights/cash-flow', ...options });
+
+/**
+ * Get Net Worth
+ *
+ * Net worth per day, from the first day every included account has data for (or
+ * `date_from`, if later) to today, plus each included account's balance today.
+ */
+export const getNetWorth = <ThrowOnError extends boolean = false>(options?: Options<GetNetWorthData, ThrowOnError>): RequestResult<GetNetWorthResponses, GetNetWorthErrors, ThrowOnError> => (options?.client ?? client).get<GetNetWorthResponses, GetNetWorthErrors, ThrowOnError>({ url: '/api/finance/insights/net-worth', ...options });

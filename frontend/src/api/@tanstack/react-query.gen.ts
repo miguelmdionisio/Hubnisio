@@ -3,8 +3,8 @@
 import { type DefaultError, type InfiniteData, infiniteQueryOptions, queryOptions, type UseMutationOptions } from '@tanstack/react-query';
 
 import { client } from '../client.gen';
-import { completeConnection, createCategory, createRule, deleteCategory, deleteConnection, deleteRule, getHealth, linkTransfer, listAccounts, listBanks, listCategories, listConnections, listCounterparties, listRules, listTransactions, mergeCounterparty, type Options, previewRule, reorderRules, runRules, startConnection, syncConnection, unlinkTransfer, updateAccount, updateCategory, updateCounterparty, updateRule, updateTransaction } from '../sdk.gen';
-import type { CompleteConnectionData, CompleteConnectionError, CompleteConnectionResponse, CreateCategoryData, CreateCategoryError, CreateCategoryResponse, CreateRuleData, CreateRuleError, CreateRuleResponse, DeleteCategoryData, DeleteCategoryError, DeleteCategoryResponse, DeleteConnectionData, DeleteConnectionError, DeleteConnectionResponse, DeleteRuleData, DeleteRuleError, DeleteRuleResponse, GetHealthData, GetHealthError, GetHealthResponse, LinkTransferData, LinkTransferError, LinkTransferResponse, ListAccountsData, ListAccountsResponse, ListBanksData, ListBanksError, ListBanksResponse, ListCategoriesData, ListCategoriesResponse, ListConnectionsData, ListConnectionsResponse, ListCounterpartiesData, ListCounterpartiesError, ListCounterpartiesResponse, ListRulesData, ListRulesResponse, ListTransactionsData, ListTransactionsError, ListTransactionsResponse, MergeCounterpartyData, MergeCounterpartyError, MergeCounterpartyResponse, PreviewRuleData, PreviewRuleError, PreviewRuleResponse, ReorderRulesData, ReorderRulesError, ReorderRulesResponse, RunRulesData, RunRulesResponse, StartConnectionData, StartConnectionError, StartConnectionResponse, SyncConnectionData, SyncConnectionError, SyncConnectionResponse, UnlinkTransferData, UnlinkTransferError, UnlinkTransferResponse, UpdateAccountData, UpdateAccountError, UpdateAccountResponse, UpdateCategoryData, UpdateCategoryError, UpdateCategoryResponse, UpdateCounterpartyData, UpdateCounterpartyError, UpdateCounterpartyResponse, UpdateRuleData, UpdateRuleError, UpdateRuleResponse, UpdateTransactionData, UpdateTransactionError, UpdateTransactionResponse } from '../types.gen';
+import { completeConnection, createCategory, createRule, deleteCategory, deleteConnection, deleteRule, getCashFlow, getHealth, getNetWorth, getSpending, linkTransfer, listAccounts, listBanks, listCategories, listConnections, listCounterparties, listRules, listTransactions, mergeCounterparty, type Options, previewRule, reorderRules, runRules, startConnection, syncConnection, unlinkTransfer, updateAccount, updateCategory, updateCounterparty, updateRule, updateTransaction } from '../sdk.gen';
+import type { CompleteConnectionData, CompleteConnectionError, CompleteConnectionResponse, CreateCategoryData, CreateCategoryError, CreateCategoryResponse, CreateRuleData, CreateRuleError, CreateRuleResponse, DeleteCategoryData, DeleteCategoryError, DeleteCategoryResponse, DeleteConnectionData, DeleteConnectionError, DeleteConnectionResponse, DeleteRuleData, DeleteRuleError, DeleteRuleResponse, GetCashFlowData, GetCashFlowError, GetCashFlowResponse, GetHealthData, GetHealthError, GetHealthResponse, GetNetWorthData, GetNetWorthError, GetNetWorthResponse, GetSpendingData, GetSpendingError, GetSpendingResponse, LinkTransferData, LinkTransferError, LinkTransferResponse, ListAccountsData, ListAccountsResponse, ListBanksData, ListBanksError, ListBanksResponse, ListCategoriesData, ListCategoriesResponse, ListConnectionsData, ListConnectionsResponse, ListCounterpartiesData, ListCounterpartiesError, ListCounterpartiesResponse, ListRulesData, ListRulesResponse, ListTransactionsData, ListTransactionsError, ListTransactionsResponse, MergeCounterpartyData, MergeCounterpartyError, MergeCounterpartyResponse, PreviewRuleData, PreviewRuleError, PreviewRuleResponse, ReorderRulesData, ReorderRulesError, ReorderRulesResponse, RunRulesData, RunRulesResponse, StartConnectionData, StartConnectionError, StartConnectionResponse, SyncConnectionData, SyncConnectionError, SyncConnectionResponse, UnlinkTransferData, UnlinkTransferError, UnlinkTransferResponse, UpdateAccountData, UpdateAccountError, UpdateAccountResponse, UpdateCategoryData, UpdateCategoryError, UpdateCategoryResponse, UpdateCounterpartyData, UpdateCounterpartyError, UpdateCounterpartyResponse, UpdateRuleData, UpdateRuleError, UpdateRuleResponse, UpdateTransactionData, UpdateTransactionError, UpdateTransactionResponse } from '../types.gen';
 
 export type QueryKey<TOptions extends Options> = [
     Pick<TOptions, 'baseUrl' | 'body' | 'headers' | 'path' | 'query'> & {
@@ -606,3 +606,65 @@ export const runRulesMutation = (options?: Partial<Options<RunRulesData>>): UseM
     };
     return mutationOptions;
 };
+
+export const getSpendingQueryKey = (options?: Options<GetSpendingData>) => createQueryKey('getSpending', options);
+
+/**
+ * Get Spending
+ *
+ * Spending per expense group and category, per month: booked transactions that aren't
+ * transfers, net of refunds. The months end with `until`'s (default: this month).
+ */
+export const getSpendingOptions = (options?: Options<GetSpendingData>) => queryOptions<GetSpendingResponse, GetSpendingError, GetSpendingResponse, ReturnType<typeof getSpendingQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getSpending({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getSpendingQueryKey(options)
+});
+
+export const getCashFlowQueryKey = (options?: Options<GetCashFlowData>) => createQueryKey('getCashFlow', options);
+
+/**
+ * Get Cash Flow
+ *
+ * Income and spending per month, from the same sums as the spending chart.
+ */
+export const getCashFlowOptions = (options?: Options<GetCashFlowData>) => queryOptions<GetCashFlowResponse, GetCashFlowError, GetCashFlowResponse, ReturnType<typeof getCashFlowQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getCashFlow({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getCashFlowQueryKey(options)
+});
+
+export const getNetWorthQueryKey = (options?: Options<GetNetWorthData>) => createQueryKey('getNetWorth', options);
+
+/**
+ * Get Net Worth
+ *
+ * Net worth per day, from the first day every included account has data for (or
+ * `date_from`, if later) to today, plus each included account's balance today.
+ */
+export const getNetWorthOptions = (options?: Options<GetNetWorthData>) => queryOptions<GetNetWorthResponse, GetNetWorthError, GetNetWorthResponse, ReturnType<typeof getNetWorthQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getNetWorth({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getNetWorthQueryKey(options)
+});

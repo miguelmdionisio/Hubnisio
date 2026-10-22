@@ -245,3 +245,56 @@ class RunResult(BaseModel):
     processed: int
     categorized: int
     counterparties_created: int
+
+
+# Insights: amounts in euros, rounded to cents.
+
+
+class SpendingCategory(BaseModel):
+    id: uuid.UUID
+    name: str
+    amounts: list[Decimal]  # one per month; positive = spent, net of refunds
+
+
+class SpendingGroup(SpendingCategory):
+    categories: list[SpendingCategory]  # biggest first
+
+
+class Spending(BaseModel):
+    months: list[date]  # the first day of each month, oldest first
+    groups: list[SpendingGroup]  # expense groups with any spending, biggest first
+    uncategorized: list[Decimal]  # expenses without a category, per month
+    unconverted: int  # transactions left out: no exchange rate for their day
+
+
+class CashFlowMonth(BaseModel):
+    month: date
+    income: Decimal
+    spending: Decimal
+    net: Decimal
+
+
+class CashFlow(BaseModel):
+    months: list[CashFlowMonth]  # oldest first
+    unconverted: int
+
+
+class NetWorthPoint(BaseModel):
+    on: date
+    amount: Decimal
+
+
+class NetWorthAccount(BaseModel):
+    id: uuid.UUID
+    name: str
+    currency: str
+    balance: Decimal | None  # today, in the account's currency; None: no balance yet
+    balance_eur: Decimal | None  # None: no balance, or no exchange rate
+    as_of: date | None  # the date of the bank's latest balance
+
+
+class NetWorthOut(BaseModel):
+    total: Decimal  # today
+    points: list[NetWorthPoint]  # daily, oldest first
+    accounts: list[NetWorthAccount]  # the accounts included in net worth
+    unconverted: int  # account-days left out: no exchange rate
