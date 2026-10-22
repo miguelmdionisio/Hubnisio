@@ -5,6 +5,7 @@ import {
   Landmark,
   ListChecks,
   type LucideIcon,
+  PiggyBank,
   Store,
   Tags,
   Wallet,
@@ -17,6 +18,7 @@ type Path =
   | '/finance/accounts'
   | '/finance/transactions'
   | '/finance/categories'
+  | '/finance/budgets'
   | '/finance/rules'
   | '/finance/merchants'
   | '/finance/connections';
@@ -76,6 +78,9 @@ export function AppShell() {
             </NavLink>
             <NavLink to="/finance/categories" icon={Tags}>
               Categories
+            </NavLink>
+            <NavLink to="/finance/budgets" icon={PiggyBank}>
+              Budgets
             </NavLink>
             <NavLink to="/finance/rules" icon={ListChecks}>
               Rules

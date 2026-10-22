@@ -23,6 +23,13 @@ export function formatDate(isoDate: string, locale = LOCALE): string {
   }).format(parseDate(isoDate));
 }
 
+/** "October 2026", from a month ("2026-10") or any date in it. */
+export function formatMonth(isoMonth: string, locale = LOCALE): string {
+  return new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(
+    parseDate(isoMonth),
+  );
+}
+
 const UNITS: [Intl.RelativeTimeFormatUnit, number][] = [
   ['day', 86_400],
   ['hour', 3_600],

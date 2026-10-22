@@ -1,5 +1,7 @@
 import type {
   AccountOut,
+  BudgetOut,
+  BudgetsOut,
   CategoryGroupOut,
   CounterpartyOut,
   RuleOut,
@@ -102,6 +104,43 @@ export function rule(id: string, name: string, overrides: Partial<RuleOut> = {})
     conditions: [{ field: 'description', op: 'contains', value: 'continente' }],
     actions: [{ type: 'set_category', category_id: 'c-groceries' }],
     stop_processing: false,
+    ...overrides,
+  };
+}
+
+/** A budget with nothing spent yet; override what a test cares about. */
+export function budget(
+  categoryId: string,
+  name: string,
+  overrides: Partial<BudgetOut> = {},
+): BudgetOut {
+  return {
+    category_id: categoryId,
+    name,
+    group_id: null,
+    rollover: false,
+    overspend: 'forgive',
+    starts_on: '2026-01-01',
+    limit: '100.00',
+    carried_in: '0.00',
+    available: '100.00',
+    spent: '0.00',
+    remaining: '100.00',
+    children: [],
+    ...overrides,
+  };
+}
+
+export function budgetsOut(budgets: BudgetOut[], overrides: Partial<BudgetsOut> = {}): BudgetsOut {
+  return {
+    month: '2026-10-01',
+    budgets,
+    total_limit: '0.00',
+    total_available: '0.00',
+    total_spent: '0.00',
+    unbudgeted: '0.00',
+    uncategorized: '0.00',
+    unconverted: 0,
     ...overrides,
   };
 }

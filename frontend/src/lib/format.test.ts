@@ -1,5 +1,6 @@
 import { expect, test } from 'vitest';
-import { formatDate, formatMoney, formatRelative, parseDate } from './format';
+import { formatDate, formatMoney, formatMonth, formatRelative, parseDate } from './format';
+import { isMonth, shiftMonth } from './months';
 
 test('formats money in the given locale', () => {
   expect(formatMoney('-42.1700', 'EUR', 'en-GB')).toBe('-€42.17');
@@ -9,6 +10,20 @@ test('formats money in the given locale', () => {
 test('keeps calendar dates on their day in any timezone', () => {
   expect(parseDate('2026-01-01').getDate()).toBe(1);
   expect(formatDate('2026-10-14', 'en-GB')).toBe('14 Oct 2026');
+});
+
+test('names months, from a month or any date in it', () => {
+  expect(formatMonth('2026-10', 'en-GB')).toBe('October 2026');
+  expect(formatMonth('2026-10-01', 'en-GB')).toBe('October 2026');
+});
+
+test('steps through months across year ends', () => {
+  expect(shiftMonth('2026-10', -1)).toBe('2026-09');
+  expect(shiftMonth('2026-01', -1)).toBe('2025-12');
+  expect(shiftMonth('2026-12', 1)).toBe('2027-01');
+  expect(isMonth('2026-10')).toBe(true);
+  expect(isMonth('2026-13')).toBe(false);
+  expect(isMonth('2026-10-01')).toBe(false);
 });
 
 test('describes times relative to now', () => {

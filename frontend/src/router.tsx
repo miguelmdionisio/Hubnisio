@@ -7,6 +7,7 @@ import {
 import { AppShell } from './components/app-shell';
 import { errorMessage } from './lib/errors';
 import { AccountsPage } from './routes/finance/accounts';
+import { BudgetsPage, validateBudgetSearch } from './routes/finance/budgets';
 import { CallbackPage, validateCallbackSearch } from './routes/finance/callback';
 import { CategoriesPage } from './routes/finance/categories';
 import { ConnectionsPage } from './routes/finance/connections';
@@ -42,6 +43,12 @@ const routeTree = rootRoute.addChildren([
     getParentRoute: () => rootRoute,
     path: '/finance/categories',
     component: CategoriesPage,
+  }),
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/finance/budgets',
+    validateSearch: validateBudgetSearch,
+    component: BudgetsPage,
   }),
   createRoute({ getParentRoute: () => rootRoute, path: '/finance/rules', component: RulesPage }),
   createRoute({
