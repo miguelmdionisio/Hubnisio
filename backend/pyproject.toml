@@ -5,10 +5,13 @@ description = "Personal hub backend: API and background worker."
 requires-python = ">=3.14"
 dependencies = [
     "alembic>=1.20.1",
+    "cryptography>=50.0.2",
     "fastapi>=0.159.1",
+    "httpx>=0.28.1",
     "procrastinate==3.10.0",
     "psycopg[binary,pool]>=3.3.6",
     "pydantic-settings>=2.16.1",
+    "pyjwt[crypto]>=2.15.1",
     "sqlalchemy[asyncio]>=2.1.6",
     "uvicorn[standard]>=0.54.0",
 ]
@@ -43,7 +46,7 @@ root_package = "hubnisio"
 name = "Entrypoints on top, domain modules in the middle, core at the bottom"
 type = "layers"
 layers = [
-    "main | worker",
+    "main | worker | cli",
     "finance",
     "core",
 ]
@@ -51,7 +54,6 @@ containers = ["hubnisio"]
 
 [dependency-groups]
 dev = [
-    "httpx>=0.28.1",
     "import-linter>=2.15",
     "pyright>=1.1.414",
     "pytest>=9.1.1",

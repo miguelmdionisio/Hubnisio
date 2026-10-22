@@ -6,8 +6,15 @@ x-backend: &backend
   image: hubnisio-backend
   environment:
     HUBNISIO_DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-hubnisio}
+    HUBNISIO_DEV_USER_EMAIL: ${HUBNISIO_DEV_USER_EMAIL:?set HUBNISIO_DEV_USER_EMAIL in .env}
+    HUBNISIO_ENABLE_BANKING_APP_ID: ${HUBNISIO_ENABLE_BANKING_APP_ID:-}
+    HUBNISIO_ENABLE_BANKING_KEY_FILE: /run/secrets/enable_banking_key
+    HUBNISIO_ENCRYPTION_KEYS_FILE: /run/secrets/encryption_keys
     # File-change events don't cross from a Windows host into the container; poll instead.
     WATCHFILES_FORCE_POLLING: "true"
+  secrets:
+    - enable_banking_key
+    - encryption_keys
 
 services:
   db:
@@ -73,3 +80,10 @@ services:
 volumes:
   db-data:
   frontend-node-modules:
+
+# Mounted as files, never passed as environment variables (ADR-0004). secrets/ is gitignored.
+secrets:
+  enable_banking_key:
+    file: ./secrets/enable-banking.pem
+  encryption_keys:
+    file: ./secrets/encryption-keys

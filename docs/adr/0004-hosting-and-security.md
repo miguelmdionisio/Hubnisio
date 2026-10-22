@@ -28,7 +28,8 @@
 ### Authentication
 
 - App-level login even behind the VPN: **passkeys (WebAuthn)**, with httpOnly secure session cookies and CSRF protection.
-- Implementation chosen at scaffold time: in-app (py_webauthn) or a self-hosted passkey OIDC provider (e.g. Pocket ID).
+- **In-app, with py_webauthn**, with sessions stored in Postgres. A self-hosted passkey OIDC provider (e.g. Pocket ID) was rejected: one more service to run and update, for one or two users.
+- **Built with the server.** Until then, the API acts as one bootstrapped development user (`HUBNISIO_DEV_USER_EMAIL`) and refuses to start outside `development`. Passkey login replaces only the `core.auth.get_principal` dependency. It must land before the hub leaves the dev machine or a second person logs in.
 
 ### Data protection
 
@@ -88,12 +89,12 @@ For a household's complete financial and health record, data custody and attack 
 
 - **Easier:** strong privacy posture; no public endpoints to harden; one stack in development and production.
 - **Harder:** backups, updates and restore tests are your job; the app is only reachable from devices on the private network.
-- **Revisit:** if a provider ever requires a publicly reachable webhook; the auth implementation choice at scaffold time.
+- **Revisit:** if a provider ever requires a publicly reachable webhook.
 
 ## Action Items
 
-1. [ ] Compose stack for development: Postgres, API, worker, frontend.
-2. [ ] `.gitignore`, `.env.example`, gitleaks in pre-commit, from the first commit.
-3. [ ] Encryption helper for provider secrets, with key versioning.
+1. [x] Compose stack for development: Postgres, API, worker, frontend.
+2. [x] `.gitignore`, `.env.example`, gitleaks in pre-commit, from the first commit.
+3. [x] Encryption helper for provider secrets, with key versioning.
 4. [ ] Postgres roles and grants in migrations.
-5. [ ] When the server exists: Tailscale, Caddy, disk encryption, restic backups, first restore test.
+5. [ ] When the server exists: passkey login (replacing the development user), Tailscale, Caddy, disk encryption, restic backups, first restore test.

@@ -1,6 +1,7 @@
 """Application settings, read from environment variables prefixed with HUBNISIO_."""
 
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -15,6 +16,19 @@ class Settings(BaseSettings):
     environment: str = "development"
     # libpq form (postgresql://user:password@host:port/db); used as-is by the job queue.
     database_url: str
+
+    # The user the API acts as until passkey login exists (see core/auth.py).
+    dev_user_email: str | None = None
+
+    # Secret files. Compose mounts them under /run/secrets; the defaults suit running in backend/.
+    # AES-GCM keys for provider secrets, one "v<n>:<base64 key>" per line (see core/crypto.py).
+    encryption_keys_file: Path = Path("../secrets/encryption-keys")
+    enable_banking_key_file: Path = Path("../secrets/enable-banking.pem")
+
+    # Enable Banking (ADR-0003): the application ID from its Control Panel, and the URL the bank
+    # sends the browser back to after authorization (must be allowed in the Control Panel too).
+    enable_banking_app_id: str | None = None
+    enable_banking_redirect_url: str = "http://localhost:5173/finance/connections/callback"
 
     @property
     def sqlalchemy_url(self) -> str:

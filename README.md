@@ -15,10 +15,24 @@ compose.yaml  Development stack: Postgres, migrations, API, worker, frontend
 
 ## Run it
 
-Needs Docker Desktop.
+Needs Docker Desktop, plus uv for the one-time key generation.
+
+First time only:
+
+1. `cp .env.example .env`, then set a real `POSTGRES_PASSWORD`, your email as `HUBNISIO_DEV_USER_EMAIL`, and the Enable Banking application ID.
+2. Put the Enable Banking private key at `secrets/enable-banking.pem`.
+3. Generate the key that encrypts provider secrets. Keep a copy of both files in your password manager; backups are useless without them.
+   ```bash
+   cd backend && uv run python scripts/generate_encryption_key.py ../secrets/encryption-keys
+   ```
+4. Create your user and household. The API acts as this user until passkey login exists.
+   ```bash
+   docker compose run --rm api python -m hubnisio.cli bootstrap --email you@example.com --name "Your Name"
+   ```
+
+Then:
 
 ```bash
-cp .env.example .env    # then set a real POSTGRES_PASSWORD
 docker compose up --build
 ```
 
