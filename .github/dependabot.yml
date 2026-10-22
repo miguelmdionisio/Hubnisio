@@ -9,6 +9,10 @@ updates:
     directory: /frontend
     schedule:
       interval: weekly
+    ignore:
+      # TypeScript 7 (the Go port) has no JS compiler API, which @hey-api/openapi-ts needs.
+      - dependency-name: typescript
+        versions: [">=7"]
   - package-ecosystem: github-actions
     directory: /
     schedule:
@@ -21,3 +25,10 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    ignore:
+      # Node: stay on LTS lines; move to the next LTS by hand.
+      - dependency-name: node
+        update-types: ["version-update:semver-major"]
+      # Postgres: a major upgrade needs a data migration (pg_upgrade or dump/restore).
+      - dependency-name: postgres
+        update-types: ["version-update:semver-major"]
