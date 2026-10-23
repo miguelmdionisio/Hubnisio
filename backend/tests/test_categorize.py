@@ -263,6 +263,40 @@ async def test_a_manual_category_is_never_overwritten(home: Home) -> None:
     assert (await state(home, transaction)).source is Source.MANUAL
 
 
+async def test_an_ai_suggestion_stays_until_something_higher_applies(home: Home) -> None:
+    by_default = await add(home, "-10", 1, counterparty="Continente")
+    by_rule = await add(home, "-4", 2, description="CAFETARIA")
+    await run(home)
+    async with get_sessionmaker()() as session, session.begin():
+        session.add_all(
+            CategoryAssignment(
+                household_id=home.household_id,
+                transaction_id=transaction,
+                category_id=home.categories["Gifts & donations"],
+                source=Source.AI,
+            )
+            for transaction in (by_default, by_rule)
+        )
+
+    assert (await run(home)).categorized == 2
+    for transaction in (by_default, by_rule):
+        assert (await state(home, transaction)).source is Source.AI
+
+    await set_default(home, "Continente", "Groceries")
+    await add_rule(
+        home,
+        1,
+        [{"field": "description", "op": "contains", "value": "cafetaria"}],
+        [{"type": "set_category", "category_id": str(home.categories["Cafés & snacks"])}],
+    )
+    await run(home)
+
+    assert (await state(home, by_default)).category == "Groceries"
+    assert (await state(home, by_default)).source is Source.COUNTERPARTY
+    assert (await state(home, by_rule)).category == "Cafés & snacks"
+    assert (await state(home, by_rule)).source is Source.RULE
+
+
 async def test_rules_run_in_order_and_can_stop(home: Home) -> None:
     transaction = await add(home, "-30", 1, description="UBER TRIP")
     category = home.categories

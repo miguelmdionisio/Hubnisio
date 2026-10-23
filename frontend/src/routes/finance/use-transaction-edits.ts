@@ -16,7 +16,7 @@ export const SOURCE_LABELS: Record<Source, string> = {
   manual: 'set by you',
   rule: 'set by a rule',
   counterparty: "the merchant's default",
-  ai: 'suggested',
+  ai: 'suggested by AI',
   bank: 'from the bank',
   auto: 'matched automatically',
 };

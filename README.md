@@ -43,7 +43,7 @@ After that, `docker compose up` starts everything.
 
 ## Using the hub from Claude
 
-Claude Code and Claude Desktop can read your data through the hub's MCP server ([ADR-0006](docs/adr/0006-ai-access.md)). It runs in the api container and connects as your own Postgres login, which can only read the `analytics` views. So it sees what you see in the app (your view by default, or the household's) and changes nothing. Every tool call is recorded in `core.ai_calls`, without the data it returned.
+Claude Code and Claude Desktop can read your data through the hub's MCP server ([ADR-0006](docs/adr/0006-ai-access.md)). It runs in the api container and connects as your own Postgres login, which can only read the `analytics` views and suggest categories. So it sees what you see in the app (your view by default, or the household's), and the only thing it can change is a category suggestion. Every tool call is recorded in `core.ai_calls`, without the data it returned.
 
 1. Turn it on: set `HUBNISIO_AI_ENABLED=true` in `.env`, then rebuild and recreate the containers. The stack must be running whenever Claude uses the server.
    ```bash
@@ -72,6 +72,8 @@ Claude Code and Claude Desktop can read your data through the hub's MCP server (
    ```
 
 The tools: `list_accounts`, `list_categories`, `search_transactions`, `spending_summary`, `cashflow`, `budget_status`, `recurring_payments`, `balances`, `uncategorized_overview`, and `query_sql` for anything else (one read-only query over the views, at most 500 rows, 5 seconds).
+
+To categorize with Claude, run the server's `categorize_uncategorized` prompt (in Claude Code: `/mcp__hubnisio__categorize_uncategorized`). Claude goes through what has no category, merchant by merchant, and saves its picks with `suggest_categories`. A suggestion counts at once but has the lowest precedence: it never replaces a category you, a rule or a merchant's default set, and a rule or default that applies later replaces it. The Transactions page marks each one "AI" and filters them under "Suggested by AI"; the overview counts them. Picking a category makes it yours.
 
 To turn it off, set `HUBNISIO_AI_ENABLED=false` and run `docker compose up -d` again. To cut off one member, add `--revoke` to the `ai-login` command. Each member who wants it gets their own login and registers it in their own Claude.
 

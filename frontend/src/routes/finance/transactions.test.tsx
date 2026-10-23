@@ -148,3 +148,30 @@ test('ignores dates that are not real', async () => {
   expect(first?.search.has('date_from')).toBe(false);
   expect(first?.search.has('date_to')).toBe(false);
 });
+
+test('lists the categories an AI suggested, marked as such', async () => {
+  const suggested: TransactionCategory = {
+    id: 'c-groceries',
+    name: 'Groceries',
+    group_name: 'Food',
+    source: 'ai',
+  };
+  const calls = mockApi({
+    'GET /api/finance/accounts': () => [account],
+    'GET /api/finance/categories': () => categories,
+    'GET /api/finance/transactions': () => ({
+      items: [transaction('t1', { counterparty_name: 'Mercado', category: suggested })],
+      next_cursor: null,
+    }),
+  });
+
+  renderAt('/finance/transactions?category=suggested');
+
+  const row = (await screen.findByText('Mercado')).closest('tr') as HTMLElement;
+  expect(within(row).getByTitle('suggested by AI').textContent).toBe('GroceriesAI');
+  expect(screen.getByRole('combobox', { name: 'Category' }).textContent).toBe('Suggested by AI');
+  const request = calls.find((call) => call.path === '/api/finance/transactions');
+  expect(request?.search.get('source')).toBe('ai');
+  expect(request?.search.has('category_id')).toBe(false);
+  expect(request?.search.has('uncategorized')).toBe(false);
+});

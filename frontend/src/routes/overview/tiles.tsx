@@ -106,7 +106,7 @@ function SpendingWithoutBudgets({ month }: { month: string }) {
   );
 }
 
-/** Transactions from this month that no category covers yet. */
+/** Transactions from this month that no category covers yet, and any AI suggestions to review. */
 export function ToCategorizeTile() {
   const from = monthStart(currentMonth());
   const uncategorized = useQuery(
@@ -114,6 +114,10 @@ export function ToCategorizeTile() {
       query: { uncategorized: true, date_from: from, limit: UNCATEGORIZED_LIMIT },
     }),
   );
+  const suggested = useQuery(
+    listTransactionsOptions({ query: { source: 'ai', limit: UNCATEGORIZED_LIMIT } }),
+  );
+  const suggestedCount = suggested.data?.items.length ?? 0;
   return (
     <Panel title="To categorize" query={uncategorized}>
       {(page) => {
@@ -132,6 +136,18 @@ export function ToCategorizeTile() {
                   className="underline underline-offset-4"
                 >
                   Review
+                </Link>
+              </Note>
+            )}
+            {suggestedCount > 0 && (
+              <Note>
+                <Link
+                  to="/finance/transactions"
+                  search={{ category: 'suggested' }}
+                  className="underline underline-offset-4"
+                >
+                  {suggested.data?.next_cursor ? `${UNCATEGORIZED_LIMIT}+` : suggestedCount}{' '}
+                  suggested by AI to review
                 </Link>
               </Note>
             )}

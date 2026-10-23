@@ -3,8 +3,9 @@ so they see what the member sees in the app, and compute figures with the app's 
 
 Each call opens its own connection. Its reads run in a READ ONLY transaction; then the call is
 recorded in core.ai_calls through `analytics.record_call`, which needs a read-write one. A call
-that fails is recorded too, without a row count. Nothing here can write anything else: the
-login may only read `analytics` and call that function.
+that fails is recorded too, without a row count. The one write is `suggest_categories`, which
+runs in a read-write transaction and writes through `analytics.suggest_category`: the login may
+only read `analytics` and call those two functions.
 """
 
 import uuid
@@ -12,17 +13,18 @@ from collections import Counter, defaultdict
 from collections.abc import Awaitable, Callable, Sequence
 from datetime import date
 from decimal import Decimal
-from typing import Annotated, Any, LiteralString, cast
+from typing import Annotated, Any, LiteralString, Self, cast
 
 import psycopg
 from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
+from mcp.server.mcpserver.prompts import Prompt
 from mcp.types import ToolAnnotations
 from psycopg import sql
 from psycopg.abc import QueryNoTemplate
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
-from pydantic import Field
+from pydantic import BaseModel, Field, model_validator
 from pydantic_core import to_jsonable_python
 
 from hubnisio.ai import outputs, views
@@ -46,7 +48,8 @@ QUERY_TIMEOUT = "5s"
 INSTRUCTIONS = """\
 Hubnisio is the user's personal finance hub: their bank accounts, with categories, merchants, \
 budgets and recurring payments. These tools read it as the user, so they see only what the \
-user may see in the app, and they change nothing.
+user may see in the app. They change nothing but category suggestions (suggest_categories), \
+which the user reviews in the app.
 
 - Amounts are signed: negative is money out. Fields named "spent" are positive when spent.
 - Totals are in euros, at the exchange rate on each transaction's day.
@@ -65,6 +68,59 @@ ViewArgument = Annotated[
     View,
     Field(description="personal: the user's own accounts (the default); household: all."),
 ]
+
+# What a merchant or description in a suggestion stands for: the group's spending as
+# uncategorized_overview counts it (household view), plus what an AI suggested for before.
+SUGGESTABLE: LiteralString = (
+    "t.status = 'booked' AND t.kind = 'expense'"
+    " AND (t.category_id IS NULL OR t.category_source = 'ai')"
+)
+
+CATEGORIZE_PROMPT = """\
+Categorize the user's spending that has no category yet, as suggestions they review in the app.
+
+1. Call uncategorized_overview with view "household" and limit 200: what has no category, \
+grouped by merchant, else by the description without digits, the most spent first.
+2. Call list_categories for the categories you can use. Only expense categories fit spending.
+3. Go through the groups in order. Where the merchant or description makes the category clear, \
+suggest it with suggest_categories: the group's merchant_id, or its name as description when it \
+has no merchant. Send several groups in one call. To look closer (amounts, dates, notes), use \
+search_transactions with merchant_id or text.
+4. Leave a group out rather than guess: a person's name, a transfer with no detail, a payment \
+processor that could be anything. The user categorizes those by hand.
+5. Finish with a short report: how many transactions you suggested a category for, by \
+category, and the largest groups you left for the user.
+
+Suggestions never replace a category the user, a rule or a merchant's default set. The user \
+sees each one marked as suggested by AI, and picking a category replaces it.
+"""
+
+
+class Suggestion(BaseModel):
+    """A category for some transactions: by ID, or a group from uncategorized_overview."""
+
+    category_id: uuid.UUID
+    transaction_ids: Annotated[list[uuid.UUID] | None, Field(min_length=1, max_length=500)] = None
+    merchant_id: Annotated[
+        uuid.UUID | None,
+        Field(description="A merchant: its spending without a category."),
+    ] = None
+    description: Annotated[
+        str | None,
+        Field(
+            max_length=200,
+            description="A group's name from uncategorized_overview, when it has no merchant: "
+            "the spending without a category or merchant whose description reads the same "
+            "without digits.",
+        ),
+    ] = None
+
+    @model_validator(mode="after")
+    def _one_target(self) -> Self:
+        targets = (self.transaction_ids, self.merchant_id, self.description)
+        if sum(target is not None for target in targets) != 1:
+            raise ValueError("Give one of transaction_ids, merchant_id and description.")
+        return self
 
 
 class Tools:
@@ -352,7 +408,8 @@ class Tools:
     ) -> outputs.UncategorizedOverview:
         """Spending without a category, grouped by merchant where the transactions have one,
         else by their description without digits, the most spent first, with up to three
-        example descriptions each. Its total is the spending summary's uncategorized."""
+        example descriptions each. Its total is the spending summary's uncategorized. A group
+        goes to suggest_categories by its merchant_id, or by its name as description."""
         conditions: list[LiteralString] = ["t.status = 'booked'"]
         params: list[Any] = []
         if view == "personal":
@@ -386,10 +443,7 @@ class Tools:
                 if row["merchant_id"] is not None:
                     by_key[(row["merchant_id"], row["merchant"])].append(row)
                 else:
-                    text = description_key(row["description"]) or description_key(
-                        row["bank_counterparty"]
-                    )
-                    by_key[(None, text or "(no description)")].append(row)
+                    by_key[(None, _description_group(row) or "(no description)")].append(row)
             groups: list[outputs.UncategorizedGroup] = []
             for (merchant_id, name), members in by_key.items():
                 texts = Counter(m["description"] or m["bank_counterparty"] for m in members)
@@ -417,6 +471,49 @@ class Tools:
 
         arguments = {"date_from": date_from, "date_to": date_to, "view": view, "limit": limit}
         return await self._call("uncategorized_overview", arguments, read)
+
+    async def suggest_categories(
+        self, suggestions: Annotated[list[Suggestion], Field(min_length=1, max_length=100)]
+    ) -> outputs.Suggested:
+        """Suggest a category for transactions: the only change these tools can make. Each
+        suggestion names a category from list_categories, and either transaction IDs or a group
+        from uncategorized_overview (its merchant_id, or its name as description when it has no
+        merchant). A suggestion counts at once; the app shows it as suggested by AI, and the
+        user can change it. It never replaces a category the user, a rule or a merchant's
+        default set, and pending transactions and transfers are skipped. Suggesting again
+        replaces an earlier AI suggestion. The suggestions in a call are saved together, or none
+        if one fails (an archived category, say)."""
+
+        async def write(db: Connection) -> tuple[outputs.Suggested, int]:
+            results: list[outputs.SuggestionResult] = []
+            for suggestion in suggestions:
+                ids = await _suggestion_targets(db, suggestion)
+                written = skipped = 0
+                if ids:
+                    cursor = await db.execute(
+                        "SELECT written, skipped FROM analytics.suggest_category(%s, %s)",
+                        [ids, suggestion.category_id],
+                    )
+                    # The function always returns its one row.
+                    written, skipped = cast(tuple[int, int], await cursor.fetchone())
+                results.append(
+                    outputs.SuggestionResult(
+                        category_id=suggestion.category_id,
+                        merchant_id=suggestion.merchant_id,
+                        description=suggestion.description,
+                        written=written,
+                        skipped=skipped,
+                    )
+                )
+            result = outputs.Suggested(
+                results=results,
+                written=sum(r.written for r in results),
+                skipped=sum(r.skipped for r in results),
+            )
+            return result, result.written
+
+        arguments = {"suggestions": [s.model_dump(exclude_none=True) for s in suggestions]}
+        return await self._call("suggest_categories", arguments, write, read_only=False)
 
     async def query_sql(
         self, query: Annotated[str, Field(description="One PostgreSQL query.")]
@@ -452,10 +549,12 @@ class Tools:
         self,
         tool: str,
         arguments: dict[str, Any],
-        read: Callable[[Connection], Awaitable[tuple[T, int]]],
+        run: Callable[[Connection], Awaitable[tuple[T, int]]],
+        *,
+        read_only: bool = True,
     ) -> T:
-        """`read` (giving the result and its row count) in a read-only transaction, then the
-        audit record."""
+        """`run` (giving the result and its row count) in a read-only transaction, unless the
+        tool writes, then the audit record."""
         try:
             connection = await psycopg.AsyncConnection.connect(self._dsn, autocommit=True)
         except psycopg.OperationalError as error:
@@ -463,8 +562,10 @@ class Tools:
         async with connection:
             try:
                 async with connection.transaction():
-                    await connection.execute("SET TRANSACTION READ ONLY")
-                    result, row_count = await read(connection)
+                    await connection.execute(
+                        "SET TRANSACTION READ ONLY" if read_only else "SET TRANSACTION READ WRITE"
+                    )
+                    result, row_count = await run(connection)
             except Exception as error:
                 await _record(connection, tool, arguments, None)
                 if isinstance(error, psycopg.Error):
@@ -507,7 +608,27 @@ def build_server(dsn: str) -> MCPServer:
         tools.query_sql,
     ):
         server.add_tool(tool, annotations=read_only)
+    # It writes, but only suggestions the user reviews; the same call again changes nothing.
+    server.add_tool(
+        tools.suggest_categories,
+        annotations=ToolAnnotations(
+            read_only_hint=False,
+            destructive_hint=False,
+            idempotent_hint=True,
+            open_world_hint=False,
+        ),
+    )
+    server.add_prompt(
+        Prompt.from_function(
+            categorize_uncategorized,
+            description="Suggest categories for the spending that has none, merchant by merchant.",
+        )
+    )
     return server
+
+
+def categorize_uncategorized() -> str:
+    return CATEGORIZE_PROMPT
 
 
 async def _record(
@@ -529,6 +650,36 @@ async def _dicts(
     cursor = db.cursor(row_factory=dict_row)
     await cursor.execute(query, params)
     return await cursor.fetchall()
+
+
+async def _suggestion_targets(db: Connection, suggestion: Suggestion) -> list[uuid.UUID]:
+    """The transactions a suggestion names. The function decides which of them it may take."""
+    if suggestion.transaction_ids is not None:
+        return suggestion.transaction_ids
+    if suggestion.merchant_id is not None:
+        cursor = await db.execute(
+            sql.SQL(
+                "SELECT t.id FROM analytics.transactions t WHERE t.merchant_id = %s AND {}"
+            ).format(sql.SQL(SUGGESTABLE)),
+            [suggestion.merchant_id],
+        )
+        return [id_ for (id_,) in await cursor.fetchall()]
+    wanted = description_key(suggestion.description)
+    if not wanted:
+        return []
+    rows = await _dicts(
+        db,
+        sql.SQL(
+            "SELECT t.id, t.description, t.bank_counterparty FROM analytics.transactions t"
+            " WHERE t.merchant_id IS NULL AND {}"
+        ).format(sql.SQL(SUGGESTABLE)),
+    )
+    return [row["id"] for row in rows if _description_group(row) == wanted]
+
+
+def _description_group(row: dict[str, Any]) -> str:
+    """A transaction's group in uncategorized_overview when it has no merchant."""
+    return description_key(row["description"]) or description_key(row["bank_counterparty"])
 
 
 def _all(conditions: Sequence[LiteralString]) -> sql.Composed:

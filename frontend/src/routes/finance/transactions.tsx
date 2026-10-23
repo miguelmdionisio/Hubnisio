@@ -41,6 +41,7 @@ const PAGE_SIZE = 50;
 const SEARCH_DELAY_MS = 300;
 const ALL = 'all'; // Select items can't have an empty value
 const UNCATEGORIZED = 'uncategorized';
+const SUGGESTED = 'suggested'; // categories an AI suggested, to review
 const KINDS: { value: TransactionKind; label: string }[] = [
   { value: 'expense', label: 'Spending' },
   { value: 'income', label: 'Income' },
@@ -52,7 +53,7 @@ export type TransactionSearch = {
   q?: string;
   status?: TransactionStatus;
   kind?: TransactionKind;
-  category?: string; // a category or group ID, or "uncategorized"
+  category?: string; // a category or group ID, "uncategorized" or "suggested"
   counterparty?: string;
   from?: string; // "YYYY-MM-DD": the first day shown
   to?: string; // "YYYY-MM-DD": the last day shown
@@ -122,8 +123,12 @@ export function TransactionsPage() {
     q: search.q,
     status: search.status,
     kind: search.kind,
-    category_id: search.category === UNCATEGORIZED ? undefined : search.category,
+    category_id:
+      search.category === UNCATEGORIZED || search.category === SUGGESTED
+        ? undefined
+        : search.category,
     uncategorized: search.category === UNCATEGORIZED ? true : undefined,
+    source: search.category === SUGGESTED ? ('ai' as const) : undefined,
     counterparty_id: search.counterparty,
     date_from: search.from,
     date_to: search.to,
@@ -199,6 +204,7 @@ export function TransactionsPage() {
           <SelectContent>
             <SelectItem value={ALL}>All categories</SelectItem>
             <SelectItem value={UNCATEGORIZED}>Uncategorized</SelectItem>
+            <SelectItem value={SUGGESTED}>Suggested by AI</SelectItem>
             {groups.map((group) => (
               <SelectGroup key={group.id}>
                 <SelectLabel>{group.name}</SelectLabel>
@@ -379,6 +385,7 @@ function CategoryCell({
           className={cn(category.source !== 'manual' && 'text-muted-foreground')}
         >
           {category.name}
+          {category.source === 'ai' && <span className="ml-1.5 text-xs font-medium">AI</span>}
         </span>
       ) : (
         <span className="text-muted-foreground italic">Uncategorized</span>

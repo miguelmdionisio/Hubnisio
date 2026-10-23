@@ -112,10 +112,10 @@ function api(overrides: Record<string, (request: Request) => unknown> = {}) {
         [`${month}-01`, '2500.00', '1234.50'],
       ]),
     'GET /api/finance/budgets': () => budgets,
-    'GET /api/finance/transactions': () => ({
-      items: [transaction('t1'), transaction('t2'), transaction('t3')],
-      next_cursor: null,
-    }),
+    'GET /api/finance/transactions': (request) =>
+      new URL(request.url).searchParams.get('source') === 'ai'
+        ? { items: [], next_cursor: null }
+        : { items: [transaction('t1'), transaction('t2'), transaction('t3')], next_cursor: null },
     'GET /api/finance/recurring/upcoming': () => [
       upcomingPayment('s-netflix', 'Netflix', '2026-10-25', '-12.99'),
       upcomingPayment('s-salary', 'Salary', '2026-10-27', '1500.00', { kind: 'income' }),
@@ -285,10 +285,32 @@ test('counts what still needs a category this month, and links to it', async () 
   expect(tile.getByRole('link', { name: 'Review' }).getAttribute('href')).toBe(
     `/finance/transactions?category=uncategorized&from=${month}-01`,
   );
-  const request = calls.find((call) => call.path === '/api/finance/transactions');
+  const request = calls.find(
+    (call) => call.path === '/api/finance/transactions' && !call.search.has('source'),
+  );
   expect(request?.search.get('uncategorized')).toBe('true');
   expect(request?.search.get('date_from')).toBe(`${month}-01`);
   expect(request?.search.get('limit')).toBe('200');
+  expect(tile.queryByText(/suggested by AI/)).toBeNull();
+});
+
+test('links to the categories an AI suggested, whatever their month, for review', async () => {
+  const calls = api({
+    'GET /api/finance/transactions': (request) =>
+      new URL(request.url).searchParams.get('source') === 'ai'
+        ? { items: [transaction('t4'), transaction('t5')], next_cursor: null }
+        : { items: [], next_cursor: null },
+  });
+
+  renderAt('/');
+
+  const tile = await card('To categorize');
+  const link = await tile.findByRole('link', { name: '2 suggested by AI to review' });
+  expect(link.getAttribute('href')).toBe('/finance/transactions?category=suggested');
+  expect(tile.getByText('Everything this month has a category.')).toBeDefined();
+  const request = calls.find((call) => call.search.get('source') === 'ai');
+  expect(request?.path).toBe('/api/finance/transactions');
+  expect(request?.search.has('date_from')).toBe(false);
 });
 
 test('says 200+ when there are more than a page of them', async () => {

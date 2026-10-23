@@ -151,3 +151,19 @@ class QueryResult(BaseModel):
     columns: list[str]
     rows: list[list[Any]]  # numbers with decimals come as strings, dates as ISO strings
     truncated: bool  # the query returned more rows than are listed
+
+
+class SuggestionResult(BaseModel):
+    category_id: uuid.UUID
+    merchant_id: uuid.UUID | None
+    description: str | None
+    written: int  # transactions that now have the suggestion
+    # Asked for but left alone: not booked, a transfer, not the user's to see, or already
+    # categorized by the user, a rule or a merchant's default.
+    skipped: int
+
+
+class Suggested(BaseModel):
+    results: list[SuggestionResult]  # one per suggestion, in order
+    written: int
+    skipped: int

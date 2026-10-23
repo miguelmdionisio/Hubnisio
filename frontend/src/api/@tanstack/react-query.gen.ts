@@ -235,7 +235,8 @@ export const listTransactionsQueryKey = (options?: Options<ListTransactionsData>
  * List Transactions
  *
  * Newest first. Pass `next_cursor` back as `cursor` for the next page. A group's
- * `category_id` includes its categories; `uncategorized` leaves out transfers.
+ * `category_id` includes its categories; `uncategorized` leaves out transfers; `source` is
+ * who set the category (`ai`: suggestions to review).
  */
 export const listTransactionsOptions = (options?: Options<ListTransactionsData>) => queryOptions<ListTransactionsResponse, ListTransactionsError, ListTransactionsResponse, ReturnType<typeof listTransactionsQueryKey>>({
     queryFn: async ({ queryKey, signal }) => {
@@ -285,7 +286,8 @@ export const listTransactionsInfiniteQueryKey = (options?: Options<ListTransacti
  * List Transactions
  *
  * Newest first. Pass `next_cursor` back as `cursor` for the next page. A group's
- * `category_id` includes its categories; `uncategorized` leaves out transfers.
+ * `category_id` includes its categories; `uncategorized` leaves out transfers; `source` is
+ * who set the category (`ai`: suggestions to review).
  */
 export const listTransactionsInfiniteOptions = (options?: Options<ListTransactionsData>) => {
     const opts = infiniteQueryOptions<ListTransactionsResponse, ListTransactionsError, InfiniteData<ListTransactionsResponse>, QueryKey<Options<ListTransactionsData>>, string | null | Pick<QueryKey<Options<ListTransactionsData>>[0], 'body' | 'headers' | 'path' | 'query'>>(

@@ -34,7 +34,7 @@
   - Each view is `security_barrier`, has a comment for the AI, and is the SQL twin of `finance/scoping.py`, `finance/kinds.py` or `monthly_sums`. Agreement tests (`tests/test_analytics.py`) check that they match the app's figures for the same member and view. A view changes only by a new migration.
 - **One Postgres login per member, not one shared role.** `cli ai-login --email <member>` creates `hub_ai_<12 hex of the user ID>` in the group role `hub_ai`. It sets `default_transaction_read_only`, a `statement_timeout` and `search_path = analytics` on it, maps it to the member in `core.ai_logins`, and writes its connection string to `secrets/ai/<role>`. The password is hashed before it reaches the server and is never printed. `--revoke` removes the mapping, ends the login's sessions and drops it.
 - **Views filter on `session_user`, not row-level security.** A query can't change `session_user`: `SET ROLE` to another member's login is refused, and the group itself changes nothing. So `query_sql` is as safe as the tools, and a connection that isn't a mapped login sees nothing.
-- **The grants are the boundary:** `USAGE` on `analytics`, `SELECT` on its views, and `EXECUTE` on `analytics.record_call`. Nothing else, so writes fail even in a read-write transaction. The read-only default only makes reads the default.
+- **The grants are the boundary:** `USAGE` on `analytics`, `SELECT` on its views, and `EXECUTE` on `analytics.record_call` and *(slice A3)* `analytics.suggest_category`. Nothing else, so writes fail even in a read-write transaction. The read-only default only makes reads the default.
 
 ### An MCP server
 
@@ -55,6 +55,11 @@
 - *(Amended in M4)* The categorizing runs in the user's own Claude Code or Desktop session through MCP, so there's no API key and no per-call bill. Its only write is a category with source `ai`, the lowest precedence, through one `SECURITY DEFINER` function. Suggestions count at once, shown muted with an "AI" label, and picking a category overrides one.
 - Only the fields needed are sent: description, counterparty name, amount, date. No IBANs or account numbers.
 - Results are cached by a merchant/description fingerprint, so repeats don't call the API again.
+- *(As built in M4, slice A3)* The cache isn't needed: a merchant's suggestion is one write for all its transactions, and the session decides when to run.
+  - **The write:** `analytics.suggest_category(transaction_ids, category_id)` (migration `0012`), `SECURITY DEFINER`, returns how many it wrote and skipped. It finds the member from `session_user` and takes only transactions in `analytics.transactions` (so visible to them), booked and not transfers, with no `manual`, `rule` or `counterparty` category. It replaces an earlier `ai` one. The category must be in `analytics.categories` and not archived, or the call fails. It refuses a read-only transaction outright, so `query_sql` can't call it, and nothing but an AI login may.
+  - **The tool:** `suggest_categories([{category_id, transaction_ids | merchant_id | description}])`, the one tool not marked read-only. It runs in a read-write transaction: every suggestion in a call is saved, or none. A merchant, or a description group from `uncategorized_overview` (its name, or any description that reads the same without digits), stands for that group's spending as the overview counts it (booked, money out, no category), plus what an AI suggested before, so a second pass keeps a merchant consistent. Money in, such as a refund, is taken only by ID: a group like a person's MB WAY transfers runs both ways. Its audit row counts the transactions written.
+  - **The prompt:** `categorize_uncategorized` walks the model through `uncategorized_overview` (household view), `list_categories` and `suggest_categories`, group by group, leaving out what it can't tell.
+  - **The app:** `listTransactions` takes `source` (who set the category). The Transactions page marks AI categories "AI" and filters them under "Suggested by AI"; the overview's "To categorize" tile counts them, from any month, with a link to review them. Picking a category, even the suggested one, makes it `manual`.
 
 ### Controls
 
@@ -108,4 +113,4 @@ B costs a modest amount of upfront work and makes the AI layer safe structurally
 
 1. [x] Create the `analytics` schema and the `hub_ai` role once the finance tables exist. *(M4, slice A1.)*
 2. [x] First MCP tools: `search_transactions` and `spending_summary`. *(M4, slice A2, with the other read tools.)*
-3. [ ] Categorization suggestions with a fingerprint cache and audit logging.
+3. [x] Categorization suggestions with a fingerprint cache and audit logging. *(M4, slice A3: suggestions through MCP, audited in `core.ai_calls`; no cache needed.)*

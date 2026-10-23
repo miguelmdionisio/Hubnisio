@@ -431,7 +431,7 @@
           "finance"
         ],
         "summary": "List Transactions",
-        "description": "Newest first. Pass `next_cursor` back as `cursor` for the next page. A group's\n`category_id` includes its categories; `uncategorized` leaves out transfers.",
+        "description": "Newest first. Pass `next_cursor` back as `cursor` for the next page. A group's\n`category_id` includes its categories; `uncategorized` leaves out transfers; `source` is\nwho set the category (`ai`: suggestions to review).",
         "operationId": "listTransactions",
         "parameters": [
           {
@@ -559,6 +559,22 @@
               "type": "boolean",
               "default": false,
               "title": "Uncategorized"
+            }
+          },
+          {
+            "name": "source",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Source"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Source"
             }
           },
           {

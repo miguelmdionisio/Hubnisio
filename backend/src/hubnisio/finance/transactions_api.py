@@ -70,12 +70,14 @@ async def list_transactions(
     kind: TransactionKind | None = None,
     category_id: uuid.UUID | None = None,
     uncategorized: bool = False,
+    source: Source | None = None,
     counterparty_id: uuid.UUID | None = None,
     cursor: str | None = None,
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
 ) -> schemas.TransactionPage:
     """Newest first. Pass `next_cursor` back as `cursor` for the next page. A group's
-    `category_id` includes its categories; `uncategorized` leaves out transfers."""
+    `category_id` includes its categories; `uncategorized` leaves out transfers; `source` is
+    who set the category (`ai`: suggestions to review)."""
     query = _query(principal)
     if account_id is not None:
         query = query.where(Transaction.account_id == account_id)
@@ -93,6 +95,8 @@ async def list_transactions(
         )
     if uncategorized:
         query = query.where(CategoryAssignment.id.is_(None), not_(IS_TRANSFER))
+    if source is not None:
+        query = query.where(CategoryAssignment.source == source)
     if counterparty_id is not None:
         query = query.where(TransactionAnnotation.counterparty_id == counterparty_id)
     if q and q.strip():

@@ -21,6 +21,7 @@ A private, self-hosted personal hub, one app per domain; finance first. Decision
   - A view changes only by a new migration. `CREATE OR REPLACE VIEW` keeps its grants but can only add columns at the end. A new view needs `GRANT SELECT … TO hub_ai`.
   - The agreement and security tests in `tests/test_analytics.py` must pass.
   - The MCP server (`hubnisio/ai`, run as `python -m hubnisio.ai`) loads the views into the app's dataclasses and calls its pure functions; `tests/test_ai.py` checks each tool against the app. A shape the API returns comes from a pure function both can call.
+  - The AI's one write is `analytics.suggest_category` (an `ai` category, never over a higher source), called only by the `suggest_categories` tool in a read-write transaction; every other tool runs read-only.
 - **Tests:**
   - Backend tests use a real Postgres via testcontainers (Docker must be running). Finance API tests share the `home` fixture (`tests/households.py`): two members, the seeded categories, three accounts (one private). The database isn't reset between tests, so `fx_rates`, being global, needs test-only currency codes such as `XTS`.
   - Frontend tests render the whole app with `src/test/render.tsx` (`renderAt`, `mockApi`) and `src/test/fixtures.ts`.

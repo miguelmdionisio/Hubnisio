@@ -1727,6 +1727,10 @@ export type ListTransactionsData = {
          */
         uncategorized?: boolean;
         /**
+         * Source
+         */
+        source?: Source | null;
+        /**
          * Counterparty Id
          */
         counterparty_id?: string | null;

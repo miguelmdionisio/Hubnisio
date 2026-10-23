@@ -109,7 +109,8 @@ export const updateAccount = <ThrowOnError extends boolean = false>(options: Opt
  * List Transactions
  *
  * Newest first. Pass `next_cursor` back as `cursor` for the next page. A group's
- * `category_id` includes its categories; `uncategorized` leaves out transfers.
+ * `category_id` includes its categories; `uncategorized` leaves out transfers; `source` is
+ * who set the category (`ai`: suggestions to review).
  */
 export const listTransactions = <ThrowOnError extends boolean = false>(options?: Options<ListTransactionsData, ThrowOnError>): RequestResult<ListTransactionsResponses, ListTransactionsErrors, ThrowOnError> => (options?.client ?? client).get<ListTransactionsResponses, ListTransactionsErrors, ThrowOnError>({ url: '/api/finance/transactions', ...options });
 

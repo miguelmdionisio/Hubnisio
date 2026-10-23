@@ -13,8 +13,8 @@ from typing import Any
 
 import psycopg
 import pytest
-from analytics_data import OCTOBER, SEPTEMBER, VIEWS, Data, Login
-from households import Home, add, api
+from analytics_data import OCTOBER, SEPTEMBER, VIEWS, Data, Login, save
+from households import Home, add, api, make_home
 from mcp import Client, StdioServerParameters
 from sqlalchemy import select, update
 
@@ -30,7 +30,16 @@ from hubnisio.finance.budgets import budgets_for_month
 from hubnisio.finance.insights.net_worth import net_worth
 from hubnisio.finance.insights.spending import household_categories
 from hubnisio.finance.insights_api import get_cash_flow, get_spending
-from hubnisio.finance.models import Category, CategoryAssignment, Counterparty, Review, Source
+from hubnisio.finance.models import (
+    Category,
+    CategoryAssignment,
+    Counterparty,
+    Review,
+    Source,
+    TransactionAnnotation,
+    TransactionStatus,
+    Transfer,
+)
 from hubnisio.finance.recurring_api import list_recurring
 from hubnisio.finance.scoping import listed_account_ids
 
@@ -46,6 +55,7 @@ TOOLS = {
     "recurring_payments",
     "search_transactions",
     "spending_summary",
+    "suggest_categories",
     "uncategorized_overview",
 }
 
@@ -351,6 +361,7 @@ async def test_query_sql_reads_the_views(home: Home, logins: dict[uuid.UUID, Log
         # Closing the wrapper and chaining statements: one prepared statement can't hold them.
         ("SELECT 1) q; DELETE FROM core.ai_calls; SELECT * FROM (SELECT 1", "multiple commands"),
         ("SELECT analytics.record_call('query_sql', '{}', 0)", "read-only transaction"),
+        ("SELECT * FROM analytics.suggest_category('{}', gen_random_uuid())", "read-only"),
         ("SELECT * FROM finance.transactions", "permission denied"),
         (" ; ", "empty"),
     ],
@@ -445,6 +456,216 @@ async def test_every_call_is_audited(home: Home, logins: dict[uuid.UUID, Login])
     ]
 
 
+# Suggestions: the one write.
+
+
+async def suggest(
+    login: Login, ids: list[uuid.UUID], category: uuid.UUID, *, read_only: bool = False
+) -> tuple[int, int]:
+    """analytics.suggest_category, called as the member's login."""
+    connection = await psycopg.AsyncConnection.connect(login.dsn, autocommit=True)
+    async with connection, connection.transaction():
+        mode = "SET TRANSACTION READ ONLY" if read_only else "SET TRANSACTION READ WRITE"
+        await connection.execute(mode)
+        cursor = await connection.execute(
+            "SELECT written, skipped FROM analytics.suggest_category(%s, %s)", [ids, category]
+        )
+        row = await cursor.fetchone()
+    assert row is not None
+    return row
+
+
+async def assigned(ids: list[uuid.UUID]) -> dict[uuid.UUID, tuple[uuid.UUID, Source]]:
+    async with get_sessionmaker()() as session:
+        rows = await session.execute(
+            select(
+                CategoryAssignment.transaction_id,
+                CategoryAssignment.category_id,
+                CategoryAssignment.source,
+            ).where(CategoryAssignment.transaction_id.in_(ids))
+        )
+    return {transaction: (category, source) for transaction, category, source in rows}
+
+
+async def test_suggest_category_takes_only_what_an_ai_may_categorize(
+    home: Home, logins: dict[uuid.UUID, Login], data: Data
+) -> None:
+    household = home.owner.household_id
+    groceries, food = home.categories["Groceries"], home.categories["Food"]
+    free = await add(home, "-12.00", 3)
+    refund = await add(home, "4.00", 3)  # money in may take one too
+    pending = await add(home, "-5.00", 3, status=TransactionStatus.PENDING)
+    out = await add(home, "-70.00", 4)
+    into = await add(home, "70.00", 4, account=home.private)
+    decided = {
+        source: await add(home, "-9.00", 5)
+        for source in (Source.MANUAL, Source.RULE, Source.COUNTERPARTY)
+    }
+    earlier = await add(home, "-8.00", 6)
+    await save(
+        Transfer(household_id=household, outgoing_id=out, incoming_id=into, source=Source.AUTO),
+        *(
+            CategoryAssignment(
+                household_id=household, transaction_id=transaction, category_id=food, source=source
+            )
+            for source, transaction in [*decided.items(), (Source.AI, earlier)]
+        ),
+    )
+    hers = min(data.member_private)
+    asked = [free, refund, pending, out, into, *decided.values(), earlier, hers, uuid.uuid4()]
+
+    # Twice in the list counts once. The other member's private transaction isn't the owner's
+    # to see, and a made-up ID is skipped like it.
+    assert await suggest(logins[home.owner.user_id], [*asked, free], groceries) == (3, 8)
+
+    found = await assigned(asked)
+    assert {t for t, (_, source) in found.items() if source is Source.AI} == {free, refund, earlier}
+    assert {found[t] for t in (free, refund, earlier)} == {(groceries, Source.AI)}
+    assert {found[t] for t in decided.values()} == {(food, source) for source in decided}
+    assert not {pending, out, into, hers} & set(found)
+
+    # The member sees their own private account, and not the owner's.
+    member = logins[home.member.user_id]
+    assert await suggest(member, [hers, *data.owner_private], groceries) == (1, 3)
+    assert (await assigned([hers]))[hers] == (groceries, Source.AI)
+
+
+async def test_suggest_category_needs_a_usable_category_and_a_read_write_transaction(
+    home: Home, logins: dict[uuid.UUID, Login], migrated_database: str
+) -> None:
+    owner = logins[home.owner.user_id]
+    groceries, rent = home.categories["Groceries"], home.categories["Rent & mortgage"]
+    free = await add(home, "-12.00", 3)
+    async with get_sessionmaker()() as session, session.begin():
+        await session.execute(
+            update(Category).where(Category.id == rent).values(archived_at=date(2026, 10, 1))
+        )
+    elsewhere = (await make_home()).categories["Groceries"]
+
+    for category, read_only, message in (
+        (rent, False, "archived"),
+        (elsewhere, False, "isn't the household's"),
+        (uuid.uuid4(), False, "isn't the household's"),
+        (groceries, True, "read-only transaction"),
+    ):
+        with pytest.raises(psycopg.Error, match=message):
+            await suggest(owner, [free], category, read_only=read_only)
+    # Only an AI login may call it: the app's own role is refused too.
+    async with await psycopg.AsyncConnection.connect(migrated_database) as connection:
+        with pytest.raises(psycopg.Error, match="not an AI login"):
+            await connection.execute(
+                "SELECT analytics.suggest_category(%s, %s)", [[free], groceries]
+            )
+    assert await assigned([free]) == {}
+
+
+async def test_suggest_categories_takes_a_merchants_or_a_descriptions_spending(
+    home: Home, logins: dict[uuid.UUID, Login]
+) -> None:
+    household = home.owner.household_id
+    taxi, pharmacy = home.categories["Taxi & ride-hailing"], home.categories["Pharmacy"]
+    gifts, rent = home.categories["Gifts & donations"], home.categories["Rent & mortgage"]
+    bolt = Counterparty(household_id=household, name="Bolt")
+    await save(bolt)
+    rides = [await add(home, "-6.00", day) for day in (1, 2)]
+    bolt_refund = await add(home, "6.00", 3)  # money in: a merchant's group is its spending
+    bolt_manual = await add(home, "-7.00", 4)
+    chemist = [
+        await add(home, "-15.00", 5, description="COMPRA 1234 FARMÁCIA"),
+        await add(home, "-3.50", 6, description="compra 98 farmacia "),
+    ]
+    bakery = await add(home, "-20.00", 7, description="COMPRA 55 PADARIA")
+    await save(
+        *(
+            TransactionAnnotation(
+                household_id=household, transaction_id=transaction, counterparty_id=bolt.id
+            )
+            for transaction in [*rides, bolt_refund, bolt_manual]
+        ),
+        CategoryAssignment(
+            household_id=household,
+            transaction_id=bolt_manual,
+            category_id=gifts,
+            source=Source.MANUAL,
+        ),
+    )
+    everything = [*rides, bolt_refund, bolt_manual, *chemist, bakery]
+    login = logins[home.owner.user_id]
+    first = [
+        {"category_id": str(taxi), "merchant_id": str(bolt.id)},
+        {"category_id": str(pharmacy), "description": "compra farmacia"},
+    ]
+
+    async with connected(login) as client:
+        result = await call(client, "suggest_categories", suggestions=first)
+        assert [(r["written"], r["skipped"]) for r in result["results"]] == [(2, 0), (2, 0)]
+        assert (result["written"], result["skipped"]) == (4, 0)
+        overview = await call(client, "uncategorized_overview", view="household")
+        assert [g["name"] for g in overview["groups"]] == ["compra padaria"]
+
+        # Again: it replaces the AI's own suggestions. An example description works as well as
+        # the group's name, and listed IDs skip what the user decided.
+        again = await call(
+            client,
+            "suggest_categories",
+            suggestions=[
+                {"category_id": str(gifts), "merchant_id": str(bolt.id)},
+                {"category_id": str(pharmacy), "description": "COMPRA 77 PADARIA"},
+                {"category_id": str(taxi), "transaction_ids": [str(bolt_manual), str(bolt_refund)]},
+            ],
+        )
+        assert [(r["written"], r["skipped"]) for r in again["results"]] == [(2, 0), (1, 0), (1, 1)]
+        suggested = await call(client, "search_transactions", ai_suggested=True)
+        assert suggested["matched"] == 6
+
+        # All or nothing: an archived category fails the whole call.
+        async with get_sessionmaker()() as session, session.begin():
+            await session.execute(
+                update(Category).where(Category.id == rent).values(archived_at=date(2026, 10, 1))
+            )
+        error = await failure(
+            client,
+            "suggest_categories",
+            suggestions=[
+                {"category_id": str(taxi), "merchant_id": str(bolt.id)},
+                {"category_id": str(rent), "transaction_ids": [str(bakery)]},
+            ],
+        )
+        assert "archived" in error
+        for wrong in ({"category_id": str(taxi)}, {**first[0], "description": "bolt"}):
+            assert "Give one of" in await failure(client, "suggest_categories", suggestions=[wrong])
+
+    assert await assigned(everything) == {
+        rides[0]: (gifts, Source.AI),
+        rides[1]: (gifts, Source.AI),
+        bolt_refund: (taxi, Source.AI),
+        bolt_manual: (gifts, Source.MANUAL),
+        chemist[0]: (pharmacy, Source.AI),
+        chemist[1]: (pharmacy, Source.AI),
+        bakery: (pharmacy, Source.AI),
+    }
+    async with get_sessionmaker()() as session:
+        calls = (
+            await session.scalars(
+                select(AiCall)
+                .where(AiCall.role_name == login.role, AiCall.tool == "suggest_categories")
+                .order_by(AiCall.at, AiCall.id)
+            )
+        ).all()
+    assert [c.row_count for c in calls] == [4, 4, None]
+    assert calls[0].arguments == {"suggestions": first}
+
+
+async def test_the_categorize_prompt_walks_through_the_tools() -> None:
+    async with Client(build_server("postgresql://unused")) as client:
+        [prompt] = (await client.list_prompts()).prompts
+        assert prompt.name == "categorize_uncategorized"
+        [message] = (await client.get_prompt(prompt.name)).messages
+    text = getattr(message.content, "text", "")
+    steps = ["uncategorized_overview", "list_categories", "suggest_categories"]
+    assert sorted(steps, key=text.index) == steps
+
+
 # Starting the server.
 
 
@@ -498,7 +719,9 @@ async def test_the_server_runs_over_stdio(
     async with Client(parameters) as client:
         assert {tool.name for tool in (await client.list_tools()).tools} == TOOLS
         for tool in (await client.list_tools()).tools:
-            assert tool.annotations is not None and tool.annotations.read_only_hint, tool.name
+            assert tool.annotations is not None, tool.name
+            writes = tool.name == "suggest_categories"
+            assert tool.annotations.read_only_hint is not writes, tool.name
         assert (await call(client, "list_accounts"))["accounts"]
 
 

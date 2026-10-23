@@ -9,6 +9,8 @@ from households import Home, add, api, make_home, refresh
 
 from hubnisio.core.db import get_sessionmaker
 from hubnisio.finance.models import (
+    CategoryAssignment,
+    Source,
     TransferDismissal,
 )
 
@@ -98,6 +100,20 @@ async def test_filters(home: Home) -> None:
         assert ids(await items(client, category_id=food)) == {str(coffee)}  # a group's children
         assert ids(await items(client, counterparty_id=cid)) == {str(coffee)}
         assert ids(await items(client, q="RUI")) == {str(coffee)}  # notes are searched
+        assert ids(await items(client, source="counterparty")) == {str(coffee)}
+        assert ids(await items(client, source="ai")) == set()
+
+        async with get_sessionmaker()() as session, session.begin():
+            session.add(
+                CategoryAssignment(
+                    household_id=home.owner.household_id,
+                    transaction_id=salary,
+                    category_id=home.categories["Salary"],
+                    source=Source.AI,
+                )
+            )
+        assert ids(await items(client, source="ai")) == {str(salary)}  # suggestions to review
+        assert ids(await items(client, uncategorized=True)) == set()
 
 
 async def test_transfers_by_hand_and_unlinking(home: Home) -> None:

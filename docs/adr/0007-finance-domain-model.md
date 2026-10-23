@@ -49,6 +49,7 @@ Findings that shape it ([research](../research/oss-finance-analysis.md)):
 - `categories`: a household-level tree of two levels (groups and categories), each `expense` or `income`, with an optional per-user extension later ([ADR-0005](0005-household-data-model.md)). New households start with an editable default tree.
 - `category_assignments`: one row per transaction for now (category + amount + source). The table allows several rows per transaction, so splits (manual or from receipts) can be added later without changing the schema. **No split UI for now.**
 - **Precedence:** `manual` > `rule` > `counterparty` (the merchant's default category) > `ai`. A lower-precedence source never overwrites a higher one, and a specific rule beats a merchant's general default. *(Amended in M2.)*
+  - *(Added in M4)* An `ai` category comes only from `analytics.suggest_category` ([ADR-0006](0006-ai-access.md)). A rules run keeps it until a rule or a merchant's default applies, and drops it if the transaction becomes a transfer.
 - **Rules:**
   - Ordered rules; each has conditions (match all / any) on description, counterparty, amount range, account, MCC and direction, and actions (set category, tag, counterparty, mark as transfer).
   - They run when transactions arrive and can be re-run on demand. "Stop processing" is available per rule.
