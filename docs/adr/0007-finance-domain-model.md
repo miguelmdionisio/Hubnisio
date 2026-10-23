@@ -97,6 +97,11 @@ Findings that shape it ([research](../research/oss-finance-analysis.md)):
   - **Group and category budgets:** a budget can be on a group or on a category. A group's spending includes its categories. When both are budgeted, the group is the cap and its categories are sub-limits, and totals count only the top budgeted level. Income categories can't be budgeted.
   - **Computed on read:** from the budget's first month to the month asked for, with no job. This differs from Firefly, which materializes each period's limit with a cron job.
   - **Privacy:** budgets belong to the household, but the spending shown against one counts only the accounts the viewer may see.
+- **Global budget** *(added before M4)*:
+  - **What it is:** one cap on all spending, next to the category budgets. A budget row with a null `category_id` is the household's overall budget; a partial unique index allows one per household.
+  - **What it counts:** all spending, uncategorized included. This is the same figure as cash flow's spending (`total_spending`), so the two agree by construction. Category budgets stay sub-limits within it, and their totals still count only the category budgets.
+  - **Settings:** the same as a category budget's: rollover, overspend, and effective-dated limits.
+  - **Where:** `compute_budgets` is pure (limits plus monthly sums in, figures out), so M4's analytics views can feed it too.
 
 ### Balances and net worth
 

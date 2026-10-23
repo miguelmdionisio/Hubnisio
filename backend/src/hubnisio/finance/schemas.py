@@ -320,7 +320,7 @@ class BudgetLimitOut(BaseModel):
 
 
 class BudgetSettings(BaseModel):
-    category_id: uuid.UUID
+    category_id: uuid.UUID | None  # None: the overall budget
     rollover: bool
     overspend: Overspend
     limits: list[BudgetLimitOut]  # oldest first; each holds until the next
@@ -341,10 +341,24 @@ class BudgetOut(BaseModel):
     children: list[BudgetOut]  # a group's budgeted categories: sub-limits within it
 
 
+class OverallBudgetOut(BaseModel):
+    """The cap on all spending, uncategorized included: cash flow's figure for the month."""
+
+    rollover: bool
+    overspend: Overspend
+    starts_on: date
+    limit: Decimal
+    carried_in: Decimal
+    available: Decimal
+    spent: Decimal
+    remaining: Decimal  # negative when over
+
+
 class BudgetsOut(BaseModel):
     month: date
+    overall: OverallBudgetOut | None
     budgets: list[BudgetOut]  # in category order; categories under a budgeted group nest in it
-    # Totals over the top-level budgets only, so nothing is counted twice.
+    # Totals over the top-level category budgets only, so nothing is counted twice.
     total_limit: Decimal
     total_available: Decimal
     total_spent: Decimal

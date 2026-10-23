@@ -1,13 +1,16 @@
-"""Budgets: monthly limits per category, computed on read (ADR-0007, "Budgets").
+"""Budgets: monthly limits per category and for all spending, computed on read (ADR-0007,
+"Budgets").
 
 A month's money is its limit plus what the previous month carried in. What's left over carries
 into the next month only with rollover on; an overspend carries (as a negative) only with
 overspend set to carry. A group's budget covers its categories; when a category inside it has a
-budget too, that's a sub-limit and totals count the group alone.
+budget too, that's a sub-limit and totals count the group alone. The overall budget has no
+category: it counts everything spent, uncategorized included (`total_spending`).
+
+`compute_budgets` is pure, so whatever can load the sums (a query, a view) can use it.
 """
 
 import uuid
-from collections import defaultdict
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date
@@ -20,12 +23,14 @@ from hubnisio.core.auth import Principal
 from hubnisio.finance import schemas
 from hubnisio.finance.insights.spending import (
     CategoryInfo,
+    MonthlySums,
     add_months,
     cents,
     household_categories,
     month_start,
     monthly_sums,
     spent,
+    total_spending,
 )
 from hubnisio.finance.models import Budget, BudgetLimit, CategoryKind, Overspend, TransactionKind
 
@@ -70,6 +75,16 @@ def budget_months(
     return months
 
 
+@dataclass(frozen=True)
+class BudgetSpec:
+    """A budget as stored; `category_id` is None for the household's overall budget."""
+
+    category_id: uuid.UUID | None
+    rollover: bool
+    overspend: Overspend
+    limits: Sequence[tuple[date, Decimal]]  # (first day of a month, amount)
+
+
 async def budgets_for_month(
     session: AsyncSession, principal: Principal, month: date
 ) -> schemas.BudgetsOut:
@@ -80,50 +95,82 @@ async def budgets_for_month(
         for budget in await session.scalars(
             select(Budget).where(Budget.household_id == principal.household_id)
         )
-        if budget.category_id in categories
+        if budget.category_id is None or budget.category_id in categories
     ]
-    limits: dict[uuid.UUID, list[tuple[date, Decimal]]] = defaultdict(list)
-    for row in await session.scalars(
-        select(BudgetLimit).where(BudgetLimit.budget_id.in_([budget.id for budget in budgets]))
-    ):
+    limits: dict[uuid.UUID, list[tuple[date, Decimal]]] = {budget.id: [] for budget in budgets}
+    for row in await session.scalars(select(BudgetLimit).where(BudgetLimit.budget_id.in_(limits))):
         limits[row.budget_id].append((row.starts_on, row.amount))
+    specs = [
+        BudgetSpec(budget.category_id, budget.rollover, budget.overspend, limits[budget.id])
+        for budget in budgets
+    ]
+    sums = await monthly_sums(session, principal, first_month(specs, month), month)
+    return compute_budgets(month, specs, categories, sums)
 
-    first = min((starts_on for rows in limits.values() for starts_on, _ in rows), default=month)
-    first = min(first, month)
-    sums = await monthly_sums(session, principal, first, month)
+
+def first_month(specs: Sequence[BudgetSpec], month: date) -> date:
+    """The earliest month the budgets need sums for, `month` at the latest."""
+    return min((starts_on for spec in specs for starts_on, _ in spec.limits), default=month)
+
+
+def compute_budgets(
+    month: date,
+    specs: Sequence[BudgetSpec],
+    categories: Mapping[uuid.UUID, CategoryInfo],
+    sums: MonthlySums,
+) -> schemas.BudgetsOut:
+    """Each budget for `month`'s month. `specs` are in scope (their categories are in
+    `categories`), and `sums` cover every month from `first_month` to `month`."""
+    month = month_start(month)
     window = []
-    cursor = first
+    cursor = min(first_month(specs, month), month)
     while cursor <= month:
         window.append(cursor)
         cursor = add_months(cursor, 1)
     by_month = spent(sums, categories, window)
 
-    computed: dict[uuid.UUID, tuple[Budget, BudgetMonth]] = {}
-    for budget in budgets:
+    def current(spec: BudgetSpec, spending: Mapping[date, Decimal]) -> BudgetMonth | None:
         history = budget_months(
-            limits[budget.id],
-            {m: by_month.get((m, budget.category_id), Decimal()) for m in window},
-            rollover=budget.rollover,
-            overspend=budget.overspend,
-            until=month,
+            spec.limits, spending, rollover=spec.rollover, overspend=spec.overspend, until=month
         )
-        if history and history[-1].month == month:
-            computed[budget.category_id] = (budget, history[-1])
+        return history[-1] if history and history[-1].month == month else None
+
+    overall: schemas.OverallBudgetOut | None = None
+    computed: dict[uuid.UUID, tuple[BudgetSpec, BudgetMonth]] = {}
+    for spec in specs:
+        if spec.category_id is None:
+            everything = {m: total_spending(sums, categories, m) for m in window}
+            if (this := current(spec, everything)) is not None:
+                overall = schemas.OverallBudgetOut(
+                    rollover=spec.rollover,
+                    overspend=spec.overspend,
+                    starts_on=min(starts_on for starts_on, _ in spec.limits),
+                    limit=cents(this.limit),
+                    carried_in=cents(this.carried_in),
+                    available=cents(this.available),
+                    spent=cents(this.spent),
+                    remaining=cents(this.remaining),
+                )
+            continue
+        category_id = spec.category_id
+        by_category = {m: by_month.get((m, category_id), Decimal()) for m in window}
+        if (this := current(spec, by_category)) is not None:
+            computed[category_id] = (spec, this)
 
     def out(category: CategoryInfo, children: list[schemas.BudgetOut]) -> schemas.BudgetOut:
-        budget, current = computed[category.id]
+        spec, this = computed[category.id]
         return schemas.BudgetOut(
             category_id=category.id,
             name=category.name,
             group_id=category.parent_id,
-            rollover=budget.rollover,
-            overspend=budget.overspend,
-            starts_on=min(starts_on for starts_on, _ in limits[budget.id]),
-            limit=cents(current.limit),
-            carried_in=cents(current.carried_in),
-            available=cents(current.available),
-            spent=cents(current.spent),
-            remaining=cents(current.remaining),
+            rollover=spec.rollover,
+            overspend=spec.overspend,
+            starts_on=min(starts_on for starts_on, _ in spec.limits),
+            limit=cents(this.limit),
+            carried_in=cents(this.carried_in),
+            available=cents(this.available),
+            spent=cents(this.spent),
+            remaining=cents(this.remaining),
             children=children,
         )
 
@@ -160,6 +207,7 @@ async def budgets_for_month(
     covered = sum((budget.spent for budget in top), Decimal())
     return schemas.BudgetsOut(
         month=month,
+        overall=overall,
         budgets=top,
         total_limit=sum((b.limit for b in top), Decimal()),
         total_available=sum((b.available for b in top), Decimal()),

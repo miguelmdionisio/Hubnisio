@@ -237,7 +237,7 @@ export type BudgetSettings = {
     /**
      * Category Id
      */
-    category_id: string;
+    category_id: string | null;
     /**
      * Rollover
      */
@@ -257,6 +257,7 @@ export type BudgetsOut = {
      * Month
      */
     month: string;
+    overall: OverallBudgetOut | null;
     /**
      * Budgets
      */
@@ -664,6 +665,43 @@ export type NetWorthPoint = {
      * Amount
      */
     amount: string;
+};
+
+/**
+ * OverallBudgetOut
+ *
+ * The cap on all spending, uncategorized included: cash flow's figure for the month.
+ */
+export type OverallBudgetOut = {
+    /**
+     * Rollover
+     */
+    rollover: boolean;
+    overspend: Overspend;
+    /**
+     * Starts On
+     */
+    starts_on: string;
+    /**
+     * Limit
+     */
+    limit: string;
+    /**
+     * Carried In
+     */
+    carried_in: string;
+    /**
+     * Available
+     */
+    available: string;
+    /**
+     * Spent
+     */
+    spent: string;
+    /**
+     * Remaining
+     */
+    remaining: string;
 };
 
 /**
@@ -2186,6 +2224,47 @@ export type ListBudgetsResponses = {
 };
 
 export type ListBudgetsResponse = ListBudgetsResponses[keyof ListBudgetsResponses];
+
+export type DeleteOverallBudgetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/finance/budgets/overall';
+};
+
+export type DeleteOverallBudgetResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type DeleteOverallBudgetResponse = DeleteOverallBudgetResponses[keyof DeleteOverallBudgetResponses];
+
+export type SetOverallBudgetData = {
+    body: BudgetIn;
+    path?: never;
+    query?: never;
+    url: '/api/finance/budgets/overall';
+};
+
+export type SetOverallBudgetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SetOverallBudgetError = SetOverallBudgetErrors[keyof SetOverallBudgetErrors];
+
+export type SetOverallBudgetResponses = {
+    /**
+     * Successful Response
+     */
+    200: BudgetSettings;
+};
+
+export type SetOverallBudgetResponse = SetOverallBudgetResponses[keyof SetOverallBudgetResponses];
 
 export type DeleteBudgetData = {
     body?: never;

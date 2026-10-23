@@ -3,10 +3,12 @@ import { type FormEvent, useState } from 'react';
 import { toast } from 'sonner';
 import {
   deleteBudgetMutation,
+  deleteOverallBudgetMutation,
   listBudgetsQueryKey,
   setBudgetMutation,
+  setOverallBudgetMutation,
 } from '@/api/@tanstack/react-query.gen';
-import type { BudgetOut, Overspend } from '@/api/types.gen';
+import type { BudgetOut, OverallBudgetOut, Overspend } from '@/api/types.gen';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -33,8 +35,15 @@ import { formatMoney, formatMonth } from '@/lib/format';
 import { isMonth, monthStart } from '@/lib/months';
 import { activeGroups, useCategories } from './category-picker';
 
-/** What the sheet is for: a budget to change, or a new one. */
-export type BudgetTarget = { type: 'new' } | { type: 'edit'; budget: BudgetOut };
+/** What the sheet is for: a budget to change, a new one, or the overall one (`budget` null:
+ * not set yet). */
+export type BudgetTarget =
+  | { type: 'new' }
+  | { type: 'edit'; budget: BudgetOut }
+  | { type: 'overall'; budget: OverallBudgetOut | null };
+
+/** What the form shows of a budget that exists. */
+type Figures = Pick<BudgetOut, 'rollover' | 'overspend' | 'limit' | 'available'>;
 
 const OVERSPEND_OPTIONS: { value: Overspend; label: string }[] = [
   { value: 'forgive', label: 'Start fresh next month' },
@@ -53,6 +62,8 @@ function useBudgetEdits(onDone: () => void) {
   return {
     save: useMutation({ ...setBudgetMutation(), ...options }),
     remove: useMutation({ ...deleteBudgetMutation(), ...options }),
+    saveOverall: useMutation({ ...setOverallBudgetMutation(), ...options }),
+    removeOverall: useMutation({ ...deleteOverallBudgetMutation(), ...options }),
   };
 }
 
@@ -72,7 +83,7 @@ export function BudgetSheet({
       <SheetContent className="w-full overflow-y-auto sm:max-w-md">
         {target && (
           <BudgetForm
-            key={target.type === 'edit' ? target.budget.category_id : 'new'}
+            key={target.type === 'edit' ? target.budget.category_id : target.type}
             target={target}
             month={month}
             budgeted={budgeted}
@@ -95,9 +106,12 @@ function BudgetForm({
   budgeted: Set<string>;
   onClose: () => void;
 }) {
-  const budget = target.type === 'edit' ? target.budget : null;
+  const overall = target.type === 'overall';
+  const budget: Figures | null = target.type === 'new' ? null : target.budget;
   const edits = useBudgetEdits(onClose);
-  const [categoryId, setCategoryId] = useState(budget?.category_id ?? '');
+  const [categoryId, setCategoryId] = useState(
+    target.type === 'edit' ? target.budget.category_id : '',
+  );
   const [amount, setAmount] = useState(budget ? Number(budget.limit).toFixed(2) : '');
   const [fromMonth, setFromMonth] = useState(month);
   const [rollover, setRollover] = useState(budget?.rollover ?? false);
@@ -105,8 +119,8 @@ function BudgetForm({
 
   const value = Number(amount);
   const valid = amount.trim() !== '' && Number.isFinite(value) && value >= 0;
-  const pending = edits.save.isPending || edits.remove.isPending;
-  const canSave = valid && isMonth(fromMonth) && categoryId !== '' && !pending;
+  const pending = Object.values(edits).some((edit) => edit.isPending);
+  const canSave = valid && isMonth(fromMonth) && (overall || categoryId !== '') && !pending;
 
   const turnRollover = (on: boolean) => {
     setRollover(on);
@@ -115,30 +129,38 @@ function BudgetForm({
   const submit = (event: FormEvent) => {
     event.preventDefault();
     if (!canSave) return;
-    edits.save.mutate({
-      path: { category_id: categoryId },
-      body: {
-        amount: value.toFixed(2),
-        from_month: monthStart(fromMonth),
-        rollover,
-        overspend,
-      },
-    });
+    const body = {
+      amount: value.toFixed(2),
+      from_month: monthStart(fromMonth),
+      rollover,
+      overspend,
+    };
+    if (overall) edits.saveOverall.mutate({ body });
+    else edits.save.mutate({ path: { category_id: categoryId }, body });
+  };
+  const remove = () => {
+    if (target.type === 'edit')
+      edits.remove.mutate({ path: { category_id: target.budget.category_id } });
+    else edits.removeOverall.mutate({});
   };
 
   return (
     <form onSubmit={submit} className="flex flex-1 flex-col gap-4">
       <SheetHeader>
-        <SheetTitle>{budget ? budget.name : 'Add budget'}</SheetTitle>
+        <SheetTitle>{title(target)}</SheetTitle>
         <SheetDescription>
           {budget
             ? `${formatMoney(budget.available, 'EUR')} available in ${formatMonth(month)}.`
-            : 'A monthly limit for one category, or for a whole group.'}
+            : overall
+              ? 'A monthly cap on everything you spend, uncategorized too. Category budgets are limits within it.'
+              : 'A monthly limit for one category, or for a whole group.'}
         </SheetDescription>
       </SheetHeader>
 
       <div className="space-y-5 px-4 text-sm">
-        {!budget && <CategoryField value={categoryId} onChange={setCategoryId} taken={budgeted} />}
+        {target.type === 'new' && (
+          <CategoryField value={categoryId} onChange={setCategoryId} taken={budgeted} />
+        )}
 
         <div className="space-y-1.5">
           <Label htmlFor="budget-amount">Amount per month (EUR)</Label>
@@ -197,18 +219,18 @@ function BudgetForm({
           Save budget
         </Button>
         {budget && (
-          <Button
-            type="button"
-            variant="outline"
-            disabled={pending}
-            onClick={() => edits.remove.mutate({ path: { category_id: budget.category_id } })}
-          >
+          <Button type="button" variant="outline" disabled={pending} onClick={remove}>
             Remove budget
           </Button>
         )}
       </SheetFooter>
     </form>
   );
+}
+
+function title(target: BudgetTarget): string {
+  if (target.type === 'new') return 'Add budget';
+  return target.type === 'overall' ? 'All spending' : target.budget.name;
 }
 
 /** Spending groups and categories that have no budget yet. */

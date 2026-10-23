@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { CompleteConnectionData, CompleteConnectionErrors, CompleteConnectionResponses, CreateCategoryData, CreateCategoryErrors, CreateCategoryResponses, CreateRuleData, CreateRuleErrors, CreateRuleResponses, DeleteBudgetData, DeleteBudgetErrors, DeleteBudgetResponses, DeleteCategoryData, DeleteCategoryErrors, DeleteCategoryResponses, DeleteConnectionData, DeleteConnectionErrors, DeleteConnectionResponses, DeleteRuleData, DeleteRuleErrors, DeleteRuleResponses, GetCashFlowData, GetCashFlowErrors, GetCashFlowResponses, GetHealthData, GetHealthErrors, GetHealthResponses, GetNetWorthData, GetNetWorthErrors, GetNetWorthResponses, GetSpendingData, GetSpendingErrors, GetSpendingResponses, LinkTransferData, LinkTransferErrors, LinkTransferResponses, ListAccountsData, ListAccountsResponses, ListBanksData, ListBanksErrors, ListBanksResponses, ListBudgetsData, ListBudgetsErrors, ListBudgetsResponses, ListCategoriesData, ListCategoriesResponses, ListConnectionsData, ListConnectionsResponses, ListCounterpartiesData, ListCounterpartiesErrors, ListCounterpartiesResponses, ListRecurringData, ListRecurringErrors, ListRecurringResponses, ListRulesData, ListRulesResponses, ListTransactionsData, ListTransactionsErrors, ListTransactionsResponses, ListUpcomingPaymentsData, ListUpcomingPaymentsErrors, ListUpcomingPaymentsResponses, MergeCounterpartyData, MergeCounterpartyErrors, MergeCounterpartyResponses, PreviewRuleData, PreviewRuleErrors, PreviewRuleResponses, ReorderRulesData, ReorderRulesErrors, ReorderRulesResponses, RunRulesData, RunRulesResponses, SetBudgetData, SetBudgetErrors, SetBudgetResponses, StartConnectionData, StartConnectionErrors, StartConnectionResponses, SyncConnectionData, SyncConnectionErrors, SyncConnectionResponses, UnlinkTransferData, UnlinkTransferErrors, UnlinkTransferResponses, UpdateAccountData, UpdateAccountErrors, UpdateAccountResponses, UpdateCategoryData, UpdateCategoryErrors, UpdateCategoryResponses, UpdateCounterpartyData, UpdateCounterpartyErrors, UpdateCounterpartyResponses, UpdateRecurringData, UpdateRecurringErrors, UpdateRecurringResponses, UpdateRuleData, UpdateRuleErrors, UpdateRuleResponses, UpdateTransactionData, UpdateTransactionErrors, UpdateTransactionResponses } from './types.gen';
+import type { CompleteConnectionData, CompleteConnectionErrors, CompleteConnectionResponses, CreateCategoryData, CreateCategoryErrors, CreateCategoryResponses, CreateRuleData, CreateRuleErrors, CreateRuleResponses, DeleteBudgetData, DeleteBudgetErrors, DeleteBudgetResponses, DeleteCategoryData, DeleteCategoryErrors, DeleteCategoryResponses, DeleteConnectionData, DeleteConnectionErrors, DeleteConnectionResponses, DeleteOverallBudgetData, DeleteOverallBudgetResponses, DeleteRuleData, DeleteRuleErrors, DeleteRuleResponses, GetCashFlowData, GetCashFlowErrors, GetCashFlowResponses, GetHealthData, GetHealthErrors, GetHealthResponses, GetNetWorthData, GetNetWorthErrors, GetNetWorthResponses, GetSpendingData, GetSpendingErrors, GetSpendingResponses, LinkTransferData, LinkTransferErrors, LinkTransferResponses, ListAccountsData, ListAccountsResponses, ListBanksData, ListBanksErrors, ListBanksResponses, ListBudgetsData, ListBudgetsErrors, ListBudgetsResponses, ListCategoriesData, ListCategoriesResponses, ListConnectionsData, ListConnectionsResponses, ListCounterpartiesData, ListCounterpartiesErrors, ListCounterpartiesResponses, ListRecurringData, ListRecurringErrors, ListRecurringResponses, ListRulesData, ListRulesResponses, ListTransactionsData, ListTransactionsErrors, ListTransactionsResponses, ListUpcomingPaymentsData, ListUpcomingPaymentsErrors, ListUpcomingPaymentsResponses, MergeCounterpartyData, MergeCounterpartyErrors, MergeCounterpartyResponses, PreviewRuleData, PreviewRuleErrors, PreviewRuleResponses, ReorderRulesData, ReorderRulesErrors, ReorderRulesResponses, RunRulesData, RunRulesResponses, SetBudgetData, SetBudgetErrors, SetBudgetResponses, SetOverallBudgetData, SetOverallBudgetErrors, SetOverallBudgetResponses, StartConnectionData, StartConnectionErrors, StartConnectionResponses, SyncConnectionData, SyncConnectionErrors, SyncConnectionResponses, UnlinkTransferData, UnlinkTransferErrors, UnlinkTransferResponses, UpdateAccountData, UpdateAccountErrors, UpdateAccountResponses, UpdateCategoryData, UpdateCategoryErrors, UpdateCategoryResponses, UpdateCounterpartyData, UpdateCounterpartyErrors, UpdateCounterpartyResponses, UpdateRecurringData, UpdateRecurringErrors, UpdateRecurringResponses, UpdateRuleData, UpdateRuleErrors, UpdateRuleResponses, UpdateTransactionData, UpdateTransactionErrors, UpdateTransactionResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -313,6 +313,27 @@ export const getNetWorth = <ThrowOnError extends boolean = false>(options?: Opti
  * in, what's available, spent and remaining.
  */
 export const listBudgets = <ThrowOnError extends boolean = false>(options?: Options<ListBudgetsData, ThrowOnError>): RequestResult<ListBudgetsResponses, ListBudgetsErrors, ThrowOnError> => (options?.client ?? client).get<ListBudgetsResponses, ListBudgetsErrors, ThrowOnError>({ url: '/api/finance/budgets', ...options });
+
+/**
+ * Delete Overall Budget
+ *
+ * Remove the overall budget, its past months included.
+ */
+export const deleteOverallBudget = <ThrowOnError extends boolean = false>(options?: Options<DeleteOverallBudgetData, ThrowOnError>): RequestResult<DeleteOverallBudgetResponses, unknown, ThrowOnError> => (options?.client ?? client).delete<DeleteOverallBudgetResponses, unknown, ThrowOnError>({ url: '/api/finance/budgets/overall', ...options });
+
+/**
+ * Set Overall Budget
+ *
+ * Cap all spending, uncategorized included, from `from_month` on. Works like `setBudget`.
+ */
+export const setOverallBudget = <ThrowOnError extends boolean = false>(options: Options<SetOverallBudgetData, ThrowOnError>): RequestResult<SetOverallBudgetResponses, SetOverallBudgetErrors, ThrowOnError> => (options.client ?? client).put<SetOverallBudgetResponses, SetOverallBudgetErrors, ThrowOnError>({
+    url: '/api/finance/budgets/overall',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Delete Budget

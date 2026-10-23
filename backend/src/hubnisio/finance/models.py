@@ -583,17 +583,27 @@ class TransferDismissal(Base):
 
 
 class Budget(Base):
-    """A monthly limit on an expense category or group (ADR-0007, "Budgets"). Its amounts are
-    in `budget_limits`; what's spent is computed on read (finance/budgets.py)."""
+    """A monthly limit on an expense category or group, or on all spending when `category_id`
+    is null (ADR-0007, "Budgets"). Its amounts are in `budget_limits`; what's spent is computed
+    on read (finance/budgets.py)."""
 
     __tablename__ = "budgets"
-    __table_args__ = {"schema": SCHEMA}  # noqa: RUF012
+    __table_args__ = (
+        # One overall budget per household; a plain unique treats the nulls as distinct.
+        Index(
+            "uq_budgets_household_id_overall",
+            "household_id",
+            unique=True,
+            postgresql_where=text("category_id IS NULL"),
+        ),
+        {"schema": SCHEMA},
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid7)
     household_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("core.households.id", ondelete="CASCADE"), index=True
     )
-    category_id: Mapped[uuid.UUID] = mapped_column(
+    category_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("finance.categories.id", ondelete="CASCADE"), unique=True
     )
     # Whether money left over carries into the next month.

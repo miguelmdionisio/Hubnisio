@@ -47,28 +47,35 @@ export function NetWorthTile() {
   );
 }
 
-/** Spent against what's budgeted; without budgets, just what was spent. */
+/** Spent against the overall budget, else against the category budgets; without either, just
+ * what was spent. */
 export function ThisMonthTile() {
   const month = currentMonth();
   const budgets = useQuery(listBudgetsOptions({ query: { month: monthStart(month) } }));
   return (
     <Panel title="This month" query={budgets}>
-      {(data) =>
-        data.budgets.length > 0 ? (
+      {(data) => {
+        const figures = data.overall
+          ? { spent: data.overall.spent, available: data.overall.available, note: 'available' }
+          : data.budgets.length > 0
+            ? { spent: data.total_spent, available: data.total_available, note: 'budgeted' }
+            : null;
+        if (!figures) return <SpendingWithoutBudgets month={month} />;
+        return (
           <>
             <Figure
               className={cn(
-                Number(data.total_spent) > Number(data.total_available) && 'text-destructive',
+                Number(figures.spent) > Number(figures.available) && 'text-destructive',
               )}
             >
-              {eur(data.total_spent)}
+              {eur(figures.spent)}
             </Figure>
-            <Note>of {eur(data.total_available)} budgeted</Note>
+            <Note>
+              of {eur(figures.available)} {figures.note}
+            </Note>
           </>
-        ) : (
-          <SpendingWithoutBudgets month={month} />
-        )
-      }
+        );
+      }}
     </Panel>
   );
 }

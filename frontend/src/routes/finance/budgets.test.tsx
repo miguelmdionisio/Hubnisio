@@ -2,7 +2,7 @@ import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/re
 import { afterEach, expect, test, vi } from 'vitest';
 import type { CategoryGroupOut } from '@/api/types.gen';
 import { currentMonth } from '@/lib/months';
-import { budget, budgetsOut, categories } from '@/test/fixtures';
+import { budget, budgetsOut, categories, overallBudget } from '@/test/fixtures';
 import { chooseOption, mockApi, renderAt } from '@/test/render';
 
 afterEach(() => {
@@ -297,4 +297,137 @@ test('opens on the current month', async () => {
     `${currentMonth()}-01`,
   );
   expect(screen.queryByRole('button', { name: 'This month' })).toBeNull();
+});
+
+// A cap on all spending, with 100 carried in from last month.
+const overall = overallBudget({
+  rollover: true,
+  overspend: 'carry',
+  limit: '2000.00',
+  carried_in: '100.00',
+  available: '2100.00',
+  spent: '1800.00',
+  remaining: '300.00',
+});
+const savedOverall = { category_id: null, rollover: false, overspend: 'forgive', limits: [] };
+const headline = async () =>
+  within(
+    (await screen.findByRole('button', { name: 'All spending' })).closest(
+      '[data-slot="card"]',
+    ) as HTMLElement,
+  );
+
+test('shows the overall budget as a headline above the category budgets', async () => {
+  api({ 'GET /api/finance/budgets': () => ({ ...month, overall }) });
+
+  renderAt('/finance/budgets?month=2026-10');
+
+  const card = await headline();
+  expect(card.getByText('€1,800.00')).toBeDefined();
+  expect(card.getByText('of €2,100.00 available')).toBeDefined();
+  expect(card.getByText('€300.00 remaining')).toBeDefined();
+  expect(card.getByText('Rollover')).toBeDefined();
+  expect(card.getByText('+€100.00 carried')).toBeDefined();
+  expect(card.queryByText('Over budget')).toBeNull();
+  const bar = card.getByRole('progressbar', { name: 'All spending spent' });
+  expect(bar.getAttribute('aria-valuenow')).toBe('86');
+  // The summary below it is the category budgets', under their own name.
+  expect(screen.getByText('Category budgets')).toBeDefined();
+  expect(screen.getByText('of €620.00 available')).toBeDefined();
+});
+
+test('marks the overall budget when it is over', async () => {
+  const over = overallBudget({ available: '1500.00', spent: '1800.00', remaining: '-300.00' });
+  api({ 'GET /api/finance/budgets': () => ({ ...month, overall: over }) });
+
+  renderAt('/finance/budgets?month=2026-10');
+
+  const card = await headline();
+  expect(card.getByText('Over budget')).toBeDefined();
+  expect(card.getByText('-€300.00 remaining').className).toContain('text-destructive');
+  expect(
+    card.getByRole('progressbar', { name: 'All spending spent' }).firstElementChild?.className,
+  ).toContain('bg-destructive');
+});
+
+test('offers to set a monthly cap when there is none', async () => {
+  const calls = api({
+    'PUT /api/finance/budgets/overall': () => savedOverall,
+  });
+
+  renderAt('/finance/budgets?month=2026-10');
+  expect(screen.queryByRole('button', { name: 'All spending' })).toBeNull();
+  fireEvent.click(await screen.findByRole('button', { name: 'Set a monthly cap' }));
+
+  // The sheet has no category to choose, and the amount to fill in.
+  const sheet = await screen.findByRole('dialog');
+  expect(within(sheet).getByText('All spending')).toBeDefined();
+  expect(within(sheet).queryByLabelText('Category')).toBeNull();
+  expect(within(sheet).queryByRole('button', { name: 'Remove budget' })).toBeNull();
+  const save = within(sheet).getByRole('button', { name: 'Save budget' });
+  expect(save.hasAttribute('disabled')).toBe(true); // no amount yet
+  fireEvent.change(within(sheet).getByLabelText('Amount per month (EUR)'), {
+    target: { value: '2000' },
+  });
+  expect(save.hasAttribute('disabled')).toBe(false);
+  fireEvent.click(save);
+
+  await waitFor(() =>
+    expect(putBodies(calls)).toEqual([
+      { amount: '2000.00', from_month: '2026-10-01', rollover: false, overspend: 'forgive' },
+    ]),
+  );
+  expect(calls.find((call) => call.method === 'PUT')?.path).toBe('/api/finance/budgets/overall');
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+});
+
+test('edits the overall budget from a month on', async () => {
+  const calls = api({
+    'GET /api/finance/budgets': () => ({ ...month, overall }),
+    'PUT /api/finance/budgets/overall': () => savedOverall,
+  });
+
+  renderAt('/finance/budgets?month=2026-10');
+  fireEvent.click(await screen.findByRole('button', { name: 'All spending' }));
+  const sheet = await screen.findByRole('dialog');
+  expect(within(sheet).getByText('€2,100.00 available in October 2026.')).toBeDefined();
+  expect(within(sheet).queryByLabelText('Category')).toBeNull();
+  const amount = within(sheet).getByLabelText('Amount per month (EUR)') as HTMLInputElement;
+  expect(amount.value).toBe('2000.00');
+  expect(within(sheet).getByRole('switch', { name: "Roll over what's left" })).toHaveProperty(
+    'ariaChecked',
+    'true',
+  );
+  expect(within(sheet).getByRole('combobox', { name: 'If I overspend' }).textContent).toBe(
+    'Take it from next month',
+  );
+  fireEvent.change(amount, { target: { value: '2200' } });
+  fireEvent.change(within(sheet).getByLabelText('Applies from'), { target: { value: '2026-11' } });
+  fireEvent.click(within(sheet).getByRole('button', { name: 'Save budget' }));
+
+  await waitFor(() =>
+    expect(putBodies(calls)).toEqual([
+      { amount: '2200.00', from_month: '2026-11-01', rollover: true, overspend: 'carry' },
+    ]),
+  );
+});
+
+test('removes the overall budget', async () => {
+  const calls = api({
+    'GET /api/finance/budgets': () => ({ ...month, overall }),
+    'DELETE /api/finance/budgets/overall': () => new Response(null, { status: 204 }),
+  });
+
+  renderAt('/finance/budgets?month=2026-10');
+  fireEvent.click(await screen.findByRole('button', { name: 'All spending' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Remove budget' }));
+
+  await waitFor(() =>
+    expect(
+      calls.some(
+        (call) => call.method === 'DELETE' && call.path === '/api/finance/budgets/overall',
+      ),
+    ).toBe(true),
+  );
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
 });

@@ -1498,6 +1498,61 @@
         }
       }
     },
+    "/api/finance/budgets/overall": {
+      "put": {
+        "tags": [
+          "finance"
+        ],
+        "summary": "Set Overall Budget",
+        "description": "Cap all spending, uncategorized included, from `from_month` on. Works like `setBudget`.",
+        "operationId": "setOverallBudget",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BudgetIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BudgetSettings"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "finance"
+        ],
+        "summary": "Delete Overall Budget",
+        "description": "Remove the overall budget, its past months included.",
+        "operationId": "deleteOverallBudget",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          }
+        }
+      }
+    },
     "/api/finance/budgets/{category_id}": {
       "put": {
         "tags": [
@@ -2126,8 +2181,15 @@
       "BudgetSettings": {
         "properties": {
           "category_id": {
-            "type": "string",
-            "format": "uuid",
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Category Id"
           },
           "rollover": {
@@ -2160,6 +2222,16 @@
             "type": "string",
             "format": "date",
             "title": "Month"
+          },
+          "overall": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OverallBudgetOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "budgets": {
             "items": {
@@ -2196,6 +2268,7 @@
         "type": "object",
         "required": [
           "month",
+          "overall",
           "budgets",
           "total_limit",
           "total_available",
@@ -2919,6 +2992,55 @@
           "amount"
         ],
         "title": "NetWorthPoint"
+      },
+      "OverallBudgetOut": {
+        "properties": {
+          "rollover": {
+            "type": "boolean",
+            "title": "Rollover"
+          },
+          "overspend": {
+            "$ref": "#/components/schemas/Overspend"
+          },
+          "starts_on": {
+            "type": "string",
+            "format": "date",
+            "title": "Starts On"
+          },
+          "limit": {
+            "type": "string",
+            "title": "Limit"
+          },
+          "carried_in": {
+            "type": "string",
+            "title": "Carried In"
+          },
+          "available": {
+            "type": "string",
+            "title": "Available"
+          },
+          "spent": {
+            "type": "string",
+            "title": "Spent"
+          },
+          "remaining": {
+            "type": "string",
+            "title": "Remaining"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rollover",
+          "overspend",
+          "starts_on",
+          "limit",
+          "carried_in",
+          "available",
+          "spent",
+          "remaining"
+        ],
+        "title": "OverallBudgetOut",
+        "description": "The cap on all spending, uncategorized included: cash flow's figure for the month."
       },
       "Overspend": {
         "type": "string",

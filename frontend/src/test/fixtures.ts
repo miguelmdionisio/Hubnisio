@@ -6,6 +6,7 @@ import type {
   CategoryGroupOut,
   CounterpartyOut,
   NetWorthOut,
+  OverallBudgetOut,
   RecurringOut,
   RuleOut,
   Spending,
@@ -137,9 +138,25 @@ export function budget(
   };
 }
 
+/** The overall budget with nothing spent yet; override what a test cares about. */
+export function overallBudget(overrides: Partial<OverallBudgetOut> = {}): OverallBudgetOut {
+  return {
+    rollover: false,
+    overspend: 'forgive',
+    starts_on: '2026-01-01',
+    limit: '2000.00',
+    carried_in: '0.00',
+    available: '2000.00',
+    spent: '0.00',
+    remaining: '2000.00',
+    ...overrides,
+  };
+}
+
 export function budgetsOut(budgets: BudgetOut[], overrides: Partial<BudgetsOut> = {}): BudgetsOut {
   return {
     month: '2026-10-01',
+    overall: null,
     budgets,
     total_limit: '0.00',
     total_available: '0.00',

@@ -3,8 +3,8 @@
 import { type DefaultError, type InfiniteData, infiniteQueryOptions, queryOptions, type UseMutationOptions } from '@tanstack/react-query';
 
 import { client } from '../client.gen';
-import { completeConnection, createCategory, createRule, deleteBudget, deleteCategory, deleteConnection, deleteRule, getCashFlow, getHealth, getNetWorth, getSpending, linkTransfer, listAccounts, listBanks, listBudgets, listCategories, listConnections, listCounterparties, listRecurring, listRules, listTransactions, listUpcomingPayments, mergeCounterparty, type Options, previewRule, reorderRules, runRules, setBudget, startConnection, syncConnection, unlinkTransfer, updateAccount, updateCategory, updateCounterparty, updateRecurring, updateRule, updateTransaction } from '../sdk.gen';
-import type { CompleteConnectionData, CompleteConnectionError, CompleteConnectionResponse, CreateCategoryData, CreateCategoryError, CreateCategoryResponse, CreateRuleData, CreateRuleError, CreateRuleResponse, DeleteBudgetData, DeleteBudgetError, DeleteBudgetResponse, DeleteCategoryData, DeleteCategoryError, DeleteCategoryResponse, DeleteConnectionData, DeleteConnectionError, DeleteConnectionResponse, DeleteRuleData, DeleteRuleError, DeleteRuleResponse, GetCashFlowData, GetCashFlowError, GetCashFlowResponse, GetHealthData, GetHealthError, GetHealthResponse, GetNetWorthData, GetNetWorthError, GetNetWorthResponse, GetSpendingData, GetSpendingError, GetSpendingResponse, LinkTransferData, LinkTransferError, LinkTransferResponse, ListAccountsData, ListAccountsResponse, ListBanksData, ListBanksError, ListBanksResponse, ListBudgetsData, ListBudgetsError, ListBudgetsResponse, ListCategoriesData, ListCategoriesResponse, ListConnectionsData, ListConnectionsResponse, ListCounterpartiesData, ListCounterpartiesError, ListCounterpartiesResponse, ListRecurringData, ListRecurringError, ListRecurringResponse, ListRulesData, ListRulesResponse, ListTransactionsData, ListTransactionsError, ListTransactionsResponse, ListUpcomingPaymentsData, ListUpcomingPaymentsError, ListUpcomingPaymentsResponse, MergeCounterpartyData, MergeCounterpartyError, MergeCounterpartyResponse, PreviewRuleData, PreviewRuleError, PreviewRuleResponse, ReorderRulesData, ReorderRulesError, ReorderRulesResponse, RunRulesData, RunRulesResponse, SetBudgetData, SetBudgetError, SetBudgetResponse, StartConnectionData, StartConnectionError, StartConnectionResponse, SyncConnectionData, SyncConnectionError, SyncConnectionResponse, UnlinkTransferData, UnlinkTransferError, UnlinkTransferResponse, UpdateAccountData, UpdateAccountError, UpdateAccountResponse, UpdateCategoryData, UpdateCategoryError, UpdateCategoryResponse, UpdateCounterpartyData, UpdateCounterpartyError, UpdateCounterpartyResponse, UpdateRecurringData, UpdateRecurringError, UpdateRecurringResponse, UpdateRuleData, UpdateRuleError, UpdateRuleResponse, UpdateTransactionData, UpdateTransactionError, UpdateTransactionResponse } from '../types.gen';
+import { completeConnection, createCategory, createRule, deleteBudget, deleteCategory, deleteConnection, deleteOverallBudget, deleteRule, getCashFlow, getHealth, getNetWorth, getSpending, linkTransfer, listAccounts, listBanks, listBudgets, listCategories, listConnections, listCounterparties, listRecurring, listRules, listTransactions, listUpcomingPayments, mergeCounterparty, type Options, previewRule, reorderRules, runRules, setBudget, setOverallBudget, startConnection, syncConnection, unlinkTransfer, updateAccount, updateCategory, updateCounterparty, updateRecurring, updateRule, updateTransaction } from '../sdk.gen';
+import type { CompleteConnectionData, CompleteConnectionError, CompleteConnectionResponse, CreateCategoryData, CreateCategoryError, CreateCategoryResponse, CreateRuleData, CreateRuleError, CreateRuleResponse, DeleteBudgetData, DeleteBudgetError, DeleteBudgetResponse, DeleteCategoryData, DeleteCategoryError, DeleteCategoryResponse, DeleteConnectionData, DeleteConnectionError, DeleteConnectionResponse, DeleteOverallBudgetData, DeleteOverallBudgetResponse, DeleteRuleData, DeleteRuleError, DeleteRuleResponse, GetCashFlowData, GetCashFlowError, GetCashFlowResponse, GetHealthData, GetHealthError, GetHealthResponse, GetNetWorthData, GetNetWorthError, GetNetWorthResponse, GetSpendingData, GetSpendingError, GetSpendingResponse, LinkTransferData, LinkTransferError, LinkTransferResponse, ListAccountsData, ListAccountsResponse, ListBanksData, ListBanksError, ListBanksResponse, ListBudgetsData, ListBudgetsError, ListBudgetsResponse, ListCategoriesData, ListCategoriesResponse, ListConnectionsData, ListConnectionsResponse, ListCounterpartiesData, ListCounterpartiesError, ListCounterpartiesResponse, ListRecurringData, ListRecurringError, ListRecurringResponse, ListRulesData, ListRulesResponse, ListTransactionsData, ListTransactionsError, ListTransactionsResponse, ListUpcomingPaymentsData, ListUpcomingPaymentsError, ListUpcomingPaymentsResponse, MergeCounterpartyData, MergeCounterpartyError, MergeCounterpartyResponse, PreviewRuleData, PreviewRuleError, PreviewRuleResponse, ReorderRulesData, ReorderRulesError, ReorderRulesResponse, RunRulesData, RunRulesResponse, SetBudgetData, SetBudgetError, SetBudgetResponse, SetOverallBudgetData, SetOverallBudgetError, SetOverallBudgetResponse, StartConnectionData, StartConnectionError, StartConnectionResponse, SyncConnectionData, SyncConnectionError, SyncConnectionResponse, UnlinkTransferData, UnlinkTransferError, UnlinkTransferResponse, UpdateAccountData, UpdateAccountError, UpdateAccountResponse, UpdateCategoryData, UpdateCategoryError, UpdateCategoryResponse, UpdateCounterpartyData, UpdateCounterpartyError, UpdateCounterpartyResponse, UpdateRecurringData, UpdateRecurringError, UpdateRecurringResponse, UpdateRuleData, UpdateRuleError, UpdateRuleResponse, UpdateTransactionData, UpdateTransactionError, UpdateTransactionResponse } from '../types.gen';
 
 export type QueryKey<TOptions extends Options> = [
     Pick<TOptions, 'baseUrl' | 'body' | 'headers' | 'path' | 'query'> & {
@@ -689,6 +689,44 @@ export const listBudgetsOptions = (options?: Options<ListBudgetsData>) => queryO
     },
     queryKey: listBudgetsQueryKey(options)
 });
+
+/**
+ * Delete Overall Budget
+ *
+ * Remove the overall budget, its past months included.
+ */
+export const deleteOverallBudgetMutation = (options?: Partial<Options<DeleteOverallBudgetData>>): UseMutationOptions<DeleteOverallBudgetResponse, DefaultError, Options<DeleteOverallBudgetData>> => {
+    const mutationOptions: UseMutationOptions<DeleteOverallBudgetResponse, DefaultError, Options<DeleteOverallBudgetData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await deleteOverallBudget({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Set Overall Budget
+ *
+ * Cap all spending, uncategorized included, from `from_month` on. Works like `setBudget`.
+ */
+export const setOverallBudgetMutation = (options?: Partial<Options<SetOverallBudgetData>>): UseMutationOptions<SetOverallBudgetResponse, SetOverallBudgetError, Options<SetOverallBudgetData>> => {
+    const mutationOptions: UseMutationOptions<SetOverallBudgetResponse, SetOverallBudgetError, Options<SetOverallBudgetData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await setOverallBudget({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
 
 /**
  * Delete Budget

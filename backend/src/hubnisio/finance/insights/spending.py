@@ -7,7 +7,7 @@ Transactions without a category are summed by their kind (expense or income).
 
 import uuid
 from collections import defaultdict
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
@@ -148,7 +148,7 @@ async def household_categories(
 
 
 def spent(
-    sums: MonthlySums, categories: dict[uuid.UUID, CategoryInfo], months: Sequence[date]
+    sums: MonthlySums, categories: Mapping[uuid.UUID, CategoryInfo], months: Sequence[date]
 ) -> dict[tuple[date, uuid.UUID], Decimal]:
     """Spending (positive = spent) per month for each expense category and each expense group,
     a group including its categories."""
@@ -162,3 +162,16 @@ def spent(
         if category.parent_id is not None:
             result[(month, category.parent_id)] -= total
     return result
+
+
+def total_spending(
+    sums: MonthlySums, categories: Mapping[uuid.UUID, CategoryInfo], month: date
+) -> Decimal:
+    """Everything spent in `month` (positive = spent): uncategorized expenses plus every expense
+    category, net of refunds. Cash flow's spending, and what the overall budget counts."""
+    total = -sums.uncategorized.get((month, TransactionKind.EXPENSE), Decimal())
+    for (sum_month, category_id), amount in sums.by_category.items():
+        category = categories.get(category_id)
+        if sum_month == month and category is not None and category.kind == CategoryKind.EXPENSE:
+            total -= amount
+    return total

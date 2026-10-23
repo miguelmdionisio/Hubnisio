@@ -3,7 +3,7 @@ import { useNavigate, useSearch } from '@tanstack/react-router';
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { type ReactNode, useState } from 'react';
 import { listBudgetsOptions } from '@/api/@tanstack/react-query.gen';
-import type { BudgetOut, BudgetsOut } from '@/api/types.gen';
+import type { BudgetOut, BudgetsOut, OverallBudgetOut } from '@/api/types.gen';
 import { PageHeader } from '@/components/app-shell';
 import { BudgetBar } from '@/components/budget-bar';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -104,6 +104,10 @@ export function BudgetsPage() {
       )}
       {budgets.isSuccess && (
         <>
+          <OverallCard
+            overall={budgets.data.overall}
+            onOpen={() => setTarget({ type: 'overall', budget: budgets.data.overall })}
+          />
           <Summary data={budgets.data} />
           {budgets.data.budgets.length === 0 ? (
             <p className="text-sm text-muted-foreground">
@@ -128,13 +132,99 @@ export function BudgetsPage() {
   );
 }
 
+/** The cap on all spending, uncategorized included: the headline above the category budgets. */
+function OverallCard({
+  overall,
+  onOpen,
+}: {
+  overall: OverallBudgetOut | null;
+  onOpen: () => void;
+}) {
+  if (!overall) {
+    return (
+      <Card size="sm" className="mb-3 max-w-4xl">
+        <CardHeader>
+          <CardTitle>All spending</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-muted-foreground">
+            One monthly cap on everything you spend, uncategorized too.
+          </p>
+          <Button variant="outline" onClick={onOpen}>
+            Set a monthly cap
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+  const over = Number(overall.remaining) < 0;
+  return (
+    <Card size="sm" className="mb-3 max-w-4xl">
+      <CardHeader>
+        <CardTitle className="flex flex-wrap items-center gap-1.5">
+          <button type="button" className="text-left hover:underline" onClick={onOpen}>
+            All spending
+          </button>
+          <BudgetBadges rollover={overall.rollover} carriedIn={overall.carried_in} over={over} />
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+          <p className={cn('text-xl font-semibold tabular-nums', over && 'text-destructive')}>
+            {eur(overall.spent)}{' '}
+            <span className="text-sm font-normal text-muted-foreground">
+              of {eur(overall.available)} available
+            </span>
+          </p>
+          <p className={cn('text-sm tabular-nums', over && 'text-destructive')}>
+            {eur(overall.remaining)} remaining
+          </p>
+        </div>
+        <BudgetBar
+          label="All spending"
+          spent={overall.spent}
+          available={overall.available}
+          over={over}
+        />
+      </CardContent>
+    </Card>
+  );
+}
+
+function BudgetBadges({
+  rollover,
+  carriedIn,
+  over,
+}: {
+  rollover: boolean;
+  carriedIn: string;
+  over: boolean;
+}) {
+  const carried = Number(carriedIn);
+  return (
+    <>
+      {rollover && <Badge variant="secondary">Rollover</Badge>}
+      {carried !== 0 && (
+        <Badge
+          variant={carried < 0 ? 'destructive' : 'outline'}
+          title={carried < 0 ? 'Overspent last month' : 'Left over from last month'}
+        >
+          {carried > 0 && '+'}
+          {eur(carriedIn)} carried
+        </Badge>
+      )}
+      {over && <Badge variant="destructive">Over budget</Badge>}
+    </>
+  );
+}
+
 function Summary({ data }: { data: BudgetsOut }) {
   const over = Number(data.total_spent) > Number(data.total_available);
   return (
     <div className="mb-6 max-w-4xl space-y-3">
       <div className="grid gap-3 sm:grid-cols-3">
         <Stat
-          title="Spent"
+          title="Category budgets"
           className={over ? 'text-destructive' : undefined}
           figure={data.total_spent}
         >
@@ -228,7 +318,6 @@ function BudgetRows({
   depth: number;
   onOpen: (budget: BudgetOut) => void;
 }) {
-  const carried = Number(budget.carried_in);
   const over = Number(budget.remaining) < 0;
   return (
     <>
@@ -242,17 +331,7 @@ function BudgetRows({
             >
               {budget.name}
             </button>
-            {budget.rollover && <Badge variant="secondary">Rollover</Badge>}
-            {carried !== 0 && (
-              <Badge
-                variant={carried < 0 ? 'destructive' : 'outline'}
-                title={carried < 0 ? 'Overspent last month' : 'Left over from last month'}
-              >
-                {carried > 0 && '+'}
-                {eur(budget.carried_in)} carried
-              </Badge>
-            )}
-            {over && <Badge variant="destructive">Over budget</Badge>}
+            <BudgetBadges rollover={budget.rollover} carriedIn={budget.carried_in} over={over} />
           </div>
         </TableCell>
         <TableCell className="text-right tabular-nums">{eur(budget.limit)}</TableCell>

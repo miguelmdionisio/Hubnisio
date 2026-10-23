@@ -7,6 +7,7 @@ import {
   budgetsOut,
   cashFlow,
   netWorth,
+  overallBudget,
   spending,
   spendingGroup,
   transaction,
@@ -171,6 +172,69 @@ test('shows spending, and a way to set budgets, when there are none', async () =
   expect(budgetsCard.getByRole('link', { name: 'Create a budget' }).getAttribute('href')).toBe(
     '/finance/budgets',
   );
+});
+
+// A cap on all spending: 1,800 spent of 2,000 plus 100 carried in.
+const overall = overallBudget({
+  rollover: true,
+  limit: '2000.00',
+  carried_in: '100.00',
+  available: '2100.00',
+  spent: '1800.00',
+  remaining: '300.00',
+});
+
+test('shows what was spent of the overall budget this month, when there is one', async () => {
+  api({ 'GET /api/finance/budgets': () => ({ ...budgets, overall }) });
+
+  renderAt('/');
+
+  const tile = await card('This month');
+  const figure = await tile.findByText('€1,800.00');
+  expect(figure.className).not.toContain('text-destructive');
+  expect(tile.getByText('of €2,100.00 available')).toBeDefined();
+  expect(tile.queryByText('€550.00')).toBeNull(); // not the category budgets' total
+});
+
+test('marks the overall budget when it is over', async () => {
+  const over = overallBudget({ available: '1500.00', spent: '1800.00', remaining: '-300.00' });
+  api({ 'GET /api/finance/budgets': () => ({ ...budgets, overall: over }) });
+
+  renderAt('/');
+
+  expect((await (await card('This month')).findByText('€1,800.00')).className).toContain(
+    'text-destructive',
+  );
+  const bar = (await card('Budgets this month')).getByRole('progressbar', {
+    name: 'All spending spent',
+  });
+  expect(bar.getAttribute('aria-valuetext')).toBe('€1,800.00 of €1,500.00, over budget');
+});
+
+test('puts the overall budget at the top of the budgets card', async () => {
+  api({ 'GET /api/finance/budgets': () => ({ ...budgets, overall }) });
+
+  renderAt('/');
+
+  const budgetsCard = await card('Budgets this month');
+  expect(await budgetsCard.findByText('€1,800.00 of €2,100.00')).toBeDefined();
+  const [first, second] = budgetsCard.getAllByRole('listitem');
+  expect(first?.textContent).toContain('All spending');
+  expect(second?.textContent).toContain('Food');
+  expect(budgetsCard.getByRole('progressbar', { name: 'All spending spent' })).toBeDefined();
+});
+
+test('lists the overall budget alone when no category has a budget', async () => {
+  api({ 'GET /api/finance/budgets': () => budgetsOut([], { overall }) });
+
+  renderAt('/');
+
+  const budgetsCard = await card('Budgets this month');
+  expect(await budgetsCard.findByText('€1,800.00 of €2,100.00')).toBeDefined();
+  expect(budgetsCard.queryByText(/No budgets yet/)).toBeNull();
+  const tile = await card('This month');
+  expect(await tile.findByText('of €2,100.00 available')).toBeDefined();
+  expect(tile.queryByRole('link', { name: 'Set budgets' })).toBeNull();
 });
 
 test('counts what still needs a category this month, and links to it', async () => {

@@ -1,4 +1,5 @@
-"""Budgets: monthly limits per expense category or group (ADR-0007, "Budgets").
+"""Budgets: monthly limits per expense category or group, and one on all spending
+(ADR-0007, "Budgets").
 
 Budgets belong to the household, like categories; the spending shown against them counts only
 the accounts the principal may see (finance/scoping.py).
@@ -31,6 +32,35 @@ async def list_budgets(
     return await budgets_for_month(session, principal, month or date.today())
 
 
+@router.put("/budgets/overall", operation_id="setOverallBudget")
+async def set_overall_budget(
+    body: schemas.BudgetIn, session: DbSession, principal: CurrentPrincipal
+) -> schemas.BudgetSettings:
+    """Cap all spending, uncategorized included, from `from_month` on. Works like `setBudget`."""
+    budget = await session.scalar(
+        select(Budget).where(
+            Budget.household_id == principal.household_id, Budget.category_id.is_(None)
+        )
+    )
+    return await _save_budget(session, principal, budget, None, body)
+
+
+@router.delete(
+    "/budgets/overall",
+    status_code=status.HTTP_204_NO_CONTENT,
+    operation_id="deleteOverallBudget",
+)
+async def delete_overall_budget(session: DbSession, principal: CurrentPrincipal) -> Response:
+    """Remove the overall budget, its past months included."""
+    await session.execute(
+        delete(Budget).where(
+            Budget.household_id == principal.household_id, Budget.category_id.is_(None)
+        )
+    )
+    await session.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 @router.put("/budgets/{category_id}", operation_id="setBudget")
 async def set_budget(
     category_id: uuid.UUID,
@@ -42,6 +72,33 @@ async def set_budget(
     changes are replaced. Rollover and overspend apply to every month."""
     await _expense_category(session, principal, category_id)
     budget = await session.scalar(select(Budget).where(Budget.category_id == category_id))
+    return await _save_budget(session, principal, budget, category_id, body)
+
+
+@router.delete(
+    "/budgets/{category_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    operation_id="deleteBudget",
+)
+async def delete_budget(
+    category_id: uuid.UUID, session: DbSession, principal: CurrentPrincipal
+) -> Response:
+    """Remove the budget, its past months included."""
+    await _expense_category(session, principal, category_id)
+    await session.execute(delete(Budget).where(Budget.category_id == category_id))
+    await session.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+async def _save_budget(
+    session: AsyncSession,
+    principal: Principal,
+    budget: Budget | None,
+    category_id: uuid.UUID | None,
+    body: schemas.BudgetIn,
+) -> schemas.BudgetSettings:
+    """Create or update the budget (`category_id` None: the overall one), then set its limit
+    from `body.from_month`, dropping any later ones."""
     if budget is None:
         budget = Budget(household_id=principal.household_id, category_id=category_id)
         session.add(budget)
@@ -79,21 +136,6 @@ async def set_budget(
     )
     await session.commit()
     return settings
-
-
-@router.delete(
-    "/budgets/{category_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
-    operation_id="deleteBudget",
-)
-async def delete_budget(
-    category_id: uuid.UUID, session: DbSession, principal: CurrentPrincipal
-) -> Response:
-    """Remove the budget, its past months included."""
-    await _expense_category(session, principal, category_id)
-    await session.execute(delete(Budget).where(Budget.category_id == category_id))
-    await session.commit()
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 async def _expense_category(

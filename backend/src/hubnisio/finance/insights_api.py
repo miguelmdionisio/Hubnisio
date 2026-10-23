@@ -19,6 +19,7 @@ from hubnisio.finance.insights.spending import (
     monthly_sums,
     months_until,
     spent,
+    total_spending,
 )
 from hubnisio.finance.models import CategoryKind, TransactionKind
 
@@ -85,18 +86,11 @@ async def get_cash_flow(
         month: sums.uncategorized.get((month, TransactionKind.INCOME), Decimal())
         for month in window
     }
-    spending = {
-        month: -sums.uncategorized.get((month, TransactionKind.EXPENSE), Decimal())
-        for month in window
-    }
     for (month, category_id), total in sums.by_category.items():
         category = categories.get(category_id)
-        if category is None or month not in income:
-            continue
-        if category.kind == CategoryKind.INCOME:
+        if category is not None and category.kind == CategoryKind.INCOME and month in income:
             income[month] += total
-        else:
-            spending[month] -= total
+    spending = {month: total_spending(sums, categories, month) for month in window}
     return schemas.CashFlow(
         months=[
             schemas.CashFlowMonth(
