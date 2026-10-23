@@ -64,6 +64,7 @@ The user commits to `main` and approves pushes. Check CI with `gh run list` afte
   - Revolut merchant names are per branch, so use brand rules (`bank_counterparty starts_with`).
 - **Running services:**
   - The Compose worker doesn't reload code: after backend changes, run `docker compose restart worker`. The API reloads itself.
-  - The frontend dev server is HTTPS with a self-signed certificate: `https://localhost:5173`.
+  - The frontend dev server is HTTPS with a self-signed certificate: `https://localhost:5173`. Claude's built-in browser pane can't open it, so check pages with tests, or fetch modules with `curl -k`.
+  - The frontend container keeps its own `node_modules` and runs `pnpm install` only on start: after adding a frontend dependency, run `docker compose restart frontend`, or Vite can't resolve the import.
   - On Windows outside Docker, start uvicorn with `--reload`: psycopg async can't use the default Proactor event loop.
   - Admin commands run in the API container: `docker compose exec api python -m hubnisio.cli --help` (`recategorize`, `detect-recurring`, `fx-backfill`, …). New migrations: `docker compose run --rm migrate`.
