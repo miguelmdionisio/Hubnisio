@@ -250,6 +250,26 @@ What it showed:
 - **No long same-amount Revolut subscriptions exist** in two years of data: no group of four or more same-amount payments to one merchant has a monthly rhythm. The weekly-rhythm groups (4) weren't linked, which is right: they look like habits, not subscriptions.
 - **The first rule for "other payments in the span" was too loose.** Allowing as many as the chain's own let shopping every three days pass as two interleaved weekly series. Half is the limit now.
 
+### Brand rules run (G3, 2026-10-23)
+
+The table was built from read-only aggregates of uncategorized outgoing Revolut card payments, and the user approved it before anything was written. Then, through the API: 15 new merchants with a default category, 19 rules that set a merchant (any of `bank_counterparty starts_with <brand>`, plus `description contains` where BPI also names the brand; "Uber Eats" stops processing before "Uber"), default categories on 18 existing merchants, and "Run rules now". Counts only.
+
+| | Before | After |
+|---|---|---|
+| Categorized, all | 361 of 1,659 | 767 of 1,659 |
+| BPI | 79 of 174 | 87 of 174 |
+| Revolut | 282 of 1,485 | 680 of 1,485 |
+| Revolut card payments | 274 of 1,152 | 672 of 1,152 |
+| Outgoing Revolut card payments without a category | 867, under 455 spellings, about €7,340 | 473, under 329 spellings, about €4,520 |
+| Merchants (with a default category) | 534 (14) | 549 (47) |
+| Rules | 15 | 34 |
+
+What it showed:
+
+- **A brand word in a description isn't safe on its own.** Revolut transfers between people carry free-text references: `uber`, `biedronka` and `zabka` appeared in 13, 3 and 1 of them. So brands match on Revolut's name only, and BPI conditions use longer phrases (`uber trip`, `uber com`). With these, no rule matched anything but card payments, apart from 2 Bolt card refunds and 2 zero-amount Amazon entries.
+- **A few brands carry much of the gain.** Żabka (130 transactions) and Biedronka (69, sent as its owner's name, `JMP S.A. Biedronka <shop>`) alone cover nearly half of what the run categorized (199 of 406).
+- **What's left is a long tail of single merchants.** Nine places with 4–17 transactions each, whose category couldn't be told from the name, were left for the user, along with merchants trading under a person's name and payment processors (Helopay, NYX) that front many shops. The Merchants page's "Needs a category" filter lists them, most used first.
+
 ## Action Items
 
 1. [x] Migrations for the bank-facts tables in the `finance` schema (user-layer tables come with M2).
