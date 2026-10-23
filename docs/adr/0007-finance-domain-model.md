@@ -118,6 +118,7 @@ Findings that shape it ([research](../research/oss-finance-analysis.md)):
     - Accounts without transactions count at their anchor throughout.
     - A later `date_from` can shorten the series, not lengthen it.
   - **Missing data:** an account without a snapshot is listed without a balance. An account-day without a rate is left out of that day's total and counted.
+  - *(M4)* `net_worth` loads the inputs (`load_inputs`) and `compute_net_worth` computes from them, so the MCP server loads the same inputs from the `analytics` views and gets the same figures ([ADR-0006](0006-ai-access.md)).
 
 ### Retiring an account *(added before M4)*
 
@@ -288,6 +289,10 @@ What it showed:
 - **A brand word in a description isn't safe on its own.** Revolut transfers between people carry free-text references: `uber`, `biedronka` and `zabka` appeared in 13, 3 and 1 of them. So brands match on Revolut's name only, and BPI conditions use longer phrases (`uber trip`, `uber com`). With these, no rule matched anything but card payments, apart from 2 Bolt card refunds and 2 zero-amount Amazon entries.
 - **A few brands carry much of the gain.** Żabka (130 transactions) and Biedronka (69, sent as its owner's name, `JMP S.A. Biedronka <shop>`) alone cover nearly half of what the run categorized (199 of 406).
 - **What's left is a long tail of single merchants.** Nine places with 4–17 transactions each, whose category couldn't be told from the name, were left for the user, along with merchants trading under a person's name and payment processors (Helopay, NYX) that front many shops. The Merchants page's "Needs a category" filter lists them, most used first.
+
+### AI suggestions (M4, 2026-10-23)
+
+Not run yet. M4 adds the means (ADR-0006's `categorize_uncategorized` prompt) but writes nothing by itself, so coverage is unchanged by it: 771 of 1,663 transactions have a category (manual 42, rule 208, merchant default 521, AI 0), and no AI login exists. The first pass needs the user's go-ahead, as it writes `ai` suggestions to the live data; its before and after counts go here.
 
 ## Action Items
 

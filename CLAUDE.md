@@ -8,7 +8,9 @@ A private, self-hosted personal hub, one app per domain; finance first. Decision
   - M1: Enable Banking link and sync (BPI and Revolut, about 1,650 transactions).
   - M2: categories, merchants, rules, transfer pairs, notes and tags, and their pages.
   - M3: daily FX rates into EUR; spending, cash flow and net worth, computed on read; budgets with rollover and overspend; detected recurring payments the user confirms; the Budgets, Recurring and overview pages (Recharts).
-- **Next:** M4 AI (analytics views, `hub_ai` role, MCP server). Then M5 server (Tailscale, Caddy, passkey login replacing the dev user, Postgres roles, backups); M6 Trading 212.
+  - Gaps G1–G6: an overall budget, hiding and deleting accounts, Revolut brand rules, the spending donut, shared pots with the Mine / Household view, repayments that lower their category.
+  - M4 AI (ADR-0006): the `analytics` views and per-member logins (A1, `5cc86b6`); the MCP server with read tools (A2, `b3fb32c`); AI category suggestions (A3, `210d80e`); `net_worth_history` and net worth's inputs in the views (A4). Not yet run against the live data: no AI login exists, and `HUBNISIO_AI_ENABLED` is off.
+- **Next:** M5 server (Tailscale, Caddy, passkey login replacing the dev user, Postgres roles, backups); M6 Trading 212.
 
 ## Layout and rules of the code
 
@@ -17,7 +19,7 @@ A private, self-hosted personal hub, one app per domain; finance first. Decision
 - **Scoping:** every finance query goes through `finance/scoping.py` (household + account visibility). Another member's private accounts never show, not even by name.
 - **Bank facts vs user layer:** only the sync writes `transactions` and `balance_snapshots`. Everything decided about a transaction lives in the user-layer tables. Precedence: manual > rule > counterparty default > ai.
 - **Migrations:** autogenerate against a throwaway Postgres container, then finish by hand: named constraints, enum types created once, downgrade drops them. `tests/test_migrations.py` checks models and migrations agree.
-- **Analytics views** (ADR-0006): the AI reads only the `analytics` schema, as a per-member login in the `hub_ai` group; the views filter on `session_user`. They're the SQL twins of `finance/scoping.py`, `finance/kinds.py` and `monthly_sums`: a change there needs the same change in the views.
+- **Analytics views** (ADR-0006): the AI reads only the `analytics` schema, as a per-member login in the `hub_ai` group; the views filter on `session_user`. They're the SQL twins of `finance/scoping.py`, `finance/kinds.py`, `monthly_sums` and net worth's `load_inputs`: a change there needs the same change in the views.
   - A view changes only by a new migration. `CREATE OR REPLACE VIEW` keeps its grants but can only add columns at the end. A new view needs `GRANT SELECT … TO hub_ai`.
   - The agreement and security tests in `tests/test_analytics.py` must pass.
   - The MCP server (`hubnisio/ai`, run as `python -m hubnisio.ai`) loads the views into the app's dataclasses and calls its pure functions; `tests/test_ai.py` checks each tool against the app. A shape the API returns comes from a pure function both can call.

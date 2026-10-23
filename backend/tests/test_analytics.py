@@ -36,11 +36,14 @@ from hubnisio.finance.transactions_api import transactions_query
 pytestmark = pytest.mark.anyio
 
 ANALYTICS_VIEWS = {
+    "account_connections",
     "accounts",
     "balances",
     "budget_limits",
     "budgets",
     "categories",
+    "daily_movements",
+    "fx_rates",
     "me",
     "merchants",
     "monthly_category_spend",
@@ -244,6 +247,8 @@ async def test_no_view_shows_another_members_private_accounts(
             "SELECT account_id FROM analytics.transactions",
             "SELECT account_id FROM analytics.balances",
             "SELECT account_id FROM analytics.recurring_payments",
+            "SELECT account_id FROM analytics.daily_movements",
+            "SELECT account_id FROM analytics.account_connections",
         ):
             seen = ids(login, query)
             assert own in seen, query

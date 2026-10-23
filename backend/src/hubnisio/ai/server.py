@@ -11,7 +11,7 @@ only read `analytics` and call those two functions.
 import uuid
 from collections import Counter, defaultdict
 from collections.abc import Awaitable, Callable, Sequence
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 from typing import Annotated, Any, LiteralString, Self, cast
 
@@ -31,6 +31,7 @@ from hubnisio.ai import outputs, views
 from hubnisio.ai.views import Connection
 from hubnisio.finance import schemas
 from hubnisio.finance.budgets import compute_budgets, first_month
+from hubnisio.finance.insights.net_worth import compute_net_worth, series_start
 from hubnisio.finance.insights.spending import (
     cash_flow,
     cents,
@@ -347,57 +348,86 @@ class Tools:
 
         async def read(db: Connection) -> tuple[outputs.Balances, int]:
             today = date.today()
-            daily: dict[uuid.UUID, dict[date, Decimal]] = defaultdict(dict)
-            cursor = await db.execute(
-                "SELECT account_id, occurred_on, sum(amount) FROM analytics.transactions"
-                " WHERE status = 'booked' GROUP BY account_id, occurred_on"
-            )
-            for account_id, on, total in await cursor.fetchall():
-                daily[account_id][on] = total
-            found: list[outputs.AccountBalance] = []
-            net_worth, unconverted = Decimal(), 0
-            for row in await _dicts(
-                db,
-                "SELECT a.id AS account_id, a.name, coalesce(b.currency, a.currency) AS currency,"
-                " b.balance, b.balance_type, b.fetched_at, b.booked_balance, b.booked_currency,"
-                " coalesce(b.reference_date, b.fetched_at::date) AS as_of,"
-                " a.include_in_net_worth, a.is_owner, a.is_pot"
-                " FROM analytics.accounts a LEFT JOIN analytics.balances b ON b.account_id = a.id"
-                " WHERE NOT a.hidden ORDER BY a.institution, a.name",
-            ):
-                counts = row["include_in_net_worth"] and (
-                    view == "household" or (row["is_owner"] and not row["is_pot"])
+            inputs = await views.balance_inputs(db)
+            counted = await views.net_worth_accounts(db, view)
+            rates = await views.rate_table(db, inputs.currencies, today, today)
+            # Every account's balance today, and net worth from those the view counts.
+            today_balances = {
+                account.id: account
+                for account in compute_net_worth(inputs, rates, today, today).accounts
+            }
+            worth = compute_net_worth(inputs.only(counted), rates, today, today)
+            found = [
+                outputs.AccountBalance.model_validate(
+                    row
+                    | {
+                        "in_net_worth": row["account_id"] in counted,
+                        "balance_today": today_balances[row["account_id"]].balance,
+                        "balance_today_eur": today_balances[row["account_id"]].balance_eur,
+                    }
                 )
-                today_balance = today_eur = None
-                if row["booked_balance"] is not None:
-                    days = daily.get(row["account_id"], {})
-                    today_balance = (
-                        row["booked_balance"]
-                        + sum((v for d, v in days.items() if d <= today), Decimal())
-                        - sum((v for d, v in days.items() if d <= row["as_of"]), Decimal())
-                    )
-                    if row["booked_currency"] == "EUR":
-                        today_eur = today_balance
-                        if counts:
-                            net_worth += today_eur
-                    elif counts:
-                        unconverted += 1
-                found.append(
-                    outputs.AccountBalance.model_validate(
-                        row
-                        | {
-                            "in_net_worth": counts,
-                            "balance_today": today_balance,
-                            "balance_today_eur": _cents(today_eur),
-                        }
-                    )
+                for row in await _dicts(
+                    db,
+                    "SELECT a.id AS account_id, a.name,"
+                    " coalesce(b.currency, a.currency) AS currency,"
+                    " b.balance, b.balance_type, b.fetched_at,"
+                    " coalesce(b.reference_date, b.fetched_at::date) AS as_of"
+                    " FROM analytics.accounts a"
+                    " LEFT JOIN analytics.balances b ON b.account_id = a.id"
+                    " WHERE NOT a.hidden ORDER BY a.institution, a.name",
                 )
+            ]
             result = outputs.Balances(
-                view=view, net_worth=cents(net_worth), accounts=found, unconverted=unconverted
+                view=view, net_worth=worth.total, accounts=found, unconverted=worth.unconverted
             )
             return result, len(found)
 
         return await self._call("balances", {"view": view}, read)
+
+    async def net_worth_history(
+        self,
+        date_from: Annotated[
+            date | None,
+            Field(
+                description="The first day. The series never starts before every account's "
+                "history does."
+            ),
+        ] = None,
+        every: Annotated[
+            outputs.Every,
+            Field(description="day: every day; week: each Sunday; month: each month's last day."),
+        ] = "week",
+        view: ViewArgument = "personal",
+    ) -> outputs.NetWorthHistory:
+        """Net worth in euros over time: the app's net worth chart. It counts the accounts in
+        the view's net worth, each at its latest booked balance moved by the booked
+        transactions in between, converted at each day's exchange rate. The series starts on
+        the first day every account has data for (a bank sends a few months at first), or
+        date_from if later, and its last point is today. Also each account's balance today."""
+
+        async def read(db: Connection) -> tuple[outputs.NetWorthHistory, int]:
+            today = date.today()
+            inputs = (await views.balance_inputs(db)).only(await views.net_worth_accounts(db, view))
+            start = series_start(inputs, today, date_from)
+            rates = await views.rate_table(db, inputs.currencies, start, today)
+            worth = compute_net_worth(inputs, rates, start, today)
+            points = [
+                point
+                for point in worth.points
+                if point.on == today or _ends_period(point.on, every)
+            ]
+            result = outputs.NetWorthHistory(
+                view=view,
+                every=every,
+                total=worth.total,
+                points=points,
+                accounts=worth.accounts,
+                unconverted=worth.unconverted,
+            )
+            return result, len(points)
+
+        arguments = {"date_from": date_from, "every": every, "view": view}
+        return await self._call("net_worth_history", arguments, read)
 
     async def uncategorized_overview(
         self,
@@ -604,6 +634,7 @@ def build_server(dsn: str) -> MCPServer:
         tools.budget_status,
         tools.recurring_payments,
         tools.balances,
+        tools.net_worth_history,
         tools.uncategorized_overview,
         tools.query_sql,
     ):
@@ -688,6 +719,14 @@ def _all(conditions: Sequence[LiteralString]) -> sql.Composed:
 
 def _escape_like(value: str) -> str:
     return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
+def _ends_period(day: date, every: outputs.Every) -> bool:
+    if every == "week":
+        return day.weekday() == 6
+    if every == "month":
+        return (day + timedelta(days=1)).day == 1
+    return True
 
 
 def _cents(amount: Decimal | None) -> Decimal | None:

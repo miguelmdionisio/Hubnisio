@@ -71,7 +71,7 @@ Claude Code and Claude Desktop can read your data through the hub's MCP server (
    }
    ```
 
-The tools: `list_accounts`, `list_categories`, `search_transactions`, `spending_summary`, `cashflow`, `budget_status`, `recurring_payments`, `balances`, `uncategorized_overview`, and `query_sql` for anything else (one read-only query over the views, at most 500 rows, 5 seconds).
+The tools: `list_accounts`, `list_categories`, `search_transactions`, `spending_summary`, `cashflow`, `budget_status`, `recurring_payments`, `balances`, `net_worth_history`, `uncategorized_overview`, and `query_sql` for anything else (one read-only query over the views, at most 500 rows, 5 seconds).
 
 To categorize with Claude, run the server's `categorize_uncategorized` prompt (in Claude Code: `/mcp__hubnisio__categorize_uncategorized`). Claude goes through what has no category, merchant by merchant, and saves its picks with `suggest_categories`. A suggestion counts at once but has the lowest precedence: it never replaces a category you, a rule or a merchant's default set, and a rule or default that applies later replaces it. The Transactions page marks each one "AI" and filters them under "Suggested by AI"; the overview counts them. Picking a category makes it yours.
 

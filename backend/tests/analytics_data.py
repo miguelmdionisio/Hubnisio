@@ -23,10 +23,14 @@ from hubnisio.finance.models import (
     BudgetLimit,
     Cadence,
     CategoryAssignment,
+    Connection,
+    ConnectionStatus,
     Counterparty,
     FxRate,
     FxSource,
     Overspend,
+    ProviderAccount,
+    ProviderName,
     RecurringSeries,
     RecurringStatus,
     Review,
@@ -64,13 +68,19 @@ class Data:
 
 
 async def new_account(
-    home: Home, name: str, owner: Principal, visibility: AccountVisibility, *, hidden: bool = False
+    home: Home,
+    name: str,
+    owner: Principal,
+    visibility: AccountVisibility,
+    *,
+    hidden: bool = False,
+    currency: str = "EUR",
 ) -> uuid.UUID:
     async with get_sessionmaker()() as session, session.begin():
         account = Account(
             household_id=home.owner.household_id,
             institution_name="Revolut",
-            currency="EUR",
+            currency=currency,
             display_name=name,
             visibility=visibility,
             hidden_at=datetime(2026, 10, 1, tzinfo=UTC) if hidden else None,
@@ -107,6 +117,33 @@ async def populate(home: Home) -> Data:
             .on_conflict_do_nothing(index_elements=["quote_currency", "on"])
         )
         session.add(merchant)
+    # The bank connections the accounts come through: the owner's BPI one, and the member's.
+    async with get_sessionmaker()() as session, session.begin():
+        bpi = await session.scalar(
+            select(Connection.id).where(Connection.household_id == household)
+        )
+        revolut = Connection(
+            household_id=household,
+            user_id=home.member.user_id,
+            provider=ProviderName.ENABLE_BANKING,
+            institution_name="Revolut",
+            institution_country="PT",
+            status=ConnectionStatus.ACTIVE,
+        )
+        session.add(revolut)
+        await session.flush()
+        session.add_all(
+            ProviderAccount(
+                connection_id=connection, provider_account_uid=uuid.uuid4().hex, account_id=account
+            )
+            for connection, account in (
+                (bpi, home.shared),
+                (bpi, home.savings),
+                (bpi, home.private),
+                (revolut.id, hers),
+                (revolut.id, theirs),
+            )
+        )
 
     # The owner's shared account.
     weekly = await add(home, "-50.00", 3, description="PINGO DOCE")

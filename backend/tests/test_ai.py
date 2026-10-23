@@ -6,19 +6,20 @@ import sys
 import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from datetime import date
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
 import psycopg
 import pytest
-from analytics_data import OCTOBER, SEPTEMBER, VIEWS, Data, Login, save
+from analytics_data import OCTOBER, SEPTEMBER, VIEWS, Data, Login, new_account, save
 from households import Home, add, api, make_home
 from mcp import Client, StdioServerParameters
 from sqlalchemy import select, update
+from sqlalchemy.dialects.postgresql import insert
 
-from hubnisio.ai import server
+from hubnisio.ai import outputs, server
 from hubnisio.ai.__main__ import main
 from hubnisio.ai.server import build_server, wrap
 from hubnisio.core.auth import Principal
@@ -31,9 +32,15 @@ from hubnisio.finance.insights.net_worth import net_worth
 from hubnisio.finance.insights.spending import household_categories
 from hubnisio.finance.insights_api import get_cash_flow, get_spending
 from hubnisio.finance.models import (
+    AccountVisibility,
+    BalanceSnapshot,
     Category,
     CategoryAssignment,
+    Connection,
     Counterparty,
+    FxRate,
+    FxSource,
+    ProviderAccount,
     Review,
     Source,
     TransactionAnnotation,
@@ -51,6 +58,7 @@ TOOLS = {
     "cashflow",
     "list_accounts",
     "list_categories",
+    "net_worth_history",
     "query_sql",
     "recurring_payments",
     "search_transactions",
@@ -82,6 +90,50 @@ async def failure(client: Client, tool: str, **arguments: Any) -> str:
 
 def principals(home: Home) -> tuple[Principal, Principal]:
     return home.owner, home.member
+
+
+async def foreign_account(home: Home) -> uuid.UUID:
+    """The owner's shared account in a test-only currency, on the BPI connection, so net worth
+    goes back as far as that connection's history. Its rates leave gaps before today: from
+    analytics_data, 4 on 1 October; here, 5 yesterday. Its balance today: 500, 100 euros."""
+    today = date.today()
+    wise = await new_account(home, "Wise", home.owner, AccountVisibility.SHARED, currency="XTQ")
+    await add(home, "-40.00", 0, on=today - timedelta(days=3), account=wise, currency="XTQ")
+    await add(home, "100.00", 0, on=today, account=wise, currency="XTQ")
+    async with get_sessionmaker()() as session, session.begin():
+        bpi = await session.scalar(
+            select(Connection.id).where(
+                Connection.household_id == home.owner.household_id,
+                Connection.user_id == home.owner.user_id,
+            )
+        )
+        assert bpi is not None
+        session.add(
+            ProviderAccount(connection_id=bpi, provider_account_uid="wise", account_id=wise)
+        )
+        session.add(
+            BalanceSnapshot(
+                household_id=home.owner.household_id,
+                account_id=wise,
+                balance_type="CLBD",
+                amount=Decimal("400.00"),
+                currency="XTQ",
+                reference_date=today - timedelta(days=2),
+                fetched_at=datetime.now(UTC),
+            )
+        )
+        # Removed with the rest of XTQ's rates by the `data` fixture.
+        await session.execute(
+            insert(FxRate)
+            .values(
+                quote_currency="XTQ",
+                on=today - timedelta(days=1),
+                rate=Decimal(5),
+                source=FxSource.ECB,
+            )
+            .on_conflict_do_nothing(index_elements=["quote_currency", "on"])
+        )
+    return wise
 
 
 # Agreement with the app.
@@ -120,6 +172,7 @@ async def test_insights_agree_with_the_app(home: Home, logins: dict[uuid.UUID, L
 
 @pytest.mark.usefixtures("data")
 async def test_balances_agree_with_net_worth(home: Home, logins: dict[uuid.UUID, Login]) -> None:
+    wise = await foreign_account(home)
     async with get_sessionmaker()() as session:
         for principal in principals(home):
             listed = set(await session.scalars(listed_account_ids(principal)))
@@ -144,6 +197,61 @@ async def test_balances_agree_with_net_worth(home: Home, logins: dict[uuid.UUID,
                     # The pot is the owner's, but its money isn't theirs alone.
                     if principal == home.owner:
                         assert accounts[home.savings]["in_net_worth"] == (view == "household")
+                        assert _decimal(accounts[wise]["balance_today_eur"]) == Decimal("100.00")
+
+
+@pytest.mark.usefixtures("data")
+async def test_net_worth_history_agrees_with_net_worth(
+    home: Home, logins: dict[uuid.UUID, Login]
+) -> None:
+    await foreign_account(home)
+    today = date.today()
+    recent = today - timedelta(days=20)
+
+    def by_id(accounts: list[schemas.NetWorthAccount]) -> dict[uuid.UUID, schemas.NetWorthAccount]:
+        return {account.id: account for account in accounts}
+
+    async with get_sessionmaker()() as session:
+        for principal in principals(home):
+            async with connected(logins[principal.user_id]) as client:
+                for view in VIEWS:
+                    context = (principal, view)
+                    app = await net_worth(session, principal, today, view=view)
+                    daily = outputs.NetWorthHistory.model_validate(
+                        await call(client, "net_worth_history", every="day", view=view)
+                    )
+                    assert len(app.points) > 1, context
+                    assert (daily.total, daily.points, daily.unconverted) == (
+                        app.total,
+                        app.points,
+                        app.unconverted,
+                    ), context
+                    assert by_id(daily.accounts) == by_id(app.accounts), context
+
+                    monthly = outputs.NetWorthHistory.model_validate(
+                        await call(client, "net_worth_history", every="month", view=view)
+                    )
+                    assert monthly.points == [
+                        p
+                        for p in app.points
+                        if (p.on + timedelta(days=1)).day == 1 or p.on == today
+                    ], context
+
+                    app = await net_worth(session, principal, today, recent, view=view)
+                    weekly = outputs.NetWorthHistory.model_validate(
+                        await call(
+                            client, "net_worth_history", date_from=recent.isoformat(), view=view
+                        )
+                    )
+                    assert weekly.every == "week", context
+                    assert weekly.points == [
+                        p for p in app.points if p.on.weekday() == 6 or p.on == today
+                    ], context
+                    assert weekly.points[-1].on == today, context
+                    assert weekly.unconverted == app.unconverted, context
+                    # Days without a rate for the owner's foreign account are left out.
+                    if principal == home.owner:
+                        assert daily.unconverted > 0, context
 
 
 @pytest.mark.usefixtures("data")
