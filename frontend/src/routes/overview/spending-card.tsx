@@ -34,7 +34,7 @@ export function SpendingCard() {
         return (
           <>
             <ChartContainer config={config} className="aspect-auto h-72 w-full">
-              <BarChart data={rows}>
+              <BarChart data={rows} stackOffset="sign">
                 <CartesianGrid vertical={false} />
                 <XAxis dataKey="label" tickLine={false} axisLine={false} />
                 <YAxis

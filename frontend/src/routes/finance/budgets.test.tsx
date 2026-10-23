@@ -118,6 +118,29 @@ test('marks a budget that is over', async () => {
   expect(foodBar.firstElementChild?.className).not.toContain('bg-destructive');
 });
 
+test('a budget whose repayments exceed its spending shows the net, with an empty bar', async () => {
+  const utilities = budget('c-utilities', 'Utilities', {
+    rollover: true,
+    limit: '100.00',
+    available: '100.00',
+    spent: '-50.00',
+    remaining: '150.00',
+  });
+  api({ 'GET /api/finance/budgets': () => budgetsOut([utilities]) });
+
+  renderAt('/finance/budgets?month=2026-10');
+
+  await screen.findByRole('button', { name: 'Utilities' });
+  const row = within(rowOf('Utilities'));
+  expect(row.getByText('-€50.00')).toBeDefined(); // spent
+  const remaining = row.getByText('€150.00'); // above the €100.00 limit
+  expect(remaining.className).not.toContain('text-destructive');
+  expect(row.queryByText('Over budget')).toBeNull();
+  const bar = row.getByRole('progressbar', { name: 'Utilities spent' });
+  expect(bar.getAttribute('aria-valuenow')).toBe('0');
+  expect(bar.firstElementChild?.className).not.toContain('bg-destructive');
+});
+
 test('says so when the month has no budgets', async () => {
   api({ 'GET /api/finance/budgets': () => budgetsOut([]) });
 

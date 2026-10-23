@@ -85,7 +85,8 @@ class CategoryKind(enum.StrEnum):
 
 
 class TransactionKind(enum.StrEnum):
-    """What a transaction is. Derived from its sign unless it's a transfer or overridden."""
+    """What a transaction is. Derived from its category's kind, else its sign, unless it's a
+    transfer or overridden."""
 
     EXPENSE = "expense"
     INCOME = "income"

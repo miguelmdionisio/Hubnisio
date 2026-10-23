@@ -3,7 +3,10 @@ import { cn } from '@/lib/utils';
 
 const eur = (amount: string) => formatMoney(amount, 'EUR');
 
-/** How much of what's available is spent. Red once it's over. */
+/**
+ * How much of what's available is spent. Red once it's over. Negative spending (repayments
+ * above what was spent) leaves the bar empty: what remains is shown beside it, above the limit.
+ */
 export function BudgetBar({
   label,
   spent,
@@ -19,8 +22,8 @@ export function BudgetBar({
 }) {
   const used = Number(spent);
   const total = Number(available);
-  const ratio = total > 0 ? used / total : used > 0 ? 1 : 0;
-  const percent = Math.round(Math.min(1, Math.max(0, ratio)) * 100);
+  const ratio = used <= 0 ? 0 : total > 0 ? used / total : 1;
+  const percent = Math.round(Math.min(1, ratio) * 100);
   return (
     <div
       role="progressbar"

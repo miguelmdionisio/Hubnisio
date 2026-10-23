@@ -23,6 +23,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { formatDate, formatMoney } from '@/lib/format';
 import { CategoryPicker } from './category-picker';
 import { MerchantPicker } from './merchant-picker';
+import { isRepayment } from './repayments';
 import { SOURCE_LABELS, useUnlinkTransfer, useUpdateTransaction } from './use-transaction-edits';
 
 const AUTOMATIC = 'automatic'; // Select items can't have an empty value
@@ -97,12 +98,21 @@ function Details({
               {category ? category.name : 'Uncategorized'}
             </CategoryPicker>
           )}
+          {category && isRepayment(transaction) && (
+            <p className="mt-1.5 text-xs text-muted-foreground">
+              {`Lowers ${category.name} by ${formatMoney(transaction.amount, transaction.currency)}`}
+            </p>
+          )}
         </Field>
 
         <Field
           label="What it is"
           hint={
-            transaction.kind_source ? SOURCE_LABELS[transaction.kind_source] : 'from the amount'
+            transaction.kind_source
+              ? SOURCE_LABELS[transaction.kind_source]
+              : category
+                ? 'from the category'
+                : 'from the amount'
           }
         >
           <Select

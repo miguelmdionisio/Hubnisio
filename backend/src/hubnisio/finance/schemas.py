@@ -140,7 +140,7 @@ class TransactionOut(BaseModel):
     bank_code: str | None
     # The user layer.
     kind: TransactionKind
-    kind_source: Source | None  # set when the kind isn't just the sign
+    kind_source: Source | None  # set when the kind isn't derived from the category or sign
     category: TransactionCategory | None
     counterparty: TransactionCounterparty | None
     transfer: TransactionTransfer | None

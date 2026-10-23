@@ -12,15 +12,18 @@ const TOP_GROUPS = 6; // as many as there are `--chart-N` colours
 
 /**
  * Stacked monthly bars: the biggest spending groups over the whole period, "Other" for the
- * rest, and "Uncategorized". A series that is zero throughout is left out.
+ * rest, and "Uncategorized". A series that is zero throughout is left out. A group that nets
+ * below zero in a month (repayments above spending) keeps its negative value: the chart
+ * stacks those under the axis (`stackOffset="sign"`).
  */
 export function spendingChart(
   spending: Spending,
   topGroups = TOP_GROUPS,
 ): { rows: Row[]; series: Series[] } {
+  // By size, whichever way: a group of repayments is as big as one of spending.
   const ranked = spending.groups
     .map((group) => ({ group, total: sum(group.amounts) }))
-    .sort((a, b) => b.total - a.total);
+    .sort((a, b) => Math.abs(b.total) - Math.abs(a.total));
   const top = ranked.slice(0, topGroups).map(({ group }) => group);
   const rest = ranked.slice(topGroups).map(({ group }) => group);
 

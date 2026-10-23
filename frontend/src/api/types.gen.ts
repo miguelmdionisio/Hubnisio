@@ -1170,7 +1170,8 @@ export type TransactionCounterparty = {
 /**
  * TransactionKind
  *
- * What a transaction is. Derived from its sign unless it's a transfer or overridden.
+ * What a transaction is. Derived from its category's kind, else its sign, unless it's a
+ * transfer or overridden.
  */
 export type TransactionKind = 'expense' | 'income' | 'transfer';
 

@@ -57,7 +57,8 @@ Findings that shape it ([research](../research/oss-finance-analysis.md)):
 
 ### Transaction kind and transfers *(added in M2)*
 
-- A transaction's kind (expense, income or transfer) is derived, not stored: transfer if it's in a transfer pair or overridden, otherwise from its sign. An override (by hand or by a rule) covers moves the sign gets wrong, e.g. a deposit to a broker the hub doesn't sync yet.
+- A transaction's kind (expense, income or transfer) is derived, not stored, in this order: transfer if it's in a transfer pair or overridden; then its kind override; then *(amended before M4)* the kind of its category; then its sign. An override (by hand or by a rule) covers moves the sign gets wrong, e.g. a deposit to a broker the hub doesn't sync yet.
+- **A category decides the kind** of a transaction that isn't a transfer and has no override: money in with an expense category is an expense (a repayment or refund, see "Repayments and refunds"), and money out with an income category is income. Without a category the sign decides, as before. `kinds.kind_is` (the Transactions list's `kind` filter) and `transactions_api._out` (the row's `kind`) both follow this.
 - **Transfer pairs** are linked automatically when exactly one match exists: same currency and amount, opposite directions on two of the household's accounts, at most 3 days apart. Ambiguous matches are left alone. Unlinking a pair records a dismissal, so matching never links it again.
 - Transfers are excluded from income, spending and categories.
 
@@ -146,6 +147,15 @@ Findings that shape it ([research](../research/oss-finance-analysis.md)):
 - **Downstream:** spending, cash flow, category budgets and the overall budget all read those sums, so they follow the view. Mine's net worth sums `listed_mine_account_ids`, so the pot's balance is left out.
 - **The pot's category:** an expense category of the household, not archived. Deleting it sets the pot to none (`ON DELETE SET NULL`), and its contributions become uncategorized. Only a transfer pair makes a move a contribution: a move marked as a transfer but left unpaired stays out of Mine's sums.
 - **Household** is unchanged: the same sums and net worth as before G5.
+
+### Repayments and refunds *(added before M4)*
+
+- **Money in with an expense category counts as negative spending in that category, not as income.** The partner sends 600 towards a 1,200 rent, both in Rent: Rent is 600. A friend repays a 30 lunch: it's 0. The sums already worked this way ("Net per category", above); this makes the rest agree: the transaction's kind is "expense", so the Transactions list's kind filter and the row show it that way. Money out with an income category is income in the same way.
+- **Rules can do it automatically.** A rule can set an expense category on money in, with the conditions that exist today: for example direction `in`, amount `between` two figures, and counterparty `contains` a name.
+- **Below zero:** a category that nets below zero in a month shows the net. Tables and budgets show a negative spent, with remaining above the limit, and rollover evens it out over the months (a remainder carries forward whether it came from unspent budget or from repayments). Bars in the spending chart dip below zero (`stackOffset="sign"`), and the donut, which can't draw a negative slice, lists it in its note. The overall budget and cash flow's spending subtract it too, and income is untouched.
+- **Display:** the Transactions page shows such a row as "+€600" in the normal colour, not income green, with a "Repayment" hint, or "Refund" for a card refund (Revolut `CARD_REFUND`, BPI `dev. compra`). The transaction's sheet says "Lowers Rent by €600".
+- **Refunds take their merchant's rule or default category,** like any payment. The automatic `dev. compra` → Income › Refunds rule is turned off. The Refunds category stays, for picking by hand.
+- **Option B is left open:** a `repayment_links` table (repayment → payment, amount) would take precedence over the category for the amounts it covers, and would date them to the payment's month, so a repayment in March for a February payment lowers February. This would fit a partial repayment of a single payment more exactly, at the cost of linking each one. Nothing here blocks it: it would add a table and change how `monthly_sums` dates those amounts, and nothing else.
 
 ### FX rates *(added in M3)*
 

@@ -32,6 +32,7 @@ import { errorMessage } from '@/lib/errors';
 import { formatDate, formatMoney, parseDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { activeGroups, CategoryPicker, useCategories } from './category-picker';
+import { isRepayment, repaymentLabel } from './repayments';
 import { TransactionSheet, transactionTitle } from './transaction-sheet';
 import { useAccounts } from './use-accounts';
 import { SOURCE_LABELS, useUpdateTransaction } from './use-transaction-edits';
@@ -306,9 +307,13 @@ export function TransactionsPage() {
                         row.kind === 'transfer' && 'text-muted-foreground',
                       )}
                     >
+                      {isRepayment(row) && '+'}
                       {formatMoney(row.amount, row.currency)}
                     </span>
                   </div>
+                  {isRepayment(row) && (
+                    <div className="text-xs text-muted-foreground">{repaymentLabel(row)}</div>
+                  )}
                   {row.original_amount && row.original_currency && (
                     <div className="text-xs text-muted-foreground tabular-nums">
                       {formatMoney(row.original_amount, row.original_currency)}

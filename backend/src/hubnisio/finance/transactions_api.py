@@ -24,6 +24,7 @@ from hubnisio.finance.models import (
     Account,
     Category,
     CategoryAssignment,
+    CategoryKind,
     Counterparty,
     Source,
     Transaction,
@@ -337,6 +338,14 @@ def _out(row: Any, visible: set[uuid.UUID]) -> schemas.TransactionOut:
         kind, kind_source = TransactionKind.TRANSFER, transfer.source
     elif annotation is not None and annotation.kind_override is not None:
         kind, kind_source = annotation.kind_override, annotation.kind_source
+    elif category is not None:
+        # A repayment or refund (money in, expense category) lowers that category's spending.
+        kind = (
+            TransactionKind.INCOME
+            if category.kind is CategoryKind.INCOME
+            else TransactionKind.EXPENSE
+        )
+        kind_source = None
     else:
         kind = TransactionKind.INCOME if transaction.amount > 0 else TransactionKind.EXPENSE
         kind_source = None

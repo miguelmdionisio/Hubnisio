@@ -46,6 +46,24 @@ test('stacks the six biggest groups, then Other, then Uncategorized', () => {
   expect(rows[1]?.other).toBe(8);
 });
 
+test('keeps a group that nets below zero negative, and ranks groups by size either way', () => {
+  const groups = [
+    spendingGroup('g1', 'Food', ['100.00', '120.00']),
+    spendingGroup('g2', 'Housing', ['600.00', '-300.00']),
+  ];
+
+  const { rows, series } = spendingChart(spending(months, groups, ['0.00', '0.00']));
+
+  expect(series.map((item) => item.label)).toEqual(['Housing', 'Food']);
+  expect(rows[0]).toMatchObject({ group0: 600, group1: 100 });
+  // Housing dips below zero while Food stacks above it (the chart's `stackOffset="sign"`).
+  expect(rows[1]).toMatchObject({ group0: -300, group1: 120 });
+
+  const folded = spendingChart(spending(months, groups, ['0.00', '0.00']), 1);
+  expect(folded.series.map((item) => item.label)).toEqual(['Housing', 'Other']);
+  expect(folded.rows[1]).toMatchObject({ group0: -300, other: 120 });
+});
+
 test('leaves out series that are empty', () => {
   const groups = [spendingGroup('g1', 'Food', ['10.00', '20.00'])];
 

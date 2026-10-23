@@ -4058,7 +4058,7 @@
           "transfer"
         ],
         "title": "TransactionKind",
-        "description": "What a transaction is. Derived from its sign unless it's a transfer or overridden."
+        "description": "What a transaction is. Derived from its category's kind, else its sign, unless it's a\ntransfer or overridden."
       },
       "TransactionOut": {
         "properties": {
