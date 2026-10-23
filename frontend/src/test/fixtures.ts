@@ -10,6 +10,7 @@ import type {
   RecurringOut,
   RuleOut,
   Spending,
+  SpendingCategory,
   SpendingGroup,
   TransactionOut,
   UpcomingPayment,
@@ -213,8 +214,17 @@ export function netWorth(
   };
 }
 
-export function spendingGroup(id: string, name: string, amounts: string[]): SpendingGroup {
-  return { id, name, amounts, categories: [] };
+export function spendingCategory(id: string, name: string, amounts: string[]): SpendingCategory {
+  return { id, name, amounts };
+}
+
+export function spendingGroup(
+  id: string,
+  name: string,
+  amounts: string[],
+  categories: SpendingCategory[] = [],
+): SpendingGroup {
+  return { id, name, amounts, categories };
 }
 
 export function spending(

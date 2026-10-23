@@ -5,6 +5,7 @@ import { BudgetsCard } from './overview/budgets-card';
 import { CashFlowCard } from './overview/cash-flow-card';
 import { NetWorthCard } from './overview/net-worth-card';
 import { SpendingCard } from './overview/spending-card';
+import { SpendingDonutCard } from './overview/spending-donut-card';
 import { NetWorthTile, ThisMonthTile, ToCategorizeTile } from './overview/tiles';
 import { UpcomingCard } from './overview/upcoming-card';
 
@@ -19,10 +20,11 @@ export function HomePage() {
           <ToCategorizeTile />
         </div>
         <SpendingCard />
-        <BudgetsCard />
+        <SpendingDonutCard />
         <CashFlowCard />
-        <UpcomingCard />
+        <BudgetsCard />
         <NetWorthCard />
+        <UpcomingCard />
       </div>
       <SystemStatus />
     </>

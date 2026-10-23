@@ -1,6 +1,13 @@
 import { expect, test } from 'vitest';
-import { cashFlow, netWorth, spending, spendingGroup } from '@/test/fixtures';
-import { axisTicks, cashFlowRows, netWorthChange, spendingChart } from './chart-data';
+import { cashFlow, netWorth, spending, spendingCategory, spendingGroup } from '@/test/fixtures';
+import {
+  axisTicks,
+  cashFlowRows,
+  donutSlices,
+  netWorthChange,
+  OTHER,
+  spendingChart,
+} from './chart-data';
 
 const months = ['2026-08-01', '2026-10-01'];
 
@@ -93,4 +100,190 @@ test('picks a few evenly spread dates to label an axis', () => {
   expect(axisTicks(points.slice(0, 2))).toEqual(['2026-10-01', '2026-10-02']);
   expect(axisTicks(points.slice(0, 1))).toEqual(['2026-10-01']);
   expect(axisTicks([])).toEqual([]);
+});
+
+const october = ['2026-10-01'];
+
+/** Eight groups for one month: six big ones, then Tech and Pets. */
+function eightGroups() {
+  return [
+    spendingGroup('g1', 'Fun', ['10.00']),
+    spendingGroup('g2', 'Rent', ['500.00']),
+    spendingGroup('g3', 'Food', ['300.00']),
+    spendingGroup('g4', 'Car', ['100.00']),
+    spendingGroup('g5', 'Health', ['40.00']),
+    spendingGroup('g6', 'Gifts', ['90.00']),
+    spendingGroup('g7', 'Pets', ['5.00']),
+    spendingGroup('g8', 'Tech', ['7.00']),
+  ];
+}
+
+test('donut: the groups biggest first, then Other, then Uncategorized', () => {
+  const { slices, total, leftOut } = donutSlices(spending(october, eightGroups(), ['48.00']));
+
+  expect(slices.map((slice) => [slice.label, slice.kind, slice.amount, slice.color])).toEqual([
+    ['Rent', 'group', 500, 'var(--chart-1)'],
+    ['Food', 'group', 300, 'var(--chart-2)'],
+    ['Car', 'group', 100, 'var(--chart-3)'],
+    ['Gifts', 'group', 90, 'var(--chart-4)'],
+    ['Health', 'group', 40, 'var(--chart-5)'],
+    ['Fun', 'group', 10, 'var(--chart-6)'],
+    ['Other', 'other', 12, 'var(--chart-other)'], // Tech and Pets
+    ['Uncategorized', 'uncategorized', 48, 'var(--chart-uncategorized)'],
+  ]);
+  // The centre is the whole month, as cash flow's spending is.
+  expect(total).toBe(1100);
+  expect(slices[0]?.share).toBeCloseTo(500 / 1100);
+  expect(slices.reduce((all, slice) => all + slice.share, 0)).toBeCloseTo(1);
+  expect(leftOut).toEqual([]);
+});
+
+test('donut: shows Uncategorized as its own slice, however big', () => {
+  const groups = [spendingGroup('g1', 'Food', ['100.00'])];
+
+  const { slices, total } = donutSlices(spending(october, groups, ['400.00']));
+
+  expect(slices.map((slice) => [slice.label, slice.share])).toEqual([
+    ['Food', 0.2],
+    ['Uncategorized', 0.8],
+  ]);
+  expect(total).toBe(500);
+});
+
+test('donut: leaves out what is empty or net negative, and returns the negatives', () => {
+  const groups = [
+    spendingGroup('g1', 'Food', ['300.00']),
+    spendingGroup('g2', 'Gifts', ['0.00']),
+    spendingGroup('g3', 'Tech', ['-40.00']),
+  ];
+
+  const { slices, total, leftOut } = donutSlices(spending(october, groups, ['-10.00']));
+
+  expect(slices.map((slice) => slice.label)).toEqual(['Food']);
+  expect(leftOut).toEqual([
+    { label: 'Tech', amount: -40 },
+    { label: 'Uncategorized', amount: -10 },
+  ]);
+  // The true total still counts the refunds: 300 - 40 - 10.
+  expect(total).toBe(250);
+});
+
+test('donut: has nothing to draw in a month without spending', () => {
+  expect(donutSlices(spending(october, [], ['0.00']))).toEqual({
+    slices: [],
+    total: 0,
+    leftOut: [],
+  });
+});
+
+test('donut: reads the last month of the spending it is given', () => {
+  const groups = [spendingGroup('g1', 'Food', ['300.00', '120.00'])];
+
+  const { slices, total } = donutSlices(
+    spending(['2026-09-01', '2026-10-01'], groups, ['5.00', '0.00']),
+  );
+
+  expect(slices.map((slice) => slice.amount)).toEqual([120]);
+  expect(total).toBe(120);
+});
+
+test('donut: drills into a group, with what was assigned to the group itself', () => {
+  const food = spendingGroup(
+    'g-food',
+    'Food',
+    ['300.00'],
+    [
+      spendingCategory('c-dining', 'Dining out', ['95.50']),
+      spendingCategory('c-groceries', 'Groceries', ['180.00']),
+    ],
+  );
+  const data = spending(october, [food, spendingGroup('g-rent', 'Rent', ['500.00'])], ['0.00']);
+
+  const top = donutSlices(data);
+  expect(top.slices.map((slice) => [slice.label, slice.into])).toEqual([
+    ['Rent', null], // nothing below it to drill into
+    ['Food', 'g-food'],
+  ]);
+
+  const { slices, total, leftOut } = donutSlices(data, 'g-food');
+
+  expect(
+    slices.map((slice) => [slice.label, slice.kind, slice.id, slice.amount, slice.color]),
+  ).toEqual([
+    ['Groceries', 'category', 'c-groceries', 180, 'var(--chart-1)'],
+    ['Dining out', 'category', 'c-dining', 95.5, 'var(--chart-2)'],
+    ['Food (no subcategory)', 'remainder', 'g-food', 24.5, 'var(--chart-other)'],
+  ]);
+  expect(slices.every((slice) => slice.into === null)).toBe(true);
+  expect(total).toBe(300);
+  expect(leftOut).toEqual([]);
+});
+
+test('donut: has no remainder when the categories add up to the group', () => {
+  const food = spendingGroup(
+    'g-food',
+    'Food',
+    ['100.10'],
+    [
+      spendingCategory('c-a', 'Groceries', ['60.07']),
+      spendingCategory('c-b', 'Dining out', ['40.03']),
+    ],
+  );
+
+  const { slices } = donutSlices(spending(october, [food], ['0.00']), 'g-food');
+
+  expect(slices.map((slice) => slice.label)).toEqual(['Groceries', 'Dining out']);
+});
+
+test('donut: leaves out a net-negative category, and a negative remainder', () => {
+  const food = spendingGroup(
+    'g-food',
+    'Food',
+    ['130.00'],
+    [
+      spendingCategory('c-groceries', 'Groceries', ['150.00']),
+      spendingCategory('c-dining', 'Dining out', ['-20.00']), // refunds above spending
+    ],
+  );
+  // The group holds 10 less than its category: refunds assigned to the group itself.
+  const odd = spendingGroup(
+    'g-odd',
+    'Odd',
+    ['90.00'],
+    [spendingCategory('c-odd', 'Odd jobs', ['100.00'])],
+  );
+  const data = spending(october, [food, odd], ['0.00']);
+
+  const inFood = donutSlices(data, 'g-food');
+  expect(inFood.slices.map((slice) => slice.label)).toEqual(['Groceries']);
+  expect(inFood.leftOut).toEqual([{ label: 'Dining out', amount: -20 }]);
+  expect(inFood.total).toBe(130);
+
+  const inOdd = donutSlices(data, 'g-odd');
+  expect(inOdd.slices.map((slice) => slice.label)).toEqual(['Odd jobs']);
+  expect(inOdd.leftOut).toEqual([{ label: 'Odd (no subcategory)', amount: -10 }]);
+});
+
+test('donut: drills into Other for the groups folded into it', () => {
+  const groups = eightGroups();
+  groups[6] = spendingGroup('g7', 'Pets', ['5.00'], [spendingCategory('c-vet', 'Vet', ['5.00'])]);
+  const data = spending(october, groups, ['48.00']);
+
+  expect(donutSlices(data).slices.find((slice) => slice.kind === 'other')?.into).toBe(OTHER);
+
+  const { slices, total, leftOut } = donutSlices(data, OTHER);
+
+  expect(slices.map((slice) => [slice.label, slice.amount, slice.into, slice.color])).toEqual([
+    ['Tech', 7, null, 'var(--chart-1)'],
+    ['Pets', 5, 'g7', 'var(--chart-2)'], // with categories, so it can be drilled into in turn
+  ]);
+  expect(total).toBe(12);
+  expect(leftOut).toEqual([]);
+});
+
+test('donut: has nothing for a group that is not in the month', () => {
+  const data = spending(october, [spendingGroup('g1', 'Food', ['10.00'])], ['0.00']);
+
+  expect(donutSlices(data, 'gone')).toEqual({ slices: [], total: 0, leftOut: [] });
+  expect(donutSlices(data, OTHER)).toEqual({ slices: [], total: 0, leftOut: [] });
 });

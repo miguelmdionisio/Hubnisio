@@ -21,7 +21,7 @@ export function NetWorthCard() {
       description="The accounts included in net worth, in euros"
       query={netWorth}
       skeleton="h-64"
-      className="lg:col-span-3"
+      className="lg:col-span-2"
     >
       {(data) => {
         if (data.points.length < 2) return <Note>Not enough history yet.</Note>;

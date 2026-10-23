@@ -34,6 +34,7 @@
   - It's themed with the app's CSS variables, so charts follow light and dark like everything else.
   - It's React components rather than an imperative API, and a smaller bundle than ECharts.
   - The dashboards plot monthly aggregates and daily net worth, a few hundred points at most, so ECharts' canvas speed and extra chart types (sankey, heatmaps, zoom) aren't needed yet. Revisit if a chart needs one of them.
+  - The overview's spending donut (one month by category group, drilling into categories) uses Recharts' pie through the same shadcn `chart`.
 - In production the SPA is static files served by the reverse proxy; the backend serves only the API.
 
 ### Quality
