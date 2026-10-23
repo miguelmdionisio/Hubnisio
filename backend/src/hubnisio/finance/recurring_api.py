@@ -1,7 +1,7 @@
 """Recurring payments, found by detection (finance/recurring), and the upcoming ones.
 
 A series belongs to one account and is scoped like it (finance/scoping.py). Only confirmed
-series count in upcoming payments (ADR-0007).
+series count in upcoming payments, and only on accounts that aren't hidden (ADR-0007).
 """
 
 import uuid
@@ -19,7 +19,7 @@ from hubnisio.finance.insights.spending import cents
 from hubnisio.finance.models import Account, RecurringSeries, RecurringStatus, Review
 from hubnisio.finance.naming import account_name
 from hubnisio.finance.recurring.detect import CADENCES, next_date, status_on
-from hubnisio.finance.scoping import visible_account_ids
+from hubnisio.finance.scoping import listed_account_ids, visible_account_ids
 
 router = APIRouter(prefix="/finance", tags=["finance"])
 
@@ -77,7 +77,10 @@ async def list_upcoming(
     today = date.today()
     end = today + timedelta(days=days)
     rows = await session.execute(
-        _query(principal).where(RecurringSeries.review == Review.CONFIRMED)
+        _query(principal).where(
+            RecurringSeries.review == Review.CONFIRMED,
+            RecurringSeries.account_id.in_(listed_account_ids(principal)),
+        )
     )
     upcoming: list[schemas.UpcomingPayment] = []
     for series, _ in rows:

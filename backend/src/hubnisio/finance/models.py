@@ -205,6 +205,8 @@ class Account(Base):
         _enum(AccountVisibility, "account_visibility"), server_default=AccountVisibility.SHARED
     )
     include_in_net_worth: Mapped[bool] = mapped_column(Boolean, server_default=text("true"))
+    # Retired by an owner: out of lists, net worth and the sync; its history still counts.
+    hidden_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

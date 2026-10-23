@@ -25,6 +25,8 @@ export const account: AccountOut = {
   visibility: 'shared',
   include_in_net_worth: true,
   is_owner: true,
+  hidden_at: null,
+  transaction_count: 0,
   balance: null,
 };
 

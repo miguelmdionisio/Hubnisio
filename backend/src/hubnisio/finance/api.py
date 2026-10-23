@@ -11,9 +11,11 @@ from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
-from sqlalchemy import select
+from fastapi.responses import JSONResponse
+from sqlalchemy import func, or_, select
 from sqlalchemy.dialects.postgresql import distinct_on
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
 from hubnisio.core.auth import Principal
 from hubnisio.core.crypto import SecretBox, get_secret_box
@@ -28,8 +30,13 @@ from hubnisio.finance.models import (
     Connection,
     ConnectionStatus,
     ProviderAccount,
+    Source,
     SyncRun,
     SyncStatus,
+    Transaction,
+    TransactionAnnotation,
+    TransactionKind,
+    Transfer,
 )
 from hubnisio.finance.naming import account_name
 from hubnisio.finance.providers.enable_banking.client import (
@@ -37,7 +44,7 @@ from hubnisio.finance.providers.enable_banking.client import (
     psu_headers_from_request,
 )
 from hubnisio.finance.providers.enable_banking.errors import EnableBankingError, SessionEnded
-from hubnisio.finance.scoping import is_owner, visible_account_ids
+from hubnisio.finance.scoping import is_owner, listed_account_ids, visible_account_ids
 from hubnisio.finance.sync import SyncTrigger
 
 router = APIRouter(prefix="/finance", tags=["finance"])
@@ -223,12 +230,15 @@ async def sync_connection(
 
 @router.get("/accounts", operation_id="listAccounts")
 async def list_accounts(
-    session: DbSession, principal: CurrentPrincipal
+    session: DbSession, principal: CurrentPrincipal, include_hidden: bool = False
 ) -> list[schemas.AccountOut]:
+    """Hidden accounts are left out unless `include_hidden` (ADR-0007, "Retiring an
+    account")."""
+    scope = visible_account_ids(principal) if include_hidden else listed_account_ids(principal)
     accounts = list(
         await session.scalars(
             select(Account)
-            .where(Account.id.in_(visible_account_ids(principal)))
+            .where(Account.id.in_(scope))
             .order_by(Account.institution_name, Account.created_at)
         )
     )
@@ -237,9 +247,12 @@ async def list_accounts(
             select(AccountOwner.account_id).where(AccountOwner.user_id == principal.user_id)
         )
     )
-    balances = await latest_balances(session, [account.id for account in accounts])
+    ids = [account.id for account in accounts]
+    balances = await latest_balances(session, ids)
+    counts = await _transaction_counts(session, ids)
     return [
-        _account_out(account, account.id in owned, balances.get(account.id)) for account in accounts
+        _account_out(account, account.id in owned, balances.get(account.id), counts)
+        for account in accounts
     ]
 
 
@@ -250,7 +263,64 @@ async def update_account(
     session: DbSession,
     principal: CurrentPrincipal,
 ) -> schemas.AccountOut:
-    """Only an account's owners can change it."""
+    """Only an account's owners can change it. Hiding it is for the whole household."""
+    account = await _own_account(session, principal, account_id)
+    if "display_name" in body.model_fields_set:
+        account.display_name = (body.display_name or "").strip() or None
+    if body.visibility is not None:
+        account.visibility = body.visibility
+    if body.include_in_net_worth is not None:
+        account.include_in_net_worth = body.include_in_net_worth
+    if body.hidden is not None and body.hidden != (account.hidden_at is not None):
+        account.hidden_at = datetime.now(UTC) if body.hidden else None
+    await session.commit()
+    balances = await latest_balances(session, [account.id])
+    counts = await _transaction_counts(session, [account.id])
+    return _account_out(account, True, balances.get(account.id), counts)
+
+
+@router.delete(
+    "/accounts/{account_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    operation_id="deleteAccount",
+    responses={status.HTTP_409_CONFLICT: {"model": schemas.AccountDeleteBlocked}},
+)
+async def delete_account(
+    account_id: uuid.UUID,
+    session: DbSession,
+    principal: CurrentPrincipal,
+    confirm: bool = False,
+) -> Response:
+    """Delete an account with its transactions and everything decided about them, its
+    balances and its transfer pairs. An account with transactions needs `confirm=true`.
+
+    A pair's side on an account that stays is kept as a transfer, so spending and income
+    don't change. If the bank still offers the account, a re-link brings it back: hiding is
+    the lasting way to retire it."""
+    account = await _own_account(session, principal, account_id)
+    count = (await _transaction_counts(session, [account.id])).get(account.id, 0)
+    kept = await _kept_transfer_sides(session, account.id)
+    if count and not confirm:
+        blocked = schemas.AccountDeleteBlocked(
+            detail="This account has transactions. Confirm to delete them with it.",
+            transaction_count=count,
+            transfer_count=len(kept),
+        )
+        return JSONResponse(blocked.model_dump(), status_code=status.HTTP_409_CONFLICT)
+    await _keep_as_transfers(session, principal, kept)
+    await session.delete(account)  # the foreign keys cascade to the rest
+    await session.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+# Helpers
+
+
+async def _own_account(
+    session: AsyncSession, principal: Principal, account_id: uuid.UUID
+) -> Account:
+    """One of the principal's own accounts. Any other is a 404, so another member's private
+    account doesn't even show that it exists."""
     account = await session.scalar(
         select(Account).where(
             Account.id == account_id,
@@ -260,18 +330,64 @@ async def update_account(
     )
     if account is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "No such account among yours.")
-    if "display_name" in body.model_fields_set:
-        account.display_name = (body.display_name or "").strip() or None
-    if body.visibility is not None:
-        account.visibility = body.visibility
-    if body.include_in_net_worth is not None:
-        account.include_in_net_worth = body.include_in_net_worth
-    await session.commit()
-    balances = await latest_balances(session, [account.id])
-    return _account_out(account, True, balances.get(account.id))
+    return account
 
 
-# Helpers
+async def _transaction_counts(
+    session: AsyncSession, account_ids: Sequence[uuid.UUID]
+) -> dict[uuid.UUID, int]:
+    rows = await session.execute(
+        select(Transaction.account_id, func.count())
+        .where(Transaction.account_id.in_(account_ids))
+        .group_by(Transaction.account_id)
+    )
+    return {account_id: count for account_id, count in rows}
+
+
+async def _kept_transfer_sides(session: AsyncSession, account_id: uuid.UUID) -> list[uuid.UUID]:
+    """For each transfer pair between this account and another: the other side's ID."""
+    outgoing, incoming = aliased(Transaction), aliased(Transaction)
+    rows = await session.execute(
+        select(outgoing.id, outgoing.account_id, incoming.id)
+        .select_from(Transfer)
+        .join(outgoing, outgoing.id == Transfer.outgoing_id)
+        .join(incoming, incoming.id == Transfer.incoming_id)
+        .where(
+            or_(outgoing.account_id == account_id, incoming.account_id == account_id),
+            outgoing.account_id != incoming.account_id,
+        )
+    )
+    return [
+        incoming_id if outgoing_account == account_id else outgoing_id
+        for outgoing_id, outgoing_account, incoming_id in rows
+    ]
+
+
+async def _keep_as_transfers(
+    session: AsyncSession, principal: Principal, transaction_ids: Sequence[uuid.UUID]
+) -> None:
+    """Mark these as transfers (source `auto`) before their pairs go, unless their kind was
+    set by hand. The rules engine leaves an `auto` kind alone (categorize/engine.py)."""
+    annotations = {
+        annotation.transaction_id: annotation
+        for annotation in await session.scalars(
+            select(TransactionAnnotation).where(
+                TransactionAnnotation.transaction_id.in_(transaction_ids)
+            )
+        )
+    }
+    for transaction_id in transaction_ids:
+        annotation = annotations.get(transaction_id)
+        if annotation is None:
+            annotation = TransactionAnnotation(
+                transaction_id=transaction_id, household_id=principal.household_id, tags=[]
+            )
+            session.add(annotation)
+        elif annotation.kind_source is Source.MANUAL:
+            continue
+        annotation.kind_override = TransactionKind.TRANSFER
+        annotation.kind_source = Source.AUTO
+    await session.flush()
 
 
 async def _own_connection(
@@ -359,7 +475,10 @@ async def _connections_out(
 
 
 def _account_out(
-    account: Account, owned: bool, balance: BalanceSnapshot | None
+    account: Account,
+    owned: bool,
+    balance: BalanceSnapshot | None,
+    transaction_counts: dict[uuid.UUID, int],
 ) -> schemas.AccountOut:
     return schemas.AccountOut(
         id=account.id,
@@ -371,6 +490,8 @@ def _account_out(
         visibility=account.visibility,
         include_in_net_worth=account.include_in_net_worth,
         is_owner=owned,
+        hidden_at=account.hidden_at,
+        transaction_count=transaction_counts.get(account.id, 0),
         balance=(
             schemas.Balance(
                 balance_type=balance.balance_type,

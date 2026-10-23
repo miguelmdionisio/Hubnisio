@@ -1,11 +1,8 @@
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery } from '@tanstack/react-query';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { ArrowLeftRight } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import {
-  listAccountsOptions,
-  listTransactionsInfiniteQueryKey,
-} from '@/api/@tanstack/react-query.gen';
+import { listTransactionsInfiniteQueryKey } from '@/api/@tanstack/react-query.gen';
 import { listTransactions } from '@/api/sdk.gen';
 import type { TransactionKind, TransactionOut, TransactionStatus } from '@/api/types.gen';
 import { PageHeader } from '@/components/app-shell';
@@ -36,6 +33,7 @@ import { formatDate, formatMoney, parseDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { activeGroups, CategoryPicker, useCategories } from './category-picker';
 import { TransactionSheet, transactionTitle } from './transaction-sheet';
+import { useAccounts } from './use-accounts';
 import { SOURCE_LABELS, useUpdateTransaction } from './use-transaction-edits';
 
 const PAGE_SIZE = 50;
@@ -112,8 +110,8 @@ export function TransactionsPage() {
     return () => clearTimeout(timer);
   }, [text, search.q, navigate]);
 
-  const accounts = useQuery(listAccountsOptions());
-  const accountNames = new Map(accounts.data?.map((account) => [account.id, account.name]));
+  const accounts = useAccounts();
+  const accountNames = accounts.names;
   const groups = activeGroups(useCategories().data);
   const update = useUpdateTransaction();
   const [openId, setOpenId] = useState<string | null>(null);
@@ -165,7 +163,7 @@ export function TransactionsPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value={ALL}>All accounts</SelectItem>
-            {accounts.data?.map((account) => (
+            {accounts.listed.map((account) => (
               <SelectItem key={account.id} value={account.id}>
                 {account.name}
               </SelectItem>

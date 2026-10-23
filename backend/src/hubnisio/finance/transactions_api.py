@@ -220,7 +220,7 @@ async def link_transfer(
     for annotation in await session.scalars(
         select(TransactionAnnotation).where(
             TransactionAnnotation.transaction_id.in_([outgoing.id, incoming.id]),
-            TransactionAnnotation.kind_source == Source.MANUAL,
+            TransactionAnnotation.kind_source.in_([Source.MANUAL, Source.AUTO]),
         )
     ):
         annotation.kind_override, annotation.kind_source = None, None
@@ -450,7 +450,9 @@ async def _own_counterparty(
 
 
 async def _unlink(session: AsyncSession, principal: Principal, transaction_id: uuid.UUID) -> None:
-    """Remove the transaction's transfer pair, if any, and remember not to relink it."""
+    """Remove the transaction's transfer pair, if any, and remember not to relink it. A side
+    kept as a transfer from an earlier, deleted pair (kind source `auto`) goes back to its
+    sign."""
     transfer = await session.scalar(
         select(Transfer).where(
             or_(Transfer.outgoing_id == transaction_id, Transfer.incoming_id == transaction_id)
@@ -459,6 +461,13 @@ async def _unlink(session: AsyncSession, principal: Principal, transaction_id: u
     if transfer is None:
         return
     await session.delete(transfer)
+    for annotation in await session.scalars(
+        select(TransactionAnnotation).where(
+            TransactionAnnotation.transaction_id.in_([transfer.outgoing_id, transfer.incoming_id]),
+            TransactionAnnotation.kind_source == Source.AUTO,
+        )
+    ):
+        annotation.kind_override, annotation.kind_source = None, None
     exists = await session.get(TransferDismissal, (transfer.outgoing_id, transfer.incoming_id))
     if exists is None:
         session.add(

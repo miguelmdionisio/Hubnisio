@@ -599,6 +599,39 @@ async def test_linking_again_replaces_the_expired_connection(hub: Hub, people: P
     assert relinked["account_ids"] == expired["account_ids"]
 
 
+async def test_a_hidden_account_is_not_synced_and_a_relink_keeps_it_hidden(
+    hub: Hub, people: People
+) -> None:
+    connection = await hub.link(people.owner)
+    hidden = await account_for(connection, "uid-2")
+    async with hub.api(people.owner) as client:
+        response = await client.patch(f"/api/finance/accounts/{hidden}", json={"hidden": True})
+        assert response.status_code == 200, response.text
+
+    outcome = await hub.sync(connection, sync.SyncTrigger.INITIAL)
+    assert (outcome.succeeded, outcome.failed) == (1, 0)
+    assert hub.bank.calls(r"/accounts/uid-1/.*") != []
+    assert hub.bank.calls(r"/accounts/uid-2/.*") == []
+
+    # A new session matches the account by its hash: still the same, still hidden.
+    hub.bank.session_accounts = [
+        bank_account("uid-3", "hash-1", IBAN_1),
+        bank_account("uid-4", "hash-2", IBAN_2),
+    ]
+    relinked = await hub.link(people.owner)
+    assert await account_for(relinked, "uid-4") == hidden
+    await hub.sync(relinked)
+    assert hub.bank.calls(r"/accounts/uid-4/.*") == []
+    async with hub.api(people.owner) as client:
+        listed = (await client.get("/api/finance/accounts")).json()
+        everything = (
+            await client.get("/api/finance/accounts", params={"include_hidden": True})
+        ).json()
+    assert str(hidden) not in {account["id"] for account in listed}
+    [retired] = [account for account in everything if account["id"] == str(hidden)]
+    assert retired["hidden_at"] is not None
+
+
 async def test_accounts_get_the_banks_label_or_a_distinct_default_name(
     hub: Hub, people: People
 ) -> None:

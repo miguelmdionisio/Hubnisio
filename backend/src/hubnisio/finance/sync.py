@@ -27,6 +27,7 @@ from hubnisio.core.settings import get_settings
 from hubnisio.finance.categorize.run import after_sync
 from hubnisio.finance.ingest.apply import APPLY_FAILED, apply_payloads
 from hubnisio.finance.models import (
+    Account,
     Connection,
     ConnectionStatus,
     ProviderAccount,
@@ -107,7 +108,9 @@ async def sync_connection(
         links = (
             await session.execute(
                 select(ProviderAccount.provider_account_uid, ProviderAccount.account_id)
-                .where(ProviderAccount.connection_id == connection_id)
+                .join(Account, Account.id == ProviderAccount.account_id)
+                # A hidden account is retired: the bank isn't asked for it any more.
+                .where(ProviderAccount.connection_id == connection_id, Account.hidden_at.is_(None))
                 .order_by(ProviderAccount.account_id)
             )
         ).all()

@@ -4,7 +4,6 @@ import { type ReactNode, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import {
   createRuleMutation,
-  listAccountsOptions,
   listRulesQueryKey,
   updateRuleMutation,
 } from '@/api/@tanstack/react-query.gen';
@@ -53,6 +52,7 @@ import {
   type Op,
   ruleInput,
 } from './rule-model';
+import { useAccounts } from './use-accounts';
 import { invalidateUserLayer } from './use-transaction-edits';
 
 const PREVIEW_DELAY_MS = 400;
@@ -106,7 +106,7 @@ function Choice<T extends string>({
 export function RuleEditor({ rule, onClose }: { rule: RuleOut | null; onClose: () => void }) {
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState(() => (rule ? draftOf(rule) : blankRule()));
-  const accounts = useQuery(listAccountsOptions());
+  const accounts = useAccounts();
   const categories = useCategories();
   const merchants = useMerchants();
   const categoryLabels = categoryNames(categories.data);
@@ -188,10 +188,10 @@ export function RuleEditor({ rule, onClose }: { rule: RuleOut | null; onClose: (
               key={index}
               position={index + 1}
               condition={condition}
-              accounts={accounts.data?.map((account) => ({
-                value: account.id,
-                label: account.name,
-              }))}
+              accounts={accounts.data
+                // A hidden account isn't offered, unless the rule already names it.
+                ?.filter((account) => !account.hidden_at || account.id === condition.value)
+                .map((account) => ({ value: account.id, label: account.name }))}
               removable={draft.conditions.length > 1}
               onChange={(next) => setCondition(index, next)}
               onRemove={() => setDraft({ ...draft, conditions: without(draft.conditions, index) })}

@@ -77,6 +77,8 @@ class AccountOut(BaseModel):
     visibility: AccountVisibility
     include_in_net_worth: bool
     is_owner: bool
+    hidden_at: datetime | None
+    transaction_count: int
     balance: Balance | None
 
 
@@ -84,6 +86,15 @@ class AccountUpdate(BaseModel):
     display_name: str | None = Field(default=None, max_length=100)
     visibility: AccountVisibility | None = None
     include_in_net_worth: bool | None = None
+    hidden: bool | None = None
+
+
+class AccountDeleteBlocked(BaseModel):
+    """Why a delete needs `confirm=true`: what would go with the account."""
+
+    detail: str
+    transaction_count: int
+    transfer_count: int  # pairs with accounts that stay; their side stays a transfer
 
 
 class TransactionCategory(BaseModel):

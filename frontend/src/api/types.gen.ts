@@ -5,6 +5,26 @@ export type ClientOptions = {
 };
 
 /**
+ * AccountDeleteBlocked
+ *
+ * Why a delete needs `confirm=true`: what would go with the account.
+ */
+export type AccountDeleteBlocked = {
+    /**
+     * Detail
+     */
+    detail: string;
+    /**
+     * Transaction Count
+     */
+    transaction_count: number;
+    /**
+     * Transfer Count
+     */
+    transfer_count: number;
+};
+
+/**
  * AccountOut
  */
 export type AccountOut = {
@@ -41,6 +61,14 @@ export type AccountOut = {
      * Is Owner
      */
     is_owner: boolean;
+    /**
+     * Hidden At
+     */
+    hidden_at: string | null;
+    /**
+     * Transaction Count
+     */
+    transaction_count: number;
     balance: Balance | null;
 };
 
@@ -57,6 +85,10 @@ export type AccountUpdate = {
      * Include In Net Worth
      */
     include_in_net_worth?: boolean | null;
+    /**
+     * Hidden
+     */
+    hidden?: boolean | null;
 };
 
 /**
@@ -1529,9 +1561,23 @@ export type SyncConnectionResponse = SyncConnectionResponses[keyof SyncConnectio
 export type ListAccountsData = {
     body?: never;
     path?: never;
-    query?: never;
+    query?: {
+        /**
+         * Include Hidden
+         */
+        include_hidden?: boolean;
+    };
     url: '/api/finance/accounts';
 };
+
+export type ListAccountsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListAccountsError = ListAccountsErrors[keyof ListAccountsErrors];
 
 export type ListAccountsResponses = {
     /**
@@ -1543,6 +1589,45 @@ export type ListAccountsResponses = {
 };
 
 export type ListAccountsResponse = ListAccountsResponses[keyof ListAccountsResponses];
+
+export type DeleteAccountData = {
+    body?: never;
+    path: {
+        /**
+         * Account Id
+         */
+        account_id: string;
+    };
+    query?: {
+        /**
+         * Confirm
+         */
+        confirm?: boolean;
+    };
+    url: '/api/finance/accounts/{account_id}';
+};
+
+export type DeleteAccountErrors = {
+    /**
+     * Conflict
+     */
+    409: AccountDeleteBlocked;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeleteAccountError = DeleteAccountErrors[keyof DeleteAccountErrors];
+
+export type DeleteAccountResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type DeleteAccountResponse = DeleteAccountResponses[keyof DeleteAccountResponses];
 
 export type UpdateAccountData = {
     body: AccountUpdate;

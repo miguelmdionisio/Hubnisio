@@ -174,7 +174,9 @@ async def _categorize_one(
 ) -> bool:
     """Returns whether the transaction has a category afterwards."""
     manual_counterparty = annotation is not None and annotation.counterparty_source is Source.MANUAL
-    manual_kind = annotation is not None and annotation.kind_source is Source.MANUAL
+    # A kind set by hand stays, and so does an `auto` transfer: the kept side of a pair whose
+    # other account was deleted (finance/api.py, delete_account).
+    fixed_kind = annotation is not None and annotation.kind_source in (Source.MANUAL, Source.AUTO)
 
     # 1. Counterparty from the bank's name, unless set by hand.
     counterparty_id: uuid.UUID | None
@@ -210,7 +212,7 @@ async def _categorize_one(
         if rule.stop_processing:
             break
 
-    # 3. Kind: a rule's override applies unless the kind was set by hand.
+    # 3. Kind: a rule's override applies unless the kind is fixed.
     if annotation is None:
         annotation = TransactionAnnotation(
             transaction_id=transaction.id, household_id=context.household_id, tags=[]
@@ -220,7 +222,7 @@ async def _categorize_one(
     if not manual_counterparty:
         annotation.counterparty_id = counterparty_id
         annotation.counterparty_source = counterparty_source
-    if not manual_kind:
+    if not fixed_kind:
         annotation.kind_override = rule_kind
         annotation.kind_source = Source.RULE if rule_kind else None
     annotation.rule_tags = sorted(rule_tags)

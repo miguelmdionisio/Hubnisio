@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { CompleteConnectionData, CompleteConnectionErrors, CompleteConnectionResponses, CreateCategoryData, CreateCategoryErrors, CreateCategoryResponses, CreateRuleData, CreateRuleErrors, CreateRuleResponses, DeleteBudgetData, DeleteBudgetErrors, DeleteBudgetResponses, DeleteCategoryData, DeleteCategoryErrors, DeleteCategoryResponses, DeleteConnectionData, DeleteConnectionErrors, DeleteConnectionResponses, DeleteOverallBudgetData, DeleteOverallBudgetResponses, DeleteRuleData, DeleteRuleErrors, DeleteRuleResponses, GetCashFlowData, GetCashFlowErrors, GetCashFlowResponses, GetHealthData, GetHealthErrors, GetHealthResponses, GetNetWorthData, GetNetWorthErrors, GetNetWorthResponses, GetSpendingData, GetSpendingErrors, GetSpendingResponses, LinkTransferData, LinkTransferErrors, LinkTransferResponses, ListAccountsData, ListAccountsResponses, ListBanksData, ListBanksErrors, ListBanksResponses, ListBudgetsData, ListBudgetsErrors, ListBudgetsResponses, ListCategoriesData, ListCategoriesResponses, ListConnectionsData, ListConnectionsResponses, ListCounterpartiesData, ListCounterpartiesErrors, ListCounterpartiesResponses, ListRecurringData, ListRecurringErrors, ListRecurringResponses, ListRulesData, ListRulesResponses, ListTransactionsData, ListTransactionsErrors, ListTransactionsResponses, ListUpcomingPaymentsData, ListUpcomingPaymentsErrors, ListUpcomingPaymentsResponses, MergeCounterpartyData, MergeCounterpartyErrors, MergeCounterpartyResponses, PreviewRuleData, PreviewRuleErrors, PreviewRuleResponses, ReorderRulesData, ReorderRulesErrors, ReorderRulesResponses, RunRulesData, RunRulesResponses, SetBudgetData, SetBudgetErrors, SetBudgetResponses, SetOverallBudgetData, SetOverallBudgetErrors, SetOverallBudgetResponses, StartConnectionData, StartConnectionErrors, StartConnectionResponses, SyncConnectionData, SyncConnectionErrors, SyncConnectionResponses, UnlinkTransferData, UnlinkTransferErrors, UnlinkTransferResponses, UpdateAccountData, UpdateAccountErrors, UpdateAccountResponses, UpdateCategoryData, UpdateCategoryErrors, UpdateCategoryResponses, UpdateCounterpartyData, UpdateCounterpartyErrors, UpdateCounterpartyResponses, UpdateRecurringData, UpdateRecurringErrors, UpdateRecurringResponses, UpdateRuleData, UpdateRuleErrors, UpdateRuleResponses, UpdateTransactionData, UpdateTransactionErrors, UpdateTransactionResponses } from './types.gen';
+import type { CompleteConnectionData, CompleteConnectionErrors, CompleteConnectionResponses, CreateCategoryData, CreateCategoryErrors, CreateCategoryResponses, CreateRuleData, CreateRuleErrors, CreateRuleResponses, DeleteAccountData, DeleteAccountErrors, DeleteAccountResponses, DeleteBudgetData, DeleteBudgetErrors, DeleteBudgetResponses, DeleteCategoryData, DeleteCategoryErrors, DeleteCategoryResponses, DeleteConnectionData, DeleteConnectionErrors, DeleteConnectionResponses, DeleteOverallBudgetData, DeleteOverallBudgetResponses, DeleteRuleData, DeleteRuleErrors, DeleteRuleResponses, GetCashFlowData, GetCashFlowErrors, GetCashFlowResponses, GetHealthData, GetHealthErrors, GetHealthResponses, GetNetWorthData, GetNetWorthErrors, GetNetWorthResponses, GetSpendingData, GetSpendingErrors, GetSpendingResponses, LinkTransferData, LinkTransferErrors, LinkTransferResponses, ListAccountsData, ListAccountsErrors, ListAccountsResponses, ListBanksData, ListBanksErrors, ListBanksResponses, ListBudgetsData, ListBudgetsErrors, ListBudgetsResponses, ListCategoriesData, ListCategoriesResponses, ListConnectionsData, ListConnectionsResponses, ListCounterpartiesData, ListCounterpartiesErrors, ListCounterpartiesResponses, ListRecurringData, ListRecurringErrors, ListRecurringResponses, ListRulesData, ListRulesResponses, ListTransactionsData, ListTransactionsErrors, ListTransactionsResponses, ListUpcomingPaymentsData, ListUpcomingPaymentsErrors, ListUpcomingPaymentsResponses, MergeCounterpartyData, MergeCounterpartyErrors, MergeCounterpartyResponses, PreviewRuleData, PreviewRuleErrors, PreviewRuleResponses, ReorderRulesData, ReorderRulesErrors, ReorderRulesResponses, RunRulesData, RunRulesResponses, SetBudgetData, SetBudgetErrors, SetBudgetResponses, SetOverallBudgetData, SetOverallBudgetErrors, SetOverallBudgetResponses, StartConnectionData, StartConnectionErrors, StartConnectionResponses, SyncConnectionData, SyncConnectionErrors, SyncConnectionResponses, UnlinkTransferData, UnlinkTransferErrors, UnlinkTransferResponses, UpdateAccountData, UpdateAccountErrors, UpdateAccountResponses, UpdateCategoryData, UpdateCategoryErrors, UpdateCategoryResponses, UpdateCounterpartyData, UpdateCounterpartyErrors, UpdateCounterpartyResponses, UpdateRecurringData, UpdateRecurringErrors, UpdateRecurringResponses, UpdateRuleData, UpdateRuleErrors, UpdateRuleResponses, UpdateTransactionData, UpdateTransactionErrors, UpdateTransactionResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -72,13 +72,28 @@ export const syncConnection = <ThrowOnError extends boolean = false>(options: Op
 
 /**
  * List Accounts
+ *
+ * Hidden accounts are left out unless `include_hidden` (ADR-0007, "Retiring an
+ * account").
  */
-export const listAccounts = <ThrowOnError extends boolean = false>(options?: Options<ListAccountsData, ThrowOnError>): RequestResult<ListAccountsResponses, unknown, ThrowOnError> => (options?.client ?? client).get<ListAccountsResponses, unknown, ThrowOnError>({ url: '/api/finance/accounts', ...options });
+export const listAccounts = <ThrowOnError extends boolean = false>(options?: Options<ListAccountsData, ThrowOnError>): RequestResult<ListAccountsResponses, ListAccountsErrors, ThrowOnError> => (options?.client ?? client).get<ListAccountsResponses, ListAccountsErrors, ThrowOnError>({ url: '/api/finance/accounts', ...options });
+
+/**
+ * Delete Account
+ *
+ * Delete an account with its transactions and everything decided about them, its
+ * balances and its transfer pairs. An account with transactions needs `confirm=true`.
+ *
+ * A pair's side on an account that stays is kept as a transfer, so spending and income
+ * don't change. If the bank still offers the account, a re-link brings it back: hiding is
+ * the lasting way to retire it.
+ */
+export const deleteAccount = <ThrowOnError extends boolean = false>(options: Options<DeleteAccountData, ThrowOnError>): RequestResult<DeleteAccountResponses, DeleteAccountErrors, ThrowOnError> => (options.client ?? client).delete<DeleteAccountResponses, DeleteAccountErrors, ThrowOnError>({ url: '/api/finance/accounts/{account_id}', ...options });
 
 /**
  * Update Account
  *
- * Only an account's owners can change it.
+ * Only an account's owners can change it. Hiding it is for the whole household.
  */
 export const updateAccount = <ThrowOnError extends boolean = false>(options: Options<UpdateAccountData, ThrowOnError>): RequestResult<UpdateAccountResponses, UpdateAccountErrors, ThrowOnError> => (options.client ?? client).patch<UpdateAccountResponses, UpdateAccountErrors, ThrowOnError>({
     url: '/api/finance/accounts/{account_id}',

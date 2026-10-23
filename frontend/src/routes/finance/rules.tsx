@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import {
   deleteRuleMutation,
-  listAccountsOptions,
   listRulesOptions,
   listRulesQueryKey,
   reorderRulesMutation,
@@ -32,12 +31,13 @@ import { categoryNames, useCategories } from './category-picker';
 import { useMerchants } from './merchant-picker';
 import { RuleEditor } from './rule-editor';
 import { describeAction, describeCondition, type Names, ruleToInput } from './rule-model';
+import { useAccounts } from './use-accounts';
 import { invalidateUserLayer } from './use-transaction-edits';
 
 export function RulesPage() {
   const queryClient = useQueryClient();
   const rules = useQuery(listRulesOptions());
-  const accounts = useQuery(listAccountsOptions());
+  const accounts = useAccounts();
   const categories = useCategories();
   const merchants = useMerchants();
   const [editing, setEditing] = useState<RuleOut | 'new' | null>(null);
@@ -71,7 +71,7 @@ export function RulesPage() {
   });
 
   const names: Names = {
-    accounts: new Map(accounts.data?.map((account) => [account.id, account.name])),
+    accounts: accounts.names,
     categories: categoryNames(categories.data),
     merchants: new Map(merchants.data?.map((merchant) => [merchant.id, merchant.name])),
   };

@@ -1,13 +1,11 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
-import { Pencil } from 'lucide-react';
-import { useState } from 'react';
-import {
-  listAccountsOptions,
-  listAccountsQueryKey,
-  updateAccountMutation,
-} from '@/api/@tanstack/react-query.gen';
-import type { AccountOut, AccountUpdate } from '@/api/types.gen';
+import { ChevronDown, ChevronRight, EyeOff, Pencil } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
+import { deleteAccountMutation, updateAccountMutation } from '@/api/@tanstack/react-query.gen';
+import { deleteAccount } from '@/api/sdk.gen';
+import type { AccountDeleteBlocked, AccountOut, AccountUpdate } from '@/api/types.gen';
 import { PageHeader } from '@/components/app-shell';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -15,6 +13,7 @@ import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from '@/comp
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -34,6 +33,7 @@ import {
 } from '@/components/ui/table';
 import { errorMessage } from '@/lib/errors';
 import { formatMoney, formatRelative } from '@/lib/format';
+import { useAccounts } from './use-accounts';
 
 const BALANCE_LABELS: Record<string, string> = {
   ITAV: 'available',
@@ -44,12 +44,15 @@ const BALANCE_LABELS: Record<string, string> = {
 
 export function AccountsPage() {
   const queryClient = useQueryClient();
-  const accounts = useQuery(listAccountsOptions());
+  const accounts = useAccounts();
   const update = useMutation({
     ...updateAccountMutation(),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: listAccountsQueryKey() }),
+    // An account's settings show everywhere: net worth, upcoming payments, filters.
+    onSuccess: () => queryClient.invalidateQueries(),
   });
   const [renaming, setRenaming] = useState<AccountOut | null>(null);
+  const [hiding, setHiding] = useState<AccountOut | null>(null);
+  const [deleting, setDeleting] = useState<AccountOut | null>(null);
 
   const change = (account: AccountOut, body: AccountUpdate) =>
     update.mutate({ path: { account_id: account.id }, body });
@@ -91,7 +94,7 @@ export function AccountsPage() {
           </CardFooter>
         </Card>
       )}
-      {accounts.data && accounts.data.length > 0 && (
+      {accounts.listed.length > 0 && (
         <Table>
           <TableHeader>
             <TableRow>
@@ -100,10 +103,13 @@ export function AccountsPage() {
               <TableHead className="text-right">Balance</TableHead>
               <TableHead>Private</TableHead>
               <TableHead>In net worth</TableHead>
+              <TableHead>
+                <span className="sr-only">Actions</span>
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {accounts.data.map((account) => (
+            {accounts.listed.map((account) => (
               <TableRow key={account.id}>
                 <TableCell>
                   <div className="flex items-center gap-1">
@@ -159,12 +165,31 @@ export function AccountsPage() {
                     }
                   />
                 </TableCell>
+                <TableCell className="text-right">
+                  {account.is_owner && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      aria-label={`Hide ${account.name}`}
+                      onClick={() => setHiding(account)}
+                    >
+                      <EyeOff />
+                      Hide
+                    </Button>
+                  )}
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
-          <Totals accounts={accounts.data} />
+          <Totals accounts={accounts.listed} />
         </Table>
       )}
+      <HiddenAccounts
+        accounts={accounts.hidden}
+        disabled={update.isPending}
+        onUnhide={(account) => change(account, { hidden: false })}
+        onDelete={setDeleting}
+      />
       <RenameDialog
         account={renaming}
         onClose={() => setRenaming(null)}
@@ -173,6 +198,15 @@ export function AccountsPage() {
           setRenaming(null);
         }}
       />
+      <HideDialog
+        account={hiding}
+        onClose={() => setHiding(null)}
+        onHide={(account) => {
+          change(account, { hidden: true });
+          setHiding(null);
+        }}
+      />
+      <DeleteDialog key={deleting?.id} account={deleting} onClose={() => setDeleting(null)} />
     </>
   );
 }
@@ -195,9 +229,93 @@ function Totals({ accounts }: { accounts: AccountOut[] }) {
             <div key={currency}>{formatMoney(amount, currency)}</div>
           ))}
         </TableCell>
-        <TableCell colSpan={2} />
+        <TableCell colSpan={3} />
       </TableRow>
     </TableFooter>
+  );
+}
+
+/** Retired accounts, collapsed: owners can bring one back or delete it for good. */
+function HiddenAccounts({
+  accounts,
+  disabled,
+  onUnhide,
+  onDelete,
+}: {
+  accounts: AccountOut[];
+  disabled: boolean;
+  onUnhide: (account: AccountOut) => void;
+  onDelete: (account: AccountOut) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  if (accounts.length === 0) return null;
+  return (
+    <section className="mt-8 space-y-2">
+      <Button variant="ghost" aria-expanded={open} onClick={() => setOpen(!open)}>
+        {open ? <ChevronDown /> : <ChevronRight />}
+        Hidden accounts ({accounts.length})
+      </Button>
+      {open && (
+        <>
+          <p className="text-sm text-muted-foreground">
+            Left out of account lists, net worth and the sync. Their past transactions still count
+            in spending and budgets.
+          </p>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Account</TableHead>
+                <TableHead className="text-right">Transactions</TableHead>
+                <TableHead>Hidden</TableHead>
+                <TableHead>
+                  <span className="sr-only">Actions</span>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {accounts.map((account) => (
+                <TableRow key={account.id}>
+                  <TableCell>
+                    <div className="font-medium">{account.name}</div>
+                    <div className="text-xs text-muted-foreground">{account.institution_name}</div>
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {account.transaction_count}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {account.hidden_at && formatRelative(account.hidden_at)}
+                  </TableCell>
+                  <TableCell>
+                    {account.is_owner && (
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          aria-label={`Unhide ${account.name}`}
+                          disabled={disabled}
+                          onClick={() => onUnhide(account)}
+                        >
+                          Unhide
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-destructive"
+                          aria-label={`Delete ${account.name}`}
+                          onClick={() => onDelete(account)}
+                        >
+                          Delete
+                        </Button>
+                      </div>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </>
+      )}
+    </section>
   );
 }
 
@@ -240,5 +358,138 @@ function RenameDialog({
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+function HideDialog({
+  account,
+  onClose,
+  onHide,
+}: {
+  account: AccountOut | null;
+  onClose: () => void;
+  onHide: (account: AccountOut) => void;
+}) {
+  return (
+    <Dialog open={account !== null} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Hide {account?.name}?</DialogTitle>
+          <DialogDescription>
+            It leaves account lists, net worth and the sync, for everyone in the household. Its past
+            transactions still count in spending and budgets. You can unhide it later.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button onClick={() => account && onHide(account)}>Hide account</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/**
+ * Deleting takes the account's history with it. With transactions, the dialog states what
+ * goes (the API answers a delete without confirmation with the counts) and asks for the
+ * account's name.
+ */
+function DeleteDialog({ account, onClose }: { account: AccountOut | null; onClose: () => void }) {
+  const queryClient = useQueryClient();
+  const [typed, setTyped] = useState('');
+  const [blocked, setBlocked] = useState<AccountDeleteBlocked | null>(null);
+  const remove = useMutation({
+    ...deleteAccountMutation(),
+    onSuccess: () => {
+      queryClient.invalidateQueries();
+      toast.success(`Deleted ${account?.name}.`);
+      onClose();
+    },
+  });
+  const count = account?.transaction_count ?? 0;
+
+  useEffect(() => {
+    if (!account || account.transaction_count === 0) return;
+    let current = true;
+    deleteAccount({ path: { account_id: account.id } }).then(({ error }) => {
+      if (current && error && 'transfer_count' in error) setBlocked(error);
+    });
+    return () => {
+      current = false;
+    };
+  }, [account]);
+
+  const ready = count === 0 || typed.trim() === account?.name;
+  return (
+    <Dialog open={account !== null} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        {account && (
+          <form
+            className="space-y-4"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (ready)
+                remove.mutate({ path: { account_id: account.id }, query: { confirm: true } });
+            }}
+          >
+            <DialogHeader>
+              <DialogTitle>Delete {account.name}?</DialogTitle>
+              <DialogDescription>
+                {count === 0
+                  ? 'It has no transactions.'
+                  : `Its ${count} ${count === 1 ? 'transaction goes' : 'transactions go'} with it, with their categories, notes and tags.`}
+              </DialogDescription>
+            </DialogHeader>
+            {count > 0 && <TransfersLine blocked={blocked} />}
+            <p className="text-sm text-muted-foreground">
+              If the bank still offers this account, linking the bank again brings it back. To keep
+              it out for good, leave it hidden instead.
+            </p>
+            {count > 0 && (
+              <div className="space-y-2">
+                <Label htmlFor="delete-account-name">Type “{account.name}” to confirm</Label>
+                <Input
+                  id="delete-account-name"
+                  autoComplete="off"
+                  value={typed}
+                  onChange={(event) => setTyped(event.target.value)}
+                />
+              </div>
+            )}
+            {remove.isError && (
+              <Alert variant="destructive">
+                <AlertDescription>{errorMessage(remove.error)}</AlertDescription>
+              </Alert>
+            )}
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button type="submit" variant="destructive" disabled={!ready || remove.isPending}>
+                Delete account
+              </Button>
+            </DialogFooter>
+          </form>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function TransfersLine({ blocked }: { blocked: AccountDeleteBlocked | null }) {
+  if (blocked === null) {
+    return <p className="text-sm text-muted-foreground">Counting its transfers…</p>;
+  }
+  const transfers = blocked.transfer_count;
+  if (transfers === 0) return null;
+  return (
+    <p className="text-sm">
+      {transfers === 1
+        ? '1 transfer with your other accounts stays marked as a transfer on their side'
+        : `${transfers} transfers with your other accounts stay marked as transfers on their side`}
+      , so spending and income don't change.
+    </p>
   );
 }

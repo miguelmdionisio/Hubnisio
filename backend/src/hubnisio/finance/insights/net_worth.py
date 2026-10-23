@@ -8,7 +8,7 @@ The series starts on the first day every included account has data for: before t
 one account's movements are unknown. A bank gives every account of one consent the same history,
 so an account's data starts with the earliest transaction of any account on its connection: an
 account opened later was simply empty before. Accounts without transactions count at their
-anchor throughout.
+anchor throughout. Hidden accounts are left out, like those not included in net worth.
 """
 
 import uuid
@@ -26,7 +26,7 @@ from hubnisio.finance.fx.convert import RateTable
 from hubnisio.finance.insights.spending import cents
 from hubnisio.finance.models import Account, ProviderAccount, Transaction, TransactionStatus
 from hubnisio.finance.naming import account_name
-from hubnisio.finance.scoping import visible_account_ids
+from hubnisio.finance.scoping import listed_account_ids
 
 
 async def net_worth(
@@ -35,7 +35,7 @@ async def net_worth(
     accounts = list(
         await session.scalars(
             select(Account)
-            .where(Account.id.in_(visible_account_ids(principal)), Account.include_in_net_worth)
+            .where(Account.id.in_(listed_account_ids(principal)), Account.include_in_net_worth)
             .order_by(Account.institution_name, Account.created_at)
         )
     )

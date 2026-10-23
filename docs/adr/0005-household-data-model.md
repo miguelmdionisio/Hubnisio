@@ -42,6 +42,10 @@
 ### Authorization
 
 - Enforced in one place: a query-scoping helper in `core` that every finance query goes through (household + visibility), covered by tests.
+- **Two account sets** *(added before M4)*: the helper, in `finance/scoping.py`, has two account sets.
+  - `visible_account_ids` (household and visibility) includes hidden accounts. It serves everything about past transactions: the transactions list, spending, cash flow, budgets and recurring payments.
+  - `listed_account_ids` also leaves out hidden accounts ([ADR-0007](0007-finance-domain-model.md), "Retiring an account"). It serves account lists and filters, net worth and upcoming payments.
+  - Hiding never widens what a member sees: a listed account is always a visible one.
 - Postgres row-level security is a later defense-in-depth option, most useful for the AI read-only role ([ADR-0006](0006-ai-access.md)).
 
 ## Options Considered

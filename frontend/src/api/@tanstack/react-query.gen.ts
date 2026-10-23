@@ -3,8 +3,8 @@
 import { type DefaultError, type InfiniteData, infiniteQueryOptions, queryOptions, type UseMutationOptions } from '@tanstack/react-query';
 
 import { client } from '../client.gen';
-import { completeConnection, createCategory, createRule, deleteBudget, deleteCategory, deleteConnection, deleteOverallBudget, deleteRule, getCashFlow, getHealth, getNetWorth, getSpending, linkTransfer, listAccounts, listBanks, listBudgets, listCategories, listConnections, listCounterparties, listRecurring, listRules, listTransactions, listUpcomingPayments, mergeCounterparty, type Options, previewRule, reorderRules, runRules, setBudget, setOverallBudget, startConnection, syncConnection, unlinkTransfer, updateAccount, updateCategory, updateCounterparty, updateRecurring, updateRule, updateTransaction } from '../sdk.gen';
-import type { CompleteConnectionData, CompleteConnectionError, CompleteConnectionResponse, CreateCategoryData, CreateCategoryError, CreateCategoryResponse, CreateRuleData, CreateRuleError, CreateRuleResponse, DeleteBudgetData, DeleteBudgetError, DeleteBudgetResponse, DeleteCategoryData, DeleteCategoryError, DeleteCategoryResponse, DeleteConnectionData, DeleteConnectionError, DeleteConnectionResponse, DeleteOverallBudgetData, DeleteOverallBudgetResponse, DeleteRuleData, DeleteRuleError, DeleteRuleResponse, GetCashFlowData, GetCashFlowError, GetCashFlowResponse, GetHealthData, GetHealthError, GetHealthResponse, GetNetWorthData, GetNetWorthError, GetNetWorthResponse, GetSpendingData, GetSpendingError, GetSpendingResponse, LinkTransferData, LinkTransferError, LinkTransferResponse, ListAccountsData, ListAccountsResponse, ListBanksData, ListBanksError, ListBanksResponse, ListBudgetsData, ListBudgetsError, ListBudgetsResponse, ListCategoriesData, ListCategoriesResponse, ListConnectionsData, ListConnectionsResponse, ListCounterpartiesData, ListCounterpartiesError, ListCounterpartiesResponse, ListRecurringData, ListRecurringError, ListRecurringResponse, ListRulesData, ListRulesResponse, ListTransactionsData, ListTransactionsError, ListTransactionsResponse, ListUpcomingPaymentsData, ListUpcomingPaymentsError, ListUpcomingPaymentsResponse, MergeCounterpartyData, MergeCounterpartyError, MergeCounterpartyResponse, PreviewRuleData, PreviewRuleError, PreviewRuleResponse, ReorderRulesData, ReorderRulesError, ReorderRulesResponse, RunRulesData, RunRulesResponse, SetBudgetData, SetBudgetError, SetBudgetResponse, SetOverallBudgetData, SetOverallBudgetError, SetOverallBudgetResponse, StartConnectionData, StartConnectionError, StartConnectionResponse, SyncConnectionData, SyncConnectionError, SyncConnectionResponse, UnlinkTransferData, UnlinkTransferError, UnlinkTransferResponse, UpdateAccountData, UpdateAccountError, UpdateAccountResponse, UpdateCategoryData, UpdateCategoryError, UpdateCategoryResponse, UpdateCounterpartyData, UpdateCounterpartyError, UpdateCounterpartyResponse, UpdateRecurringData, UpdateRecurringError, UpdateRecurringResponse, UpdateRuleData, UpdateRuleError, UpdateRuleResponse, UpdateTransactionData, UpdateTransactionError, UpdateTransactionResponse } from '../types.gen';
+import { completeConnection, createCategory, createRule, deleteAccount, deleteBudget, deleteCategory, deleteConnection, deleteOverallBudget, deleteRule, getCashFlow, getHealth, getNetWorth, getSpending, linkTransfer, listAccounts, listBanks, listBudgets, listCategories, listConnections, listCounterparties, listRecurring, listRules, listTransactions, listUpcomingPayments, mergeCounterparty, type Options, previewRule, reorderRules, runRules, setBudget, setOverallBudget, startConnection, syncConnection, unlinkTransfer, updateAccount, updateCategory, updateCounterparty, updateRecurring, updateRule, updateTransaction } from '../sdk.gen';
+import type { CompleteConnectionData, CompleteConnectionError, CompleteConnectionResponse, CreateCategoryData, CreateCategoryError, CreateCategoryResponse, CreateRuleData, CreateRuleError, CreateRuleResponse, DeleteAccountData, DeleteAccountError, DeleteAccountResponse, DeleteBudgetData, DeleteBudgetError, DeleteBudgetResponse, DeleteCategoryData, DeleteCategoryError, DeleteCategoryResponse, DeleteConnectionData, DeleteConnectionError, DeleteConnectionResponse, DeleteOverallBudgetData, DeleteOverallBudgetResponse, DeleteRuleData, DeleteRuleError, DeleteRuleResponse, GetCashFlowData, GetCashFlowError, GetCashFlowResponse, GetHealthData, GetHealthError, GetHealthResponse, GetNetWorthData, GetNetWorthError, GetNetWorthResponse, GetSpendingData, GetSpendingError, GetSpendingResponse, LinkTransferData, LinkTransferError, LinkTransferResponse, ListAccountsData, ListAccountsError, ListAccountsResponse, ListBanksData, ListBanksError, ListBanksResponse, ListBudgetsData, ListBudgetsError, ListBudgetsResponse, ListCategoriesData, ListCategoriesResponse, ListConnectionsData, ListConnectionsResponse, ListCounterpartiesData, ListCounterpartiesError, ListCounterpartiesResponse, ListRecurringData, ListRecurringError, ListRecurringResponse, ListRulesData, ListRulesResponse, ListTransactionsData, ListTransactionsError, ListTransactionsResponse, ListUpcomingPaymentsData, ListUpcomingPaymentsError, ListUpcomingPaymentsResponse, MergeCounterpartyData, MergeCounterpartyError, MergeCounterpartyResponse, PreviewRuleData, PreviewRuleError, PreviewRuleResponse, ReorderRulesData, ReorderRulesError, ReorderRulesResponse, RunRulesData, RunRulesResponse, SetBudgetData, SetBudgetError, SetBudgetResponse, SetOverallBudgetData, SetOverallBudgetError, SetOverallBudgetResponse, StartConnectionData, StartConnectionError, StartConnectionResponse, SyncConnectionData, SyncConnectionError, SyncConnectionResponse, UnlinkTransferData, UnlinkTransferError, UnlinkTransferResponse, UpdateAccountData, UpdateAccountError, UpdateAccountResponse, UpdateCategoryData, UpdateCategoryError, UpdateCategoryResponse, UpdateCounterpartyData, UpdateCounterpartyError, UpdateCounterpartyResponse, UpdateRecurringData, UpdateRecurringError, UpdateRecurringResponse, UpdateRuleData, UpdateRuleError, UpdateRuleResponse, UpdateTransactionData, UpdateTransactionError, UpdateTransactionResponse } from '../types.gen';
 
 export type QueryKey<TOptions extends Options> = [
     Pick<TOptions, 'baseUrl' | 'body' | 'headers' | 'path' | 'query'> & {
@@ -168,8 +168,11 @@ export const listAccountsQueryKey = (options?: Options<ListAccountsData>) => cre
 
 /**
  * List Accounts
+ *
+ * Hidden accounts are left out unless `include_hidden` (ADR-0007, "Retiring an
+ * account").
  */
-export const listAccountsOptions = (options?: Options<ListAccountsData>) => queryOptions<ListAccountsResponse, DefaultError, ListAccountsResponse, ReturnType<typeof listAccountsQueryKey>>({
+export const listAccountsOptions = (options?: Options<ListAccountsData>) => queryOptions<ListAccountsResponse, ListAccountsError, ListAccountsResponse, ReturnType<typeof listAccountsQueryKey>>({
     queryFn: async ({ queryKey, signal }) => {
         const { data } = await listAccounts({
             ...options,
@@ -183,9 +186,33 @@ export const listAccountsOptions = (options?: Options<ListAccountsData>) => quer
 });
 
 /**
+ * Delete Account
+ *
+ * Delete an account with its transactions and everything decided about them, its
+ * balances and its transfer pairs. An account with transactions needs `confirm=true`.
+ *
+ * A pair's side on an account that stays is kept as a transfer, so spending and income
+ * don't change. If the bank still offers the account, a re-link brings it back: hiding is
+ * the lasting way to retire it.
+ */
+export const deleteAccountMutation = (options?: Partial<Options<DeleteAccountData>>): UseMutationOptions<DeleteAccountResponse, DeleteAccountError, Options<DeleteAccountData>> => {
+    const mutationOptions: UseMutationOptions<DeleteAccountResponse, DeleteAccountError, Options<DeleteAccountData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await deleteAccount({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
  * Update Account
  *
- * Only an account's owners can change it.
+ * Only an account's owners can change it. Hiding it is for the whole household.
  */
 export const updateAccountMutation = (options?: Partial<Options<UpdateAccountData>>): UseMutationOptions<UpdateAccountResponse, UpdateAccountError, Options<UpdateAccountData>> => {
     const mutationOptions: UseMutationOptions<UpdateAccountResponse, UpdateAccountError, Options<UpdateAccountData>> = {

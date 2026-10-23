@@ -117,6 +117,19 @@ Findings that shape it ([research](../research/oss-finance-analysis.md)):
     - A later `date_from` can shorten the series, not lengthen it.
   - **Missing data:** an account without a snapshot is listed without a balance. An account-day without a rate is left out of that day's total and counted.
 
+### Retiring an account *(added before M4)*
+
+- **Hide** (`accounts.hidden_at`): the lasting way to retire an account the bank still offers, such as an unused savings pot. Only the account's owners can hide or unhide it, and hiding applies to the whole household.
+  - **What leaves:** account lists and filters, net worth and upcoming payments. The sync stops fetching it.
+  - **What stays:** its past transactions stay listed and keep counting in spending, cash flow, budgets and recurring detection.
+  - **Re-linking:** a re-link matches the account by `identification_hash`, so it stays hidden.
+  - **Unhiding:** the sync resumes from two weeks before its latest booked transaction. Anything older than the bank's history (about 90 days at BPI) is lost.
+- **Delete:** owners only. It removes the account, and the foreign keys cascade to its transactions, their user layer, its balance snapshots, provider links, recurring series and transfer pairs.
+  - **Confirmation:** an account with transactions needs `confirm=true`. Without it, the API answers 409 with the transaction count and the number of transfer pairs with other accounts, and the dialog asks for the account's name.
+  - **Transfers:** a pair's side on a kept account becomes a transfer on its own: `kind_override = transfer` with source `auto`, unless its kind was set by hand. Spending and income don't change. The rules engine leaves an `auto` kind alone. Pairing that side by hand, or unlinking a new pair it joins, clears it.
+  - **A plain delete:** if the bank still offers the account, a re-link creates it again, and the next sync brings back what the bank still has. So the UI says to hide such accounts instead.
+- **Scoping:** `finance/scoping.py` has two account sets ([ADR-0005](0005-household-data-model.md)). `visible_account_ids` includes hidden accounts and serves everything about past transactions. `listed_account_ids` leaves them out and serves lists, filters, net worth and upcoming payments.
+
 ### Spending and cash flow *(added in M3)*
 
 - **What counts:** booked transactions that aren't transfers, in EUR at the rate on their date. Pending transactions don't count.
