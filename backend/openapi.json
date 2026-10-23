@@ -976,6 +976,46 @@
             }
           }
         }
+      },
+      "post": {
+        "tags": [
+          "finance"
+        ],
+        "summary": "Create Counterparty",
+        "description": "A merchant no bank name has made yet, for a rule or a transaction to point at. Names\nthat compare the same as an existing one's are refused.",
+        "operationId": "createCounterparty",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CounterpartyCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CounterpartyOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/finance/counterparties/{counterparty_id}": {
@@ -2888,6 +2928,33 @@
           "failed"
         ],
         "title": "ConnectionStatus"
+      },
+      "CounterpartyCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "default_category_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default Category Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "CounterpartyCreate"
       },
       "CounterpartyMerge": {
         "properties": {

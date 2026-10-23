@@ -16,6 +16,7 @@ const merchants = [
   }),
   merchant('m2', 'Pingo Doce', { transactions: 4 }),
   merchant('m3', 'Continente Online', { transactions: 1 }),
+  merchant('m4', 'ZABKA Z1234'), // left empty by a brand rule
 ];
 
 function api(overrides: Record<string, (request: Request) => unknown> = {}) {
@@ -109,4 +110,22 @@ test('merges a merchant into another', async () => {
     expect(calls.find((call) => call.method === 'POST')?.body).toEqual({ into_id: 'm1' }),
   );
   expect(await screen.findByText('Merged into Continente.')).toBeDefined();
+});
+
+test('hides unused merchants, and filters those that need a category', async () => {
+  api();
+
+  renderAt('/finance/merchants');
+  await screen.findByText('Pingo Doce');
+  expect(screen.queryByText('ZABKA Z1234')).toBeNull();
+  expect(screen.getByText('1 unused merchant hidden.')).toBeDefined();
+
+  fireEvent.click(screen.getByRole('switch', { name: 'Show unused' }));
+  expect(screen.getByText('ZABKA Z1234')).toBeDefined();
+  fireEvent.click(screen.getByRole('switch', { name: 'Show unused' }));
+
+  fireEvent.click(screen.getByRole('switch', { name: 'Needs a category' }));
+  const rows = screen.getAllByRole('row').slice(1); // after the header
+  const names = rows.map((row) => within(row).getAllByRole('cell').at(0)?.firstChild?.textContent);
+  expect(names).toEqual(['Pingo Doce', 'Continente Online']); // most transactions first
 });

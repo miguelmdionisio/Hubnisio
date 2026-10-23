@@ -23,6 +23,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Switch } from '@/components/ui/switch';
 import {
   Table,
   TableBody,
@@ -47,6 +48,8 @@ export function MerchantsPage() {
   const merchants = useMerchants();
   const names = categoryNames(useCategories().data);
   const [search, setSearch] = useState('');
+  const [needsCategory, setNeedsCategory] = useState(false);
+  const [showUnused, setShowUnused] = useState(false);
   const [editing, setEditing] = useState<Editing | null>(null);
   const done = () => {
     invalidateUserLayer(queryClient);
@@ -63,13 +66,17 @@ export function MerchantsPage() {
     onError,
   });
 
+  // Brand rules leave the bank's per-branch merchants without transactions: hidden by default.
   const needle = search.trim().toLowerCase();
-  const shown = merchants.data?.filter(
+  const matching = merchants.data?.filter(
     (merchant) =>
-      !needle ||
-      merchant.name.toLowerCase().includes(needle) ||
-      merchant.aliases.some((alias) => alias.includes(needle)),
+      (!needsCategory || !merchant.default_category_id) &&
+      (!needle ||
+        merchant.name.toLowerCase().includes(needle) ||
+        merchant.aliases.some((alias) => alias.includes(needle))),
   );
+  const shown = matching?.filter((merchant) => showUnused || merchant.transactions > 0);
+  const hiddenUnused = (matching?.length ?? 0) - (shown?.length ?? 0);
 
   return (
     <>
@@ -77,14 +84,24 @@ export function MerchantsPage() {
         title="Merchants"
         description="Who the money went to or came from. A merchant's default category covers all its transactions, past and future, unless a rule or a choice of yours says otherwise."
       />
-      <Input
-        type="search"
-        aria-label="Search merchants"
-        placeholder="Search merchants"
-        className="mb-4 max-w-sm"
-        value={search}
-        onChange={(event) => setSearch(event.target.value)}
-      />
+      <div className="mb-4 flex flex-wrap items-center gap-x-6 gap-y-3">
+        <Input
+          type="search"
+          aria-label="Search merchants"
+          placeholder="Search merchants"
+          className="max-w-sm"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+        />
+        <Label className="gap-2 font-normal">
+          <Switch checked={needsCategory} onCheckedChange={setNeedsCategory} size="sm" />
+          Needs a category
+        </Label>
+        <Label className="gap-2 font-normal">
+          <Switch checked={showUnused} onCheckedChange={setShowUnused} size="sm" />
+          Show unused
+        </Label>
+      </div>
       {merchants.isPending && <Skeleton className="h-64 w-full" />}
       {merchants.isError && (
         <Alert variant="destructive">
@@ -181,7 +198,14 @@ export function MerchantsPage() {
         </Table>
       )}
       {shown?.length === 0 && !!merchants.data?.length && (
-        <p className="text-sm text-muted-foreground">No merchant matches “{search.trim()}”.</p>
+        <p className="text-sm text-muted-foreground">
+          {needle ? `No merchant matches “${search.trim()}”.` : 'No merchants to show.'}
+        </p>
+      )}
+      {hiddenUnused > 0 && (
+        <p className="mt-2 text-sm text-muted-foreground">
+          {hiddenUnused} unused {hiddenUnused === 1 ? 'merchant' : 'merchants'} hidden.
+        </p>
       )}
 
       {editing?.type === 'rename' && (

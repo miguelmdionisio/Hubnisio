@@ -217,6 +217,11 @@ class CounterpartyOut(BaseModel):
     aliases: list[str]
 
 
+class CounterpartyCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    default_category_id: uuid.UUID | None = None
+
+
 class CounterpartyUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=100)
     default_category_id: uuid.UUID | None = None  # null clears it

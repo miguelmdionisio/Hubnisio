@@ -5,7 +5,7 @@ from typing import Any
 
 import httpx
 import pytest
-from households import Home, add, api, refresh
+from households import Home, add, api, make_home, refresh
 
 from hubnisio.core.db import get_sessionmaker
 from hubnisio.finance.models import (
@@ -253,6 +253,60 @@ async def test_rules_only_point_at_the_households_own_things(home: Home) -> None
 
     assert response.status_code == 404
     assert invalid.status_code == 422
+
+
+async def test_creating_a_counterparty(home: Home) -> None:
+    await add(home, "-5", 1, counterparty="ŻABKA Z1234")
+    groceries = str(home.categories["Groceries"])
+    async with api(home.member) as client:
+        created = await client.post(
+            "/api/finance/counterparties",
+            json={"name": " Żabka ", "default_category_id": groceries},
+        )
+        listed = (await client.get("/api/finance/counterparties")).json()
+        same_key = await client.post("/api/finance/counterparties", json={"name": "zabka!"})
+        blank = await client.post("/api/finance/counterparties", json={"name": " - "})
+
+    assert created.status_code == 201, created.text
+    assert created.json() | {"id": None} == {
+        "id": None,
+        "name": "Żabka",
+        "default_category_id": groceries,
+        "transactions": 0,
+        "aliases": [],
+    }
+    assert created.json()["id"] in {item["id"] for item in listed}
+    assert same_key.status_code == 422
+    assert same_key.json()["detail"] == "Żabka already exists."
+    assert blank.status_code == 422
+
+
+async def test_a_new_counterparty_belongs_to_the_household(home: Home) -> None:
+    elsewhere = await make_home()
+    async with api(home.owner) as client:
+        archived = home.categories["Groceries"]
+        await client.patch(f"/api/finance/categories/{archived}", json={"archived": True})
+        refused = await client.post(
+            "/api/finance/counterparties",
+            json={"name": "Lidl", "default_category_id": str(archived)},
+        )
+        created = await client.post("/api/finance/counterparties", json={"name": "Bolt"})
+    async with api(elsewhere.owner) as client:
+        foreign = await client.post(
+            "/api/finance/counterparties",
+            json={
+                "name": "Uber",
+                "default_category_id": str(home.categories["Taxi & ride-hailing"]),
+            },
+        )
+        same_name = await client.post("/api/finance/counterparties", json={"name": "Bolt"})
+        listed = (await client.get("/api/finance/counterparties")).json()
+
+    assert (refused.status_code, refused.json()["detail"]) == (422, "It's archived.")
+    assert created.status_code == 201
+    assert foreign.status_code == 404
+    assert same_name.status_code == 201
+    assert [item["id"] for item in listed] == [same_name.json()["id"]]
 
 
 async def test_merging_counterparties(home: Home) -> None:

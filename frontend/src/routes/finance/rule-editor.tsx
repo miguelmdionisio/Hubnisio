@@ -410,7 +410,10 @@ function ActionValue({
       );
     case 'set_counterparty':
       return (
-        <MerchantPicker onChange={(counterparty_id) => onChange({ ...action, counterparty_id })}>
+        <MerchantPicker
+          creatable
+          onChange={(counterparty_id) => onChange({ ...action, counterparty_id })}
+        >
           {(action.counterparty_id && merchantLabels.get(action.counterparty_id)) ||
             'Choose a merchant'}
         </MerchantPicker>

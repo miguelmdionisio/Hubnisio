@@ -52,7 +52,7 @@ Findings that shape it ([research](../research/oss-finance-analysis.md)):
 - **Rules:**
   - Ordered rules; each has conditions (match all / any) on description, counterparty, amount range, account, MCC and direction, and actions (set category, tag, counterparty, mark as transfer).
   - They run when transactions arrive and can be re-run on demand. "Stop processing" is available per rule.
-- **Counterparties:** a cleaned-up name with aliases (e.g. "CONTINENTE MATOSINHOS 4450" → Continente) and an optional default category. A name the bank sends becomes a counterparty automatically; one set by hand is never replaced.
+- **Counterparties:** a cleaned-up name with aliases (e.g. "CONTINENTE MATOSINHOS 4450" → Continente) and an optional default category. A name the bank sends becomes a counterparty automatically; one set by hand is never replaced. A merchant can also be created by name, for a brand rule or a transaction to point at; a name that compares the same (`match_key`) as an existing merchant's is refused. A brand rule leaves the per-branch merchants empty, so the Merchants page hides unused ones by default. *(Added before M4.)*
 - **Rule actions** are recomputed on every run, so editing or deleting a rule takes effect everywhere. Tags a rule adds are kept apart from tags added by hand, which a run never touches.
 
 ### Transaction kind and transfers *(added in M2)*

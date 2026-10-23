@@ -560,6 +560,20 @@ export type ConnectionOut = {
 export type ConnectionStatus = 'pending' | 'active' | 'expired' | 'revoked' | 'failed';
 
 /**
+ * CounterpartyCreate
+ */
+export type CounterpartyCreate = {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Default Category Id
+     */
+    default_category_id?: string | null;
+};
+
+/**
  * CounterpartyMerge
  */
 export type CounterpartyMerge = {
@@ -1950,6 +1964,31 @@ export type ListCounterpartiesResponses = {
 };
 
 export type ListCounterpartiesResponse = ListCounterpartiesResponses[keyof ListCounterpartiesResponses];
+
+export type CreateCounterpartyData = {
+    body: CounterpartyCreate;
+    path?: never;
+    query?: never;
+    url: '/api/finance/counterparties';
+};
+
+export type CreateCounterpartyErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreateCounterpartyError = CreateCounterpartyErrors[keyof CreateCounterpartyErrors];
+
+export type CreateCounterpartyResponses = {
+    /**
+     * Successful Response
+     */
+    201: CounterpartyOut;
+};
+
+export type CreateCounterpartyResponse = CreateCounterpartyResponses[keyof CreateCounterpartyResponses];
 
 export type UpdateCounterpartyData = {
     body: CounterpartyUpdate;

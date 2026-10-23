@@ -1,21 +1,10 @@
-import { useQuery } from '@tanstack/react-query';
-import { ArrowLeftRight, Check, ChevronsUpDown } from 'lucide-react';
+import { ArrowLeftRight } from 'lucide-react';
 import { type ReactNode, useEffect, useState } from 'react';
-import { listCounterpartiesOptions } from '@/api/@tanstack/react-query.gen';
 import type { TransactionKind, TransactionOut } from '@/api/types.gen';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from '@/components/ui/command';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   Select,
   SelectContent,
@@ -32,8 +21,8 @@ import {
 } from '@/components/ui/sheet';
 import { Textarea } from '@/components/ui/textarea';
 import { formatDate, formatMoney } from '@/lib/format';
-import { cn } from '@/lib/utils';
 import { CategoryPicker } from './category-picker';
+import { MerchantPicker } from './merchant-picker';
 import { SOURCE_LABELS, useUnlinkTransfer, useUpdateTransaction } from './use-transaction-edits';
 
 const AUTOMATIC = 'automatic'; // Select items can't have an empty value
@@ -164,10 +153,14 @@ function Details({
         >
           <MerchantPicker
             value={counterparty?.source === 'manual' ? counterparty.id : null}
-            label={counterparty?.name ?? 'None'}
+            automatic="Automatic (bank name or rules)"
+            creatable
             disabled={update.isPending}
+            className="w-full max-w-none"
             onChange={(counterpartyId) => change({ counterparty_id: counterpartyId })}
-          />
+          >
+            {counterparty?.name ?? 'None'}
+          </MerchantPicker>
         </Field>
 
         <NoteField
@@ -234,70 +227,6 @@ function Row({ term, detail }: { term: string; detail: string | null }) {
       <dt className="text-muted-foreground">{term}</dt>
       <dd className="break-words">{detail}</dd>
     </>
-  );
-}
-
-function MerchantPicker({
-  value,
-  label,
-  disabled,
-  onChange,
-}: {
-  value: string | null;
-  label: string;
-  disabled: boolean;
-  onChange: (counterpartyId: string | null) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const merchants = useQuery({
-    ...listCounterpartiesOptions(),
-    enabled: open,
-    staleTime: 60_000,
-  });
-  const choose = (counterpartyId: string | null) => {
-    setOpen(false);
-    if (counterpartyId !== value) onChange(counterpartyId);
-  };
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={disabled}
-          className="w-full justify-between font-normal"
-        >
-          <span className="truncate">{label}</span>
-          <ChevronsUpDown className="size-3 opacity-50" aria-hidden />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-72 p-0" align="start">
-        <Command>
-          <CommandInput placeholder="Search merchants" />
-          <CommandList>
-            <CommandEmpty>No merchant matches.</CommandEmpty>
-            <CommandGroup>
-              <CommandItem value="automatic" onSelect={() => choose(null)}>
-                <span className="text-muted-foreground">Automatic (bank name or rules)</span>
-              </CommandItem>
-              {merchants.data?.map((merchant) => (
-                <CommandItem
-                  key={merchant.id}
-                  value={`${merchant.name} ${merchant.id}`}
-                  onSelect={() => choose(merchant.id)}
-                >
-                  <Check
-                    className={cn('size-3', value === merchant.id ? 'opacity-100' : 'opacity-0')}
-                    aria-hidden
-                  />
-                  {merchant.name}
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
   );
 }
 

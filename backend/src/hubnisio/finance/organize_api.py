@@ -26,6 +26,7 @@ from hubnisio.finance.categorize.rules import (
     matches,
 )
 from hubnisio.finance.categorize.run import run_all
+from hubnisio.finance.categorize.text import match_key
 from hubnisio.finance.deps import CurrentPrincipal, DbSession
 from hubnisio.finance.models import (
     Category,
@@ -250,6 +251,37 @@ async def list_counterparties(
     return [_counterparty_out(item, counts, aliases) for item in counterparties]
 
 
+@router.post(
+    "/counterparties", status_code=status.HTTP_201_CREATED, operation_id="createCounterparty"
+)
+async def create_counterparty(
+    body: schemas.CounterpartyCreate, session: DbSession, principal: CurrentPrincipal
+) -> schemas.CounterpartyOut:
+    """A merchant no bank name has made yet, for a rule or a transaction to point at. Names
+    that compare the same as an existing one's are refused."""
+    name = body.name.strip()
+    key = match_key(name)
+    if not key:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Give it a name.")
+    for existing in await session.scalars(
+        select(Counterparty).where(Counterparty.household_id == principal.household_id)
+    ):
+        if match_key(existing.name) == key:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_CONTENT, f"{existing.name} already exists."
+            )
+    if body.default_category_id is not None:
+        await _usable_category(session, principal, body.default_category_id)
+    counterparty = Counterparty(
+        household_id=principal.household_id,
+        name=name,
+        default_category_id=body.default_category_id,
+    )
+    session.add(counterparty)
+    await session.commit()
+    return _counterparty_out(counterparty, {}, {})
+
+
 @router.patch("/counterparties/{counterparty_id}", operation_id="updateCounterparty")
 async def update_counterparty(
     counterparty_id: uuid.UUID,
@@ -264,9 +296,7 @@ async def update_counterparty(
         counterparty.name = body.name.strip()
     if "default_category_id" in body.model_fields_set:
         if body.default_category_id is not None:
-            category = await _own_category(session, principal, body.default_category_id)
-            if category.archived_at is not None:
-                raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "It's archived.")
+            await _usable_category(session, principal, body.default_category_id)
         counterparty.default_category_id = body.default_category_id
     await session.flush()
     await categorize(
@@ -455,6 +485,16 @@ async def _own_category(
     category = await session.get(Category, category_id)
     if category is None or category.household_id != principal.household_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "No such category.")
+    return category
+
+
+async def _usable_category(
+    session: AsyncSession, principal: Principal, category_id: uuid.UUID
+) -> Category:
+    """A merchant's default category: the household's own, and not archived."""
+    category = await _own_category(session, principal, category_id)
+    if category.archived_at is not None:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "It's archived.")
     return category
 
 

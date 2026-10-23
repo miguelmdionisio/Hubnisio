@@ -144,6 +144,50 @@ test('creates a rule, previewing what it matches', async () => {
   );
 });
 
+test('creates the merchant a rule sets, from the picker', async () => {
+  const known = [merchant('m1', 'Continente'), merchant('m2', 'Uber Eats')];
+  const uber = merchant('m3', 'Uber', { aliases: [] });
+  const calls = api({
+    'GET /api/finance/counterparties': () => known,
+    'POST /api/finance/counterparties': () => {
+      known.push(uber);
+      return Response.json(uber, { status: 201 });
+    },
+    'POST /api/finance/rules': () => groceries,
+  });
+
+  renderAt('/finance/rules');
+  fireEvent.click(await screen.findByRole('button', { name: 'New rule' }));
+  const dialog = await screen.findByRole('dialog');
+  await chooseOption(
+    within(dialog).getByRole('combobox', { name: 'Action 1' }),
+    'Set the merchant',
+  );
+  fireEvent.change(within(dialog).getByLabelText('Name'), { target: { value: 'Uber' } });
+  fireEvent.change(within(dialog).getByLabelText('Condition 1 value'), {
+    target: { value: 'uber' },
+  });
+  await within(dialog).findByText('Matches 3 transactions');
+
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Choose a merchant' }));
+  const search = await screen.findByPlaceholderText('Search merchants');
+  fireEvent.change(search, { target: { value: 'uber eats' } });
+  expect(screen.queryByText(/Create/)).toBeNull(); // that one exists
+  fireEvent.change(search, { target: { value: 'Uber' } });
+  fireEvent.click(await screen.findByText('Create “Uber”'));
+
+  expect(await within(dialog).findByRole('button', { name: 'Uber' })).toBeDefined();
+  expect(
+    calls.find((call) => call.method === 'POST' && call.path.endsWith('/counterparties'))?.body,
+  ).toEqual({ name: 'Uber' });
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Save rule' }));
+  await waitFor(() =>
+    expect(
+      calls.find((call) => call.method === 'POST' && call.path.endsWith('/rules'))?.body,
+    ).toMatchObject({ actions: [{ type: 'set_counterparty', counterparty_id: 'm3' }] }),
+  );
+});
+
 test('builds amount, direction and kind rules', async () => {
   const calls = api({ 'POST /api/finance/rules': () => groceries });
 
