@@ -1,9 +1,11 @@
 import { type QueryClient, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
+  approveSuggestionsMutation,
   listCategoriesQueryKey,
   listCounterpartiesQueryKey,
   listTransactionsInfiniteQueryKey,
+  listTransactionsQueryKey,
   unlinkTransferMutation,
   updateCounterpartyMutation,
   updateTransactionMutation,
@@ -24,6 +26,7 @@ export const SOURCE_LABELS: Record<Source, string> = {
 /** Everything that shows transactions, categories or merchants may have changed. */
 export function invalidateUserLayer(queryClient: QueryClient) {
   queryClient.invalidateQueries({ queryKey: listTransactionsInfiniteQueryKey() });
+  queryClient.invalidateQueries({ queryKey: listTransactionsQueryKey() }); // the overview's counts
   queryClient.invalidateQueries({ queryKey: listCategoriesQueryKey() });
   queryClient.invalidateQueries({ queryKey: listCounterpartiesQueryKey() });
 }
@@ -60,6 +63,19 @@ export function useUpdateTransaction() {
             }),
         },
       });
+    },
+    onError: (error) => toast.error(errorMessage(error)),
+  });
+}
+
+/** Keep categories an AI suggested: each becomes the user's own, as if picked by hand. */
+export function useApproveSuggestions() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    ...approveSuggestionsMutation(),
+    onSuccess: ({ approved }) => {
+      invalidateUserLayer(queryClient);
+      toast.success(approved === 1 ? 'Suggestion approved.' : `${approved} suggestions approved.`);
     },
     onError: (error) => toast.error(errorMessage(error)),
   });

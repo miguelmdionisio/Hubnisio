@@ -11,7 +11,7 @@ from datetime import date
 from typing import Annotated, Any
 
 from fastapi import APIRouter, HTTPException, Query, Response, status
-from sqlalchemy import Select, case, delete, func, not_, or_, select, tuple_
+from sqlalchemy import Select, case, delete, func, not_, or_, select, tuple_, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
@@ -186,6 +186,32 @@ async def update_transaction(
         offer = await _offer_for_counterparty(session, principal, transaction.id, manual_category)
     (out,) = await _load(session, principal, [transaction.id])
     return schemas.TransactionUpdated(transaction=out, offer=offer)
+
+
+@router.post("/transactions/approve-suggestions", operation_id="approveSuggestions")
+async def approve_suggestions(
+    body: schemas.SuggestionApproval, session: DbSession, principal: CurrentPrincipal
+) -> schemas.SuggestionsApproved:
+    """Keep AI-suggested categories: each becomes the user's own, as if picked by hand, so no
+    rule or merchant default replaces it. Transactions without one are left alone."""
+    approved = await session.scalars(
+        update(CategoryAssignment)
+        .where(
+            CategoryAssignment.household_id == principal.household_id,
+            CategoryAssignment.source == Source.AI,
+            CategoryAssignment.transaction_id.in_(body.transaction_ids),
+            CategoryAssignment.transaction_id.in_(
+                select(Transaction.id).where(
+                    Transaction.account_id.in_(visible_account_ids(principal))
+                )
+            ),
+        )
+        .values(source=Source.MANUAL)
+        .returning(CategoryAssignment.transaction_id)
+    )
+    count = len(set(approved))
+    await session.commit()
+    return schemas.SuggestionsApproved(approved=count)
 
 
 @router.post("/transfers", status_code=status.HTTP_201_CREATED, operation_id="linkTransfer")

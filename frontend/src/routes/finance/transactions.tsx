@@ -1,6 +1,6 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { useNavigate, useSearch } from '@tanstack/react-router';
-import { ArrowLeftRight } from 'lucide-react';
+import { ArrowLeftRight, Check } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { listTransactionsInfiniteQueryKey } from '@/api/@tanstack/react-query.gen';
 import { listTransactions } from '@/api/sdk.gen';
@@ -35,13 +35,18 @@ import { activeGroups, CategoryPicker, useCategories } from './category-picker';
 import { isRepayment, repaymentLabel } from './repayments';
 import { TransactionSheet, transactionTitle } from './transaction-sheet';
 import { useAccounts } from './use-accounts';
-import { SOURCE_LABELS, useUpdateTransaction } from './use-transaction-edits';
+import {
+  SOURCE_LABELS,
+  useApproveSuggestions,
+  useUpdateTransaction,
+} from './use-transaction-edits';
 
 const PAGE_SIZE = 50;
 const SEARCH_DELAY_MS = 300;
 const ALL = 'all'; // Select items can't have an empty value
 const UNCATEGORIZED = 'uncategorized';
 const SUGGESTED = 'suggested'; // categories an AI suggested, to review
+const MAX_APPROVALS = 500; // per request, as the API takes them
 const KINDS: { value: TransactionKind; label: string }[] = [
   { value: 'expense', label: 'Spending' },
   { value: 'income', label: 'Income' },
@@ -116,6 +121,7 @@ export function TransactionsPage() {
   const accountNames = accounts.names;
   const groups = activeGroups(useCategories().data);
   const update = useUpdateTransaction();
+  const approve = useApproveSuggestions();
   const [openId, setOpenId] = useState<string | null>(null);
 
   const filters = {
@@ -148,6 +154,10 @@ export function TransactionsPage() {
   });
   const rows = transactions.data?.pages.flatMap((page) => page.items) ?? [];
   const open = rows.find((row) => row.id === openId);
+  const suggestions = rows
+    .filter((row) => row.category?.source === 'ai')
+    .slice(0, MAX_APPROVALS)
+    .map((row) => row.id);
 
   return (
     <>
@@ -252,6 +262,19 @@ export function TransactionsPage() {
           <AlertDescription>{errorMessage(transactions.error)}</AlertDescription>
         </Alert>
       )}
+      {search.category === SUGGESTED && suggestions.length > 0 && (
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
+          <span>Check each suggestion: approve it to keep it, or pick another category.</span>
+          <Button
+            size="sm"
+            disabled={approve.isPending}
+            onClick={() => approve.mutate({ body: { transaction_ids: suggestions } })}
+          >
+            <Check aria-hidden />
+            Approve the {suggestions.length} shown
+          </Button>
+        </div>
+      )}
       {transactions.isSuccess && rows.length === 0 && (
         <p className="text-sm text-muted-foreground">No transactions match.</p>
       )}
@@ -291,13 +314,14 @@ export function TransactionsPage() {
                 <TableCell>
                   <CategoryCell
                     row={row}
-                    disabled={update.isPending}
+                    disabled={update.isPending || approve.isPending}
                     onChange={(categoryId) =>
                       update.mutate({
                         path: { transaction_id: row.id },
                         body: { category_id: categoryId },
                       })
                     }
+                    onApprove={() => approve.mutate({ body: { transaction_ids: [row.id] } })}
                   />
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">
@@ -355,10 +379,12 @@ function CategoryCell({
   row,
   disabled,
   onChange,
+  onApprove,
 }: {
   row: TransactionOut;
   disabled: boolean;
   onChange: (categoryId: string | null) => void;
+  onApprove: () => void;
 }) {
   if (row.kind === 'transfer' && !row.category) {
     return (
@@ -373,7 +399,7 @@ function CategoryCell({
     );
   }
   const { category } = row;
-  return (
+  const picker = (
     <CategoryPicker
       value={category?.source === 'manual' ? category.id : null}
       onChange={onChange}
@@ -391,5 +417,21 @@ function CategoryCell({
         <span className="text-muted-foreground italic">Uncategorized</span>
       )}
     </CategoryPicker>
+  );
+  if (category?.source !== 'ai') return picker;
+  return (
+    <div className="flex items-center gap-0.5">
+      {picker}
+      <Button
+        variant="ghost"
+        size="icon-xs"
+        aria-label={`Approve ${category.name}`}
+        title="Approve: keep this category"
+        disabled={disabled}
+        onClick={onApprove}
+      >
+        <Check aria-hidden />
+      </Button>
+    </div>
   );
 }

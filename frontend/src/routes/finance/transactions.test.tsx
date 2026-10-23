@@ -175,3 +175,45 @@ test('lists the categories an AI suggested, marked as such', async () => {
   expect(request?.search.has('category_id')).toBe(false);
   expect(request?.search.has('uncategorized')).toBe(false);
 });
+
+test('approves AI suggestions one at a time, or all those shown', async () => {
+  const suggested: TransactionCategory = {
+    id: 'c-groceries',
+    name: 'Groceries',
+    group_name: 'Food',
+    source: 'ai',
+  };
+  const calls = mockApi({
+    'GET /api/finance/accounts': () => [account],
+    'GET /api/finance/categories': () => categories,
+    'GET /api/finance/transactions': () => ({
+      items: [
+        transaction('t1', { counterparty_name: 'Mercado', category: suggested }),
+        transaction('t2', { counterparty_name: 'Padaria', category: suggested }),
+        transaction('t3', {
+          counterparty_name: 'Café',
+          category: { ...suggested, source: 'manual' },
+        }),
+      ],
+      next_cursor: null,
+    }),
+    'POST /api/finance/transactions/approve-suggestions': () => ({ approved: 1 }),
+  });
+  const approvals = () =>
+    calls.filter((call) => call.path === '/api/finance/transactions/approve-suggestions');
+
+  renderAt('/finance/transactions?category=suggested');
+
+  const row = (await screen.findByText('Mercado')).closest('tr') as HTMLElement;
+  const mine = screen.getByText('Café').closest('tr') as HTMLElement;
+  expect(within(mine).queryByRole('button', { name: 'Approve Groceries' })).toBeNull();
+  fireEvent.click(within(row).getByRole('button', { name: 'Approve Groceries' }));
+  await waitFor(() => expect(approvals()).toHaveLength(1));
+  expect(approvals()[0]?.body).toEqual({ transaction_ids: ['t1'] });
+
+  const all = screen.getByRole('button', { name: 'Approve the 2 shown' }) as HTMLButtonElement;
+  await waitFor(() => expect(all.disabled).toBe(false));
+  fireEvent.click(all);
+  await waitFor(() => expect(approvals()).toHaveLength(2));
+  expect(approvals()[1]?.body).toEqual({ transaction_ids: ['t1', 't2'] });
+});

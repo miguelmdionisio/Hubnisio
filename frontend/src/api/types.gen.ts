@@ -1124,6 +1124,28 @@ export type StartedConnection = {
 };
 
 /**
+ * SuggestionApproval
+ *
+ * Transactions whose AI-suggested category the user keeps.
+ */
+export type SuggestionApproval = {
+    /**
+     * Transaction Ids
+     */
+    transaction_ids: Array<string>;
+};
+
+/**
+ * SuggestionsApproved
+ */
+export type SuggestionsApproved = {
+    /**
+     * Approved
+     */
+    approved: number;
+};
+
+/**
  * SyncQueued
  */
 export type SyncQueued = {
@@ -1793,6 +1815,31 @@ export type UpdateTransactionResponses = {
 };
 
 export type UpdateTransactionResponse = UpdateTransactionResponses[keyof UpdateTransactionResponses];
+
+export type ApproveSuggestionsData = {
+    body: SuggestionApproval;
+    path?: never;
+    query?: never;
+    url: '/api/finance/transactions/approve-suggestions';
+};
+
+export type ApproveSuggestionsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ApproveSuggestionsError = ApproveSuggestionsErrors[keyof ApproveSuggestionsErrors];
+
+export type ApproveSuggestionsResponses = {
+    /**
+     * Successful Response
+     */
+    200: SuggestionsApproved;
+};
+
+export type ApproveSuggestionsResponse = ApproveSuggestionsResponses[keyof ApproveSuggestionsResponses];
 
 export type LinkTransferData = {
     body: TransferLink;

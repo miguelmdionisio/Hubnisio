@@ -179,6 +179,16 @@ class TransactionUpdated(BaseModel):
     offer: ApplyToCounterparty | None
 
 
+class SuggestionApproval(BaseModel):
+    """Transactions whose AI-suggested category the user keeps."""
+
+    transaction_ids: list[uuid.UUID] = Field(min_length=1, max_length=500)
+
+
+class SuggestionsApproved(BaseModel):
+    approved: int  # now set by the user; the others had no AI suggestion
+
+
 class TransferLink(BaseModel):
     outgoing_id: uuid.UUID
     incoming_id: uuid.UUID

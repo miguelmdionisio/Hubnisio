@@ -116,6 +116,47 @@ async def test_filters(home: Home) -> None:
         assert ids(await items(client, uncategorized=True)) == set()
 
 
+async def test_approving_ai_suggestions_makes_them_the_users(home: Home) -> None:
+    suggested = await add(home, "-12.00", 3)
+    by_hand = await add(home, "-30.00", 4)
+    private = await add(home, "-8.00", 5, account=home.private)  # the owner's only
+    groceries = home.categories["Groceries"]
+    async with get_sessionmaker()() as session, session.begin():
+        session.add_all(
+            CategoryAssignment(
+                household_id=home.owner.household_id,
+                transaction_id=transaction,
+                category_id=groceries,
+                source=source,
+            )
+            for transaction, source in (
+                (suggested, Source.AI),
+                (by_hand, Source.MANUAL),
+                (private, Source.AI),
+            )
+        )
+    url = "/api/finance/transactions/approve-suggestions"
+
+    async with api(home.member) as client:
+        response = await client.post(url, json={"transaction_ids": [str(private)]})
+        assert response.json() == {"approved": 0}  # not theirs to see
+    await refresh(home)  # a rules run keeps what's approved, as it keeps any manual category
+    async with api(home.owner) as client:
+        ids = [str(suggested), str(by_hand), str(suggested)]
+        response = await client.post(url, json={"transaction_ids": ids})
+        assert response.status_code == 200, response.text
+        assert response.json() == {"approved": 1}
+        await refresh(home)
+        categories = {item["id"]: item["category"] for item in await items(client)}
+        assert (categories[str(suggested)]["id"], categories[str(suggested)]["source"]) == (
+            str(groceries),
+            "manual",
+        )
+        assert categories[str(by_hand)]["source"] == "manual"
+        assert categories[str(private)]["source"] == "ai"
+        assert (await client.post(url, json={"transaction_ids": []})).status_code == 422
+
+
 async def test_transfers_by_hand_and_unlinking(home: Home) -> None:
     out = await add(home, "-100", 5)
     into = await add(home, "100", 9, account=home.savings)  # too far apart to pair by itself

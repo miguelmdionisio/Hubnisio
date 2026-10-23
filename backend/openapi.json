@@ -701,6 +701,48 @@
         }
       }
     },
+    "/api/finance/transactions/approve-suggestions": {
+      "post": {
+        "tags": [
+          "finance"
+        ],
+        "summary": "Approve Suggestions",
+        "description": "Keep AI-suggested categories: each becomes the user's own, as if picked by hand, so no\nrule or merchant default replaces it. Transactions without one are left alone.",
+        "operationId": "approveSuggestions",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SuggestionApproval"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuggestionsApproved"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/finance/transfers": {
       "post": {
         "tags": [
@@ -3987,6 +4029,39 @@
           "url"
         ],
         "title": "StartedConnection"
+      },
+      "SuggestionApproval": {
+        "properties": {
+          "transaction_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "maxItems": 500,
+            "minItems": 1,
+            "title": "Transaction Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "transaction_ids"
+        ],
+        "title": "SuggestionApproval",
+        "description": "Transactions whose AI-suggested category the user keeps."
+      },
+      "SuggestionsApproved": {
+        "properties": {
+          "approved": {
+            "type": "integer",
+            "title": "Approved"
+          }
+        },
+        "type": "object",
+        "required": [
+          "approved"
+        ],
+        "title": "SuggestionsApproved"
       },
       "SyncQueued": {
         "properties": {

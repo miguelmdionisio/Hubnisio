@@ -290,9 +290,17 @@ What it showed:
 - **A few brands carry much of the gain.** Żabka (130 transactions) and Biedronka (69, sent as its owner's name, `JMP S.A. Biedronka <shop>`) alone cover nearly half of what the run categorized (199 of 406).
 - **What's left is a long tail of single merchants.** Nine places with 4–17 transactions each, whose category couldn't be told from the name, were left for the user, along with merchants trading under a person's name and payment processors (Helopay, NYX) that front many shops. The Merchants page's "Needs a category" filter lists them, most used first.
 
-### AI suggestions (M4, 2026-10-23)
+### First AI categorization pass (M4, 2026-10-23)
 
-Not run yet. M4 adds the means (ADR-0006's `categorize_uncategorized` prompt) but writes nothing by itself, so coverage is unchanged by it: 771 of 1,663 transactions have a category (manual 42, rule 208, merchant default 521, AI 0). The user's AI login exists and every read tool has run against the live data. The first pass needs the user's go-ahead, as it writes `ai` suggestions to the live data; its before and after counts go here.
+The user ran ADR-0006's `categorize_uncategorized` prompt from Claude Code against the live data. Counts only.
+
+| | Before | After |
+|---|---|---|
+| Categorized, all | 771 of 1,663 | 946 of 1,663 |
+| By source | manual 42, rule 208, merchant default 521 | the same, plus AI 175 |
+| Categories the AI used | | 22 |
+
+The suggestions count at once and wait for review on the Transactions page ("Suggested by AI"), where approving one makes it the user's own.
 
 ## Action Items
 
