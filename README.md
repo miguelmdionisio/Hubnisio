@@ -53,10 +53,11 @@ Claude Code and Claude Desktop can read your data through the hub's MCP server (
    ```bash
    docker compose exec api python -m hubnisio.cli ai-login --email you@example.com
    ```
-3. Register the server in Claude Code, with your role name and the full path to `compose.yaml`. Add `--scope user` to use it from any folder.
+3. Register the server in Claude Code. Replace `/path/to/Hubnisio` with the folder you cloned into (on Windows, for example `C:/Users/you/projects/Hubnisio`) and `<role>` with your role name. Add `--scope user` to use it from any folder. In Git Bash, put `MSYS_NO_PATHCONV=1` in front, or it turns `/run/secrets/…` into a Windows path.
    ```bash
    claude mcp add hubnisio -- docker compose -f /path/to/Hubnisio/compose.yaml exec -T -e HUBNISIO_AI_DSN_FILE=/run/secrets/ai/<role> api python -m hubnisio.ai
    ```
+   `claude mcp list` should then show it as connected; "Failed to connect" usually means a wrong path or a stopped stack. The tools show up in Claude Code sessions started after that.
    For Claude Desktop, add the same command to `claude_desktop_config.json` (Settings → Developer → Edit Config):
    ```json
    {

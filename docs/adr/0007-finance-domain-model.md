@@ -292,7 +292,7 @@ What it showed:
 
 ### AI suggestions (M4, 2026-10-23)
 
-Not run yet. M4 adds the means (ADR-0006's `categorize_uncategorized` prompt) but writes nothing by itself, so coverage is unchanged by it: 771 of 1,663 transactions have a category (manual 42, rule 208, merchant default 521, AI 0), and no AI login exists. The first pass needs the user's go-ahead, as it writes `ai` suggestions to the live data; its before and after counts go here.
+Not run yet. M4 adds the means (ADR-0006's `categorize_uncategorized` prompt) but writes nothing by itself, so coverage is unchanged by it: 771 of 1,663 transactions have a category (manual 42, rule 208, merchant default 521, AI 0). The user's AI login exists and every read tool has run against the live data. The first pass needs the user's go-ahead, as it writes `ai` suggestions to the live data; its before and after counts go here.
 
 ## Action Items
 

@@ -115,4 +115,5 @@ B costs a modest amount of upfront work and makes the AI layer safe structurally
 1. [x] Create the `analytics` schema and the `hub_ai` role once the finance tables exist. *(M4, slice A1.)*
 2. [x] First MCP tools: `search_transactions` and `spending_summary`. *(M4, slice A2, with the other read tools.)*
 3. [x] Categorization suggestions with a fingerprint cache and audit logging. *(M4, slice A3: suggestions through MCP, audited in `core.ai_calls`; no cache needed.)*
-4. [ ] A first live run from Claude Code: `cli ai-login` for the user, `HUBNISIO_AI_ENABLED=true`, the read tools, then a `categorize_uncategorized` pass if the user wants one, with its coverage in ADR-0007. *(Left for the user after M4: it creates a login on the live database and writes suggestions to it.)*
+4. [x] A first live run from Claude Code: `cli ai-login` for the user, `HUBNISIO_AI_ENABLED=true`, and every read tool against the live data. *(2026-10-23, after M4.)*
+5. [ ] A first `categorize_uncategorized` pass, if the user wants one, with its coverage in ADR-0007. It writes `ai` suggestions to the live data.

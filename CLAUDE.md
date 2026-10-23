@@ -9,7 +9,7 @@ A private, self-hosted personal hub, one app per domain; finance first. Decision
   - M2: categories, merchants, rules, transfer pairs, notes and tags, and their pages.
   - M3: daily FX rates into EUR; spending, cash flow and net worth, computed on read; budgets with rollover and overspend; detected recurring payments the user confirms; the Budgets, Recurring and overview pages (Recharts).
   - Gaps G1–G6: an overall budget, hiding and deleting accounts, Revolut brand rules, the spending donut, shared pots with the Mine / Household view, repayments that lower their category.
-  - M4 AI (ADR-0006): the `analytics` views and per-member logins (A1, `5cc86b6`); the MCP server with read tools (A2, `b3fb32c`); AI category suggestions (A3, `210d80e`); `net_worth_history` and net worth's inputs in the views (A4). Not yet run against the live data: no AI login exists, and `HUBNISIO_AI_ENABLED` is off.
+  - M4 AI (ADR-0006): the `analytics` views and per-member logins (A1, `5cc86b6`); the MCP server with read tools (A2, `b3fb32c`); AI category suggestions (A3, `210d80e`); `net_worth_history` and net worth's inputs in the views (A4). Live since 2026-10-23: the user's AI login exists, `HUBNISIO_AI_ENABLED` is on, and the read tools work from Claude Code. No categorization pass yet.
 - **Next:** M5 server (Tailscale, Caddy, passkey login replacing the dev user, Postgres roles, backups); M6 Trading 212.
 
 ## Layout and rules of the code
