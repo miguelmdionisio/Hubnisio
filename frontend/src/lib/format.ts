@@ -9,6 +9,20 @@ export function formatMoney(amount: string | number, currency: string, locale = 
   return new Intl.NumberFormat(locale, { style: 'currency', currency }).format(Number(amount));
 }
 
+/** For chart axes: "€1.2k". */
+export function formatCompactMoney(
+  amount: string | number,
+  currency: string,
+  locale = LOCALE,
+): string {
+  return new Intl.NumberFormat(locale, {
+    style: 'currency',
+    currency,
+    notation: 'compact',
+    maximumFractionDigits: 1,
+  }).format(Number(amount));
+}
+
 /** A calendar date ("2026-10-14") as a local date, so no timezone can shift it a day. */
 export function parseDate(isoDate: string): Date {
   const [year = 1970, month = 1, day = 1] = isoDate.split('-').map(Number);
@@ -28,6 +42,11 @@ export function formatMonth(isoMonth: string, locale = LOCALE): string {
   return new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(
     parseDate(isoMonth),
   );
+}
+
+/** "Oct", from a month ("2026-10") or any date in it. */
+export function formatMonthName(isoMonth: string, locale = LOCALE): string {
+  return new Intl.DateTimeFormat(locale, { month: 'short' }).format(parseDate(isoMonth));
 }
 
 /** "Mar 2026", from a date. */

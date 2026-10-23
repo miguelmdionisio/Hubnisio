@@ -1,8 +1,10 @@
 import { expect, test } from 'vitest';
 import {
+  formatCompactMoney,
   formatDate,
   formatMoney,
   formatMonth,
+  formatMonthName,
   formatRelative,
   formatShortMonth,
   parseDate,
@@ -19,10 +21,16 @@ test('keeps calendar dates on their day in any timezone', () => {
   expect(formatDate('2026-10-14', 'en-GB')).toBe('14 Oct 2026');
 });
 
+test('shortens money for chart axes', () => {
+  expect(formatCompactMoney('1250', 'EUR', 'en-GB')).toBe('€1.3k');
+  expect(formatCompactMoney(-80, 'EUR', 'en-GB')).toBe('-€80');
+});
+
 test('names months, from a month or any date in it', () => {
   expect(formatMonth('2026-10', 'en-GB')).toBe('October 2026');
   expect(formatMonth('2026-10-01', 'en-GB')).toBe('October 2026');
   expect(formatShortMonth('2026-03-05', 'en-GB')).toBe('Mar 2026');
+  expect(formatMonthName('2026-10-01', 'en-GB')).toBe('Oct');
 });
 
 test('steps through months across year ends', () => {

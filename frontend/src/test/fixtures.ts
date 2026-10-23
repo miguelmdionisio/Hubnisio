@@ -2,11 +2,16 @@ import type {
   AccountOut,
   BudgetOut,
   BudgetsOut,
+  CashFlow,
   CategoryGroupOut,
   CounterpartyOut,
+  NetWorthOut,
   RecurringOut,
   RuleOut,
+  Spending,
+  SpendingGroup,
   TransactionOut,
+  UpcomingPayment,
 } from '@/api/types.gen';
 
 export const account: AccountOut = {
@@ -171,6 +176,69 @@ export function recurring(
     amount_changed_on: null,
     status: 'active',
     review: 'suggested',
+    ...overrides,
+  };
+}
+
+/** Net worth from (date, amount) pairs, oldest first; the total is the last amount. */
+export function netWorth(
+  points: [string, string][],
+  overrides: Partial<NetWorthOut> = {},
+): NetWorthOut {
+  return {
+    total: points.at(-1)?.[1] ?? '0.00',
+    points: points.map(([on, amount]) => ({ on, amount })),
+    accounts: [],
+    unconverted: 0,
+    ...overrides,
+  };
+}
+
+export function spendingGroup(id: string, name: string, amounts: string[]): SpendingGroup {
+  return { id, name, amounts, categories: [] };
+}
+
+export function spending(
+  months: string[],
+  groups: SpendingGroup[],
+  uncategorized: string[],
+  overrides: Partial<Spending> = {},
+): Spending {
+  return { months, groups, uncategorized, unconverted: 0, ...overrides };
+}
+
+/** Cash flow from (month, income, spending) rows; net is income minus spending. */
+export function cashFlow(
+  rows: [string, string, string][],
+  overrides: Partial<CashFlow> = {},
+): CashFlow {
+  return {
+    months: rows.map(([month, income, spent]) => ({
+      month,
+      income,
+      spending: spent,
+      net: (Number(income) - Number(spent)).toFixed(2),
+    })),
+    unconverted: 0,
+    ...overrides,
+  };
+}
+
+export function upcomingPayment(
+  seriesId: string,
+  name: string,
+  on: string,
+  amount: string,
+  overrides: Partial<UpcomingPayment> = {},
+): UpcomingPayment {
+  return {
+    series_id: seriesId,
+    name,
+    on,
+    kind: 'expense',
+    amount,
+    currency: 'EUR',
+    amount_eur: amount,
     ...overrides,
   };
 }

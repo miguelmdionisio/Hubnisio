@@ -1,17 +1,41 @@
 import { useQuery } from '@tanstack/react-query';
 import { getHealthOptions } from '../api/@tanstack/react-query.gen';
+import { PageHeader } from '../components/app-shell';
+import { BudgetsCard } from './overview/budgets-card';
+import { CashFlowCard } from './overview/cash-flow-card';
+import { NetWorthCard } from './overview/net-worth-card';
+import { SpendingCard } from './overview/spending-card';
+import { NetWorthTile, ThisMonthTile, ToCategorizeTile } from './overview/tiles';
+import { UpcomingCard } from './overview/upcoming-card';
 
 export function HomePage() {
-  const health = useQuery(getHealthOptions());
-
   return (
-    <section className="max-w-md rounded-lg border border-neutral-200 bg-white p-4">
-      <h2 className="font-medium">System status</h2>
-      <p className="mt-2 text-sm text-neutral-600">
-        {health.isPending && 'Checking the API…'}
-        {health.isError && 'The API is unreachable.'}
-        {health.data && `API ${health.data.status}, database ${health.data.database}.`}
-      </p>
-    </section>
+    <>
+      <PageHeader title="Overview" />
+      <div className="grid gap-4 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-3 lg:col-span-3">
+          <NetWorthTile />
+          <ThisMonthTile />
+          <ToCategorizeTile />
+        </div>
+        <SpendingCard />
+        <BudgetsCard />
+        <CashFlowCard />
+        <UpcomingCard />
+        <NetWorthCard />
+      </div>
+      <SystemStatus />
+    </>
+  );
+}
+
+function SystemStatus() {
+  const health = useQuery(getHealthOptions());
+  return (
+    <p className="mt-8 text-xs text-muted-foreground">
+      {health.isPending && 'Checking the API…'}
+      {health.isError && 'The API is unreachable.'}
+      {health.data && `API ${health.data.status}, database ${health.data.database}.`}
+    </p>
   );
 }

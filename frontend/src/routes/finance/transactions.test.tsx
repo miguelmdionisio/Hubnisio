@@ -64,3 +64,33 @@ test('search goes into the URL and the query', async () => {
     'cafe',
   );
 });
+
+test('limits the list to the dates in the URL, and clears them', async () => {
+  const calls = api();
+  const { router } = renderAt('/finance/transactions?from=2026-10-01&to=2026-10-31&q=cafe');
+
+  const clear = await screen.findByRole('button', { name: /Clear dates/ });
+  expect(clear.textContent).toBe('Clear dates (1 Oct 2026 to 31 Oct 2026)');
+  const first = calls.find((call) => call.path === '/api/finance/transactions');
+  expect(first?.search.get('date_from')).toBe('2026-10-01');
+  expect(first?.search.get('date_to')).toBe('2026-10-31');
+
+  fireEvent.click(clear);
+  await waitFor(() => expect(router.state.location.search).toEqual({ q: 'cafe' }));
+  await waitFor(() =>
+    expect(calls.at(-1)?.search.has('date_from') || calls.at(-1)?.search.has('date_to')).toBe(
+      false,
+    ),
+  );
+});
+
+test('ignores dates that are not real', async () => {
+  const calls = api();
+  const { router } = renderAt('/finance/transactions?from=2026-02-30&to=yesterday');
+
+  await screen.findByText('Supermercado Exemplo');
+  expect(router.state.location.search).toEqual({});
+  const first = calls.find((call) => call.path === '/api/finance/transactions');
+  expect(first?.search.has('date_from')).toBe(false);
+  expect(first?.search.has('date_to')).toBe(false);
+});

@@ -32,7 +32,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { errorMessage } from '@/lib/errors';
-import { formatDate, formatMoney } from '@/lib/format';
+import { formatDate, formatMoney, parseDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { activeGroups, CategoryPicker, useCategories } from './category-picker';
 import { TransactionSheet, transactionTitle } from './transaction-sheet';
@@ -55,7 +55,19 @@ export type TransactionSearch = {
   kind?: TransactionKind;
   category?: string; // a category or group ID, or "uncategorized"
   counterparty?: string;
+  from?: string; // "YYYY-MM-DD": the first day shown
+  to?: string; // "YYYY-MM-DD": the last day shown
 };
+
+/** A real calendar date written "YYYY-MM-DD". */
+function isoDate(value: unknown): string | undefined {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return undefined;
+  const date = parseDate(value);
+  const [year, month, day] = value.split('-').map(Number);
+  const real =
+    date.getFullYear() === year && date.getMonth() + 1 === month && date.getDate() === day;
+  return real ? value : undefined;
+}
 
 export function validateTransactionSearch(search: Record<string, unknown>): TransactionSearch {
   const text = (value: unknown) => (typeof value === 'string' && value ? value : undefined);
@@ -69,7 +81,14 @@ export function validateTransactionSearch(search: Record<string, unknown>): Tran
     kind,
     category: text(search.category),
     counterparty: text(search.counterparty),
+    from: isoDate(search.from),
+    to: isoDate(search.to),
   };
+}
+
+function dateRange(from?: string, to?: string): string {
+  if (from && to) return `${formatDate(from)} to ${formatDate(to)}`;
+  return from ? `from ${formatDate(from)}` : `until ${formatDate(to as string)}`;
 }
 
 export function TransactionsPage() {
@@ -107,6 +126,8 @@ export function TransactionsPage() {
     category_id: search.category === UNCATEGORIZED ? undefined : search.category,
     uncategorized: search.category === UNCATEGORIZED ? true : undefined,
     counterparty_id: search.counterparty,
+    date_from: search.from,
+    date_to: search.to,
   };
   const transactions = useInfiniteQuery({
     queryKey: listTransactionsInfiniteQueryKey({ query: filters }),
@@ -210,6 +231,11 @@ export function TransactionsPage() {
         {search.counterparty && (
           <Button variant="ghost" onClick={() => setSearch({ counterparty: undefined })}>
             Clear merchant filter
+          </Button>
+        )}
+        {(search.from || search.to) && (
+          <Button variant="ghost" onClick={() => setSearch({ from: undefined, to: undefined })}>
+            Clear dates ({dateRange(search.from, search.to)})
           </Button>
         )}
       </div>

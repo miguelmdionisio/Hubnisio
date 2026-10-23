@@ -29,3 +29,19 @@ Element.prototype.scrollIntoView ??= () => {};
 
 // jsdom doesn't implement scrolling; navigating logs "not implemented" noise without this.
 window.scrollTo = () => {};
+
+// jsdom lays nothing out, so Recharts measures every chart as 0 x 0 and draws nothing.
+const measure = Element.prototype.getBoundingClientRect;
+Element.prototype.getBoundingClientRect = function getBoundingClientRect() {
+  if (!this.classList.contains('recharts-responsive-container')) return measure.call(this);
+  return {
+    x: 0,
+    y: 0,
+    left: 0,
+    top: 0,
+    width: 800,
+    height: 300,
+    right: 800,
+    bottom: 300,
+  } as DOMRect;
+};
