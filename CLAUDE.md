@@ -17,6 +17,9 @@ A private, self-hosted personal hub, one app per domain; finance first. Decision
 - **Scoping:** every finance query goes through `finance/scoping.py` (household + account visibility). Another member's private accounts never show, not even by name.
 - **Bank facts vs user layer:** only the sync writes `transactions` and `balance_snapshots`. Everything decided about a transaction lives in the user-layer tables. Precedence: manual > rule > counterparty default > ai.
 - **Migrations:** autogenerate against a throwaway Postgres container, then finish by hand: named constraints, enum types created once, downgrade drops them. `tests/test_migrations.py` checks models and migrations agree.
+- **Analytics views** (ADR-0006): the AI reads only the `analytics` schema, as a per-member login in the `hub_ai` group; the views filter on `session_user`. They're the SQL twins of `finance/scoping.py`, `finance/kinds.py` and `monthly_sums`: a change there needs the same change in the views.
+  - A view changes only by a new migration. `CREATE OR REPLACE VIEW` keeps its grants but can only add columns at the end. A new view needs `GRANT SELECT … TO hub_ai`.
+  - The agreement and security tests in `tests/test_analytics.py` must pass.
 - **Tests:**
   - Backend tests use a real Postgres via testcontainers (Docker must be running). Finance API tests share the `home` fixture (`tests/households.py`): two members, the seeded categories, three accounts (one private). The database isn't reset between tests, so `fx_rates`, being global, needs test-only currency codes such as `XTS`.
   - Frontend tests render the whole app with `src/test/render.tsx` (`renderAt`, `mockApi`) and `src/test/fixtures.ts`.
@@ -67,4 +70,4 @@ The user commits to `main` and approves pushes. Check CI with `gh run list` afte
   - The frontend dev server is HTTPS with a self-signed certificate: `https://localhost:5173`. Claude's built-in browser pane can't open it, so check pages with tests, or fetch modules with `curl -k`.
   - The frontend container keeps its own `node_modules` and runs `pnpm install` only on start: after adding a frontend dependency, run `docker compose restart frontend`, or Vite can't resolve the import.
   - On Windows outside Docker, start uvicorn with `--reload`: psycopg async can't use the default Proactor event loop.
-  - Admin commands run in the API container: `docker compose exec api python -m hubnisio.cli --help` (`recategorize`, `detect-recurring`, `fx-backfill`, …). New migrations: `docker compose run --rm migrate`.
+  - Admin commands run in the API container: `docker compose exec api python -m hubnisio.cli --help` (`recategorize`, `detect-recurring`, `fx-backfill`, `ai-login`, …). New migrations: `docker compose run --rm migrate`.

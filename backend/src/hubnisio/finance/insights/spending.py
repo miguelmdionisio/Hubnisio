@@ -52,6 +52,24 @@ class MonthlySums:
     )
     unconverted: int = 0  # transactions left out: no exchange rate for their day
 
+    def add(
+        self,
+        month: date,
+        category_id: uuid.UUID | None,
+        kind: TransactionKind,
+        total: Decimal | None,
+        unconverted: int,
+    ) -> None:
+        """One group of transactions: their category, else their kind (`kind` is ignored for
+        a category). The query here and `analytics.monthly_category_spend` both load this way."""
+        self.unconverted += unconverted
+        if total is None:
+            return
+        if category_id is not None:
+            self.by_category[(month, category_id)] += total
+        else:
+            self.uncategorized[(month, kind)] += total
+
 
 @dataclass(frozen=True)
 class CategoryInfo:
@@ -155,14 +173,8 @@ async def monthly_sums(
     )
     sums = MonthlySums()
     for month_, category_id, override, is_positive, total, unconverted in rows:
-        sums.unconverted += unconverted
-        if total is None:
-            continue
-        if category_id is not None:
-            sums.by_category[(month_, category_id)] += total
-        else:
-            kind = override or (TransactionKind.INCOME if is_positive else TransactionKind.EXPENSE)
-            sums.uncategorized[(month_, kind)] += total
+        kind = override or (TransactionKind.INCOME if is_positive else TransactionKind.EXPENSE)
+        sums.add(month_, category_id, kind, total, unconverted)
     return sums
 
 

@@ -2,14 +2,24 @@
 
 import argparse
 import asyncio
+import os
+import secrets
 import sys
 import uuid
 from datetime import date
+from pathlib import Path
+from typing import LiteralString
 
-from sqlalchemy import func, select
+import psycopg
+from psycopg import sql
+from psycopg.rows import TupleRow
+from sqlalchemy import exists, func, select, text
+from sqlalchemy.engine import make_url
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from hubnisio.core.db import get_engine, get_sessionmaker
-from hubnisio.core.models import Household, HouseholdMember, HouseholdRole, User
+from hubnisio.core.models import AiLogin, Household, HouseholdMember, HouseholdRole, User
+from hubnisio.core.settings import get_settings
 from hubnisio.finance.categorize.run import run_all
 from hubnisio.finance.defaults import seed_household
 from hubnisio.finance.fx.sources import FxClient
@@ -132,11 +142,111 @@ async def fx_backfill(since: date | None) -> int:
     return 1 if result.failed else 0
 
 
+AI_GROUP = "hub_ai"
+# Set on every AI login: read-only transactions and short statements by default. The grants
+# are what keep it out of everything but `analytics`; these only make the defaults safe.
+AI_ROLE_SETTINGS: dict[LiteralString, str] = {
+    "default_transaction_read_only": "on",
+    "statement_timeout": "30s",
+    "search_path": "analytics",
+}
+
+
+def ai_role_name(user_id: uuid.UUID) -> str:
+    """A UUIDv7 starts with its timestamp, so the name takes the random end."""
+    return f"{AI_GROUP}_{user_id.hex[-12:]}"
+
+
+async def ai_login(email: str, *, revoke: bool) -> int:
+    """Create a member's Postgres login for AI access (ADR-0006), or drop it. The login's
+    connection string goes to a file in the AI secrets folder; its password is never printed."""
+    email = email.strip().lower()
+    settings = get_settings()
+    async with get_sessionmaker()() as session, session.begin():
+        user_id = await session.scalar(
+            select(User.id).where(
+                User.email == email, exists().where(HouseholdMember.user_id == User.id)
+            )
+        )
+        if user_id is None:
+            print(f"No household member has the email {email}.", file=sys.stderr)
+            return 1
+        role = ai_role_name(user_id)
+        path = settings.ai_secrets_dir / role
+        login = await session.get(AiLogin, role)
+        driver = await _driver_connection(session)
+
+        if revoke:
+            if login is None:
+                print(f"{email} has no AI login.", file=sys.stderr)
+                return 1
+            # Without its mapping the views show the login nothing, open sessions included.
+            await session.delete(login)
+            await session.flush()
+            await session.execute(
+                text("SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE usename = :r"),
+                {"r": role},
+            )
+            await driver.execute(sql.SQL("DROP ROLE IF EXISTS {}").format(sql.Identifier(role)))
+            path.unlink(missing_ok=True)
+            print(f"Revoked the AI login {role} of {email}.")
+            return 0
+
+        if login is not None:
+            print(f"{email} already has the AI login {role}.", file=sys.stderr)
+            return 1
+        if await session.scalar(text("SELECT 1 FROM pg_roles WHERE rolname = :r"), {"r": role}):
+            print(f"A role {role} exists but isn't an AI login: drop it first.", file=sys.stderr)
+            return 1
+        password = secrets.token_urlsafe(32)
+        # Hashed here, so the password never reaches the server, or its logs, in the clear.
+        verifier = driver.pgconn.encrypt_password(
+            password.encode(), role.encode(), b"scram-sha-256"
+        )
+        await driver.execute(
+            sql.SQL("CREATE ROLE {} LOGIN PASSWORD {} IN ROLE {}").format(
+                sql.Identifier(role), sql.Literal(verifier.decode()), sql.Identifier(AI_GROUP)
+            )
+        )
+        for name, value in AI_ROLE_SETTINGS.items():
+            await driver.execute(
+                sql.SQL("ALTER ROLE {} SET {} = {}").format(
+                    sql.Identifier(role), sql.SQL(name), sql.Literal(value)
+                )
+            )
+        session.add(AiLogin(role_name=role, user_id=user_id))
+        await session.flush()
+        url = make_url(settings.database_url).set(username=role, password=password)
+        _write_secret(path, url.render_as_string(hide_password=False))
+    print(f"Created the AI login {role} for {email}. Its connection string is in {path}.")
+    return 0
+
+
+async def _driver_connection(session: AsyncSession) -> psycopg.AsyncConnection[TupleRow]:
+    """The session's psycopg connection, in its transaction: for statements that take
+    identifiers and literals rather than parameters."""
+    raw = await (await session.connection()).get_raw_connection()
+    driver = raw.driver_connection
+    if not isinstance(driver, psycopg.AsyncConnection):
+        raise TypeError(f"Expected a psycopg connection, got {type(driver)}")
+    return driver
+
+
+def _write_secret(path: Path, content: str) -> None:
+    """Readable by its owner only."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(descriptor, "w", encoding="utf-8") as file:
+        file.write(content + "\n")
+
+
 async def _run(args: argparse.Namespace) -> int:
     try:
         match args.command:
             case "bootstrap":
                 return await bootstrap(args.email, args.name, args.household)
+            case "ai-login":
+                return await ai_login(args.email, revoke=args.revoke)
             case "renormalize":
                 return await renormalize(args.account)
             case "recategorize":
@@ -162,6 +272,14 @@ def main(argv: list[str] | None = None) -> int:
     bootstrap_parser.add_argument("--email", required=True)
     bootstrap_parser.add_argument("--name", required=True, help="display name")
     bootstrap_parser.add_argument("--household", default="Home", help="household name")
+
+    ai_login_parser = commands.add_parser(
+        "ai-login", help="create a member's Postgres login for AI access, or revoke it"
+    )
+    ai_login_parser.add_argument("--email", required=True)
+    ai_login_parser.add_argument(
+        "--revoke", action="store_true", help="drop the login and its connection string"
+    )
 
     renormalize_parser = commands.add_parser(
         "renormalize", help="rebuild transactions and balances from stored provider payloads"

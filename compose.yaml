@@ -13,6 +13,8 @@ x-backend: &backend
     HUBNISIO_ENABLE_BANKING_APP_ID: ${HUBNISIO_ENABLE_BANKING_APP_ID:-}
     HUBNISIO_ENABLE_BANKING_KEY_FILE: /run/secrets/enable_banking_key
     HUBNISIO_ENCRYPTION_KEYS_FILE: /run/secrets/encryption_keys
+    # Members' AI connection strings, written by `cli ai-login` in the api container.
+    HUBNISIO_AI_SECRETS_DIR: /run/secrets/ai
     # File-change events don't cross from a Windows host into the container; poll instead.
     WATCHFILES_FORCE_POLLING: "true"
   secrets:
@@ -48,6 +50,8 @@ services:
     command: ["uvicorn", "hubnisio.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-dir", "src"]
     volumes:
       - ./backend/src:/app/src
+      # A folder, not a Compose secret: the command writes to it (secrets/ is gitignored).
+      - ./secrets/ai:/run/secrets/ai
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:

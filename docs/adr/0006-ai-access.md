@@ -8,7 +8,7 @@
 
 - The owner wants AI to explore the data, find patterns, and help categorize.
 - Sending finance data to the Claude API is acceptable.
-- The data is sensitive: the AI must see only what the asking user may see, must never be able to change anything, and must never touch secrets such as provider tokens or keys.
+- The data is sensitive: the AI must see only what the asking user may see, must never be able to change anything but its own category suggestions *(amended in M4)*, and must never touch secrets such as provider tokens or keys.
 - LLMs are good at exploring and explaining, and unreliable as the source of truth for numbers.
 
 ## Decision
@@ -26,17 +26,29 @@
 - A dedicated read-only Postgres role, `hub_ai`, can read only `analytics`.
 - Results are scoped to the acting user's household and visibility ([ADR-0005](0005-household-data-model.md)), preferably with row-level security on this role.
 
+**As built in M4** *(amended in M4)*:
+- **The views** (migration `0011`) are `me`, `visible_accounts`, `accounts`, `transactions`, `monthly_category_spend`, `categories`, `merchants`, `budgets`, `budget_limits`, `recurring_payments` and `balances`.
+  - `transactions` has the date, amount, EUR amount, derived kind, description, bank counterparty, merchant, category and group, category source, tags, note, recurring series and bank code. It has no IBAN, entry reference, fingerprint or payload ID.
+  - `accounts` has no IBAN, holder name or hash. Its name leaves out the IBAN digits the app's default name uses.
+  - `monthly_category_spend` is `monthly_sums` in SQL, for both views (household, and personal with pot moves in the pot's category).
+  - Each view is `security_barrier`, has a comment for the AI, and is the SQL twin of `finance/scoping.py`, `finance/kinds.py` or `monthly_sums`. Agreement tests (`tests/test_analytics.py`) check that they match the app's figures for the same member and view. A view changes only by a new migration.
+- **One Postgres login per member, not one shared role.** `cli ai-login --email <member>` creates `hub_ai_<12 hex of the user ID>` in the group role `hub_ai`. It sets `default_transaction_read_only`, a `statement_timeout` and `search_path = analytics` on it, maps it to the member in `core.ai_logins`, and writes its connection string to `secrets/ai/<role>`. The password is hashed before it reaches the server and is never printed. `--revoke` removes the mapping, ends the login's sessions and drops it.
+- **Views filter on `session_user`, not row-level security.** A query can't change `session_user`: `SET ROLE` to another member's login is refused, and the group itself changes nothing. So `query_sql` is as safe as the tools, and a connection that isn't a mapped login sees nothing.
+- **The grants are the boundary:** `USAGE` on `analytics`, `SELECT` on its views, and `EXECUTE` on `analytics.record_call`. Nothing else, so writes fail even in a read-write transaction. The read-only default only makes reads the default.
+
 ### An MCP server
 
 - Built with the official Python MCP SDK, so Claude Desktop and Claude Code can use the data directly. Later, an in-app chat uses the same tools through the Claude API.
 - Tools: `search_transactions`, `spending_summary`, `cashflow`, `net_worth_history`, `recurring_payments`, `budget_status`.
 - A `query_sql` escape hatch: SELECT-only, on `analytics` only, with a statement timeout and a row limit.
-- Reachable only on the private network, with a per-client token.
+- Reachable only on the private network, with a per-client token. *(Amended in M4: until the server exists (M5) it runs over local stdio, started by Claude Code or Desktop with `docker compose exec`, so it has no port and no token.)*
+- *(Added in M4)* The AI's numbers come from the app's own code: the server loads the views into the dataclasses the app uses (`MonthlySums`, `CategoryInfo`, budget limits) and calls the same pure functions (`spent`, `total_spending`, `compute_budgets`).
 
 ### LLM-assisted categorization
 
 - Uncategorized transactions get a suggested category from the Claude API.
 - Suggestions are marked as such and never overwrite a manual categorization.
+- *(Amended in M4)* The categorizing runs in the user's own Claude Code or Desktop session through MCP, so there's no API key and no per-call bill. Its only write is a category with source `ai`, the lowest precedence, through one `SECURITY DEFINER` function. Suggestions count at once, shown muted with an "AI" label, and picking a category overrides one.
 - Only the fields needed are sent: description, counterparty name, amount, date. No IBANs or account numbers.
 - Results are cached by a merchant/description fingerprint, so repeats don't call the API again.
 
@@ -44,6 +56,7 @@
 
 - A config switch disables all external AI calls.
 - Every external call is recorded in the audit log: what was sent, and when.
+- *(Amended in M4)* The switch is `HUBNISIO_AI_ENABLED`: without it the MCP server won't start. Each tool call is recorded in `core.ai_calls` (when, which login, which tool, its arguments and the row count, never the data returned) by `analytics.record_call`. That function is `SECURITY DEFINER`, takes the login from `session_user`, and fails in a read-only transaction, so `query_sql` can't write to the audit. The record outlives a revoked login.
 - Models are picked per task: a smaller model for bulk categorization, a larger one for analysis and chat.
 
 ## Options Considered
@@ -89,6 +102,6 @@ B costs a modest amount of upfront work and makes the AI layer safe structurally
 
 ## Action Items
 
-1. [ ] Create the `analytics` schema and the `hub_ai` role once the finance tables exist.
+1. [x] Create the `analytics` schema and the `hub_ai` role once the finance tables exist. *(M4, slice A1.)*
 2. [ ] First MCP tools: `search_transactions` and `spending_summary`.
 3. [ ] Categorization suggestions with a fingerprint cache and audit logging.

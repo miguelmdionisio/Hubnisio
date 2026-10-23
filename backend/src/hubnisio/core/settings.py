@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     # AES-GCM keys for provider secrets, one "v<n>:<base64 key>" per line (see core/crypto.py).
     encryption_keys_file: Path = Path("../secrets/encryption-keys")
     enable_banking_key_file: Path = Path("../secrets/enable-banking.pem")
+    # Where `cli ai-login` writes each member's AI connection string (ADR-0006), one file per
+    # login. Compose bind-mounts secrets/ai there, since the command writes it.
+    ai_secrets_dir: Path = Path("../secrets/ai")
 
     # Enable Banking (ADR-0003): the application ID (the name of its .pem key file), and the URL the
     # bank sends the browser back to after authorization (https; allowed in the Control Panel).
