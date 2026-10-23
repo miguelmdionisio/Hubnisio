@@ -1,6 +1,7 @@
-import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, expect, test, vi } from 'vitest';
 import type { AccountOut } from '@/api/types.gen';
+import { categories } from '@/test/fixtures';
 import { mockApi, renderAt } from '@/test/render';
 
 afterEach(() => {
@@ -20,6 +21,8 @@ function account(id: string, overrides: Partial<AccountOut>): AccountOut {
     include_in_net_worth: true,
     is_owner: true,
     hidden_at: null,
+    is_pot: false,
+    pot_category_id: null,
     transaction_count: 0,
     balance: {
       balance_type: 'ITAV',
@@ -174,4 +177,42 @@ test('an empty list points to linking a bank', async () => {
   renderAt('/finance/accounts');
 
   expect(await screen.findByText('No accounts yet')).toBeDefined();
+});
+
+test('a shared pot shows its balance with a badge, and takes a category for contributions', async () => {
+  const calls = mockApi({
+    'GET /api/finance/accounts': () => [
+      account('a1', {}),
+      account('a2', { name: 'Conta conjunta', is_pot: true }),
+    ],
+    'GET /api/finance/categories': () => [
+      ...categories,
+      { ...categories[0], id: 'g-income', name: 'Income', kind: 'income', children: [] },
+    ],
+    'PATCH /api/finance/accounts/a1': () => account('a1', { is_pot: true }),
+    'PATCH /api/finance/accounts/a2': () =>
+      account('a2', { name: 'Conta conjunta', is_pot: true, pot_category_id: 'c-groceries' }),
+  });
+
+  renderAt('/finance/accounts');
+
+  expect(await screen.findAllByText('Not in Mine')).toHaveLength(1);
+  expect(screen.getAllByText(/^€90\.00$/)).toHaveLength(2); // the pot's real balance
+  const potSwitch = screen.getByRole('switch', { name: 'Conta conjunta is a shared pot' });
+  expect(potSwitch.getAttribute('aria-checked')).toBe('true');
+
+  fireEvent.click(screen.getByRole('button', { name: 'Uncategorized' }));
+  const list = await screen.findByRole('listbox');
+  expect(within(list).queryByText('Income (general)')).toBeNull(); // contributions are spending
+  fireEvent.click(within(list).getByText('Groceries'));
+  await waitFor(() =>
+    expect(calls.find((call) => call.path.endsWith('/a2'))?.body).toEqual({
+      pot_category_id: 'c-groceries',
+    }),
+  );
+
+  fireEvent.click(screen.getByRole('switch', { name: 'Conta à Ordem is a shared pot' }));
+  await waitFor(() =>
+    expect(calls.find((call) => call.path.endsWith('/a1'))?.body).toEqual({ is_pot: true }),
+  );
 });

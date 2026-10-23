@@ -207,6 +207,12 @@ class Account(Base):
     include_in_net_worth: Mapped[bool] = mapped_column(Boolean, server_default=text("true"))
     # Retired by an owner: out of lists, net worth and the sync; its history still counts.
     hidden_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # A shared pot (ADR-0005): out of the Mine view, where money moved into it is spending,
+    # in this expense category (uncategorized without one).
+    is_pot: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
+    pot_category_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("finance.categories.id", ondelete="SET NULL")
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

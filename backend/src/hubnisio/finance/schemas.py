@@ -78,6 +78,8 @@ class AccountOut(BaseModel):
     include_in_net_worth: bool
     is_owner: bool
     hidden_at: datetime | None
+    is_pot: bool  # a shared pot: out of the Mine view (ADR-0005)
+    pot_category_id: uuid.UUID | None  # where contributions to the pot count in Mine
     transaction_count: int
     balance: Balance | None
 
@@ -87,6 +89,8 @@ class AccountUpdate(BaseModel):
     visibility: AccountVisibility | None = None
     include_in_net_worth: bool | None = None
     hidden: bool | None = None
+    is_pot: bool | None = None
+    pot_category_id: uuid.UUID | None = None  # an expense category; null clears it
 
 
 class AccountDeleteBlocked(BaseModel):

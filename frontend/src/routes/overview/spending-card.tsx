@@ -10,11 +10,13 @@ import {
   ChartTooltipContent,
 } from '@/components/ui/chart';
 import { formatCompactMoney, formatMoney, formatMonth } from '@/lib/format';
+import { useView } from '@/lib/view';
 import { spendingChart } from './chart-data';
 import { Note, Panel } from './panel';
 
 export function SpendingCard() {
-  const spending = useQuery(getSpendingOptions({ query: { months: 12 } }));
+  const { view } = useView();
+  const spending = useQuery(getSpendingOptions({ query: { months: 12, view } }));
   return (
     <Panel
       title="Spending by category"

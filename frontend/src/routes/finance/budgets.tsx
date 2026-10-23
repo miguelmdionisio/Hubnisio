@@ -23,6 +23,7 @@ import { errorMessage } from '@/lib/errors';
 import { formatMoney, formatMonth } from '@/lib/format';
 import { currentMonth, isMonth, monthStart, shiftMonth } from '@/lib/months';
 import { cn } from '@/lib/utils';
+import { useView } from '@/lib/view';
 import { BudgetSheet, type BudgetTarget } from './budget-sheet';
 
 export type BudgetSearch = { month?: string }; // "YYYY-MM"; the current month when absent
@@ -52,7 +53,8 @@ export function BudgetsPage() {
   const month = search.month ?? currentMonth();
   const goTo = (target: string) => navigate({ search: { month: target } });
 
-  const budgets = useQuery(listBudgetsOptions({ query: { month: monthStart(month) } }));
+  const { view } = useView();
+  const budgets = useQuery(listBudgetsOptions({ query: { month: monthStart(month), view } }));
   const [target, setTarget] = useState<BudgetTarget | null>(null);
 
   return (
@@ -60,6 +62,7 @@ export function BudgetsPage() {
       <PageHeader
         title="Budgets"
         description="What each category or group may spend per month, and how much is left."
+        showsView
         actions={
           <Button onClick={() => setTarget({ type: 'new' })}>
             <Plus aria-hidden />

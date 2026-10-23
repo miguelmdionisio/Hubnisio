@@ -1,8 +1,8 @@
 """Budgets: monthly limits per expense category or group, and one on all spending
 (ADR-0007, "Budgets").
 
-Budgets belong to the household, like categories; the spending shown against them counts only
-the accounts the principal may see (finance/scoping.py).
+Budgets belong to the household, like categories; the spending shown against them counts the
+accounts of the chosen view (finance/scoping.py).
 """
 
 import uuid
@@ -19,17 +19,21 @@ from hubnisio.finance.budgets import budgets_for_month
 from hubnisio.finance.deps import CurrentPrincipal, DbSession
 from hubnisio.finance.insights.spending import month_start
 from hubnisio.finance.models import Budget, BudgetLimit, Category, CategoryKind
+from hubnisio.finance.scoping import View
 
 router = APIRouter(prefix="/finance", tags=["finance"])
 
 
 @router.get("/budgets", operation_id="listBudgets")
 async def list_budgets(
-    session: DbSession, principal: CurrentPrincipal, month: date | None = None
+    session: DbSession,
+    principal: CurrentPrincipal,
+    month: date | None = None,
+    view: View = "personal",
 ) -> schemas.BudgetsOut:
     """Each budget for `month`'s month (default: this one): its limit, what last month carried
-    in, what's available, spent and remaining."""
-    return await budgets_for_month(session, principal, month or date.today())
+    in, what's available, spent and remaining, counting the accounts of `view`."""
+    return await budgets_for_month(session, principal, month or date.today(), view=view)
 
 
 @router.put("/budgets/overall", operation_id="setOverallBudget")

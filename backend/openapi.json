@@ -322,7 +322,7 @@
           "finance"
         ],
         "summary": "Update Account",
-        "description": "Only an account's owners can change it. Hiding it is for the whole household.",
+        "description": "Only an account's owners can change it. Hiding it, or making it a shared pot, is for\nthe whole household.",
         "operationId": "updateAccount",
         "parameters": [
           {
@@ -1425,6 +1425,20 @@
               ],
               "title": "Until"
             }
+          },
+          {
+            "name": "view",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "personal",
+                "household"
+              ],
+              "type": "string",
+              "default": "personal",
+              "title": "View"
+            }
           }
         ],
         "responses": {
@@ -1488,6 +1502,20 @@
               ],
               "title": "Until"
             }
+          },
+          {
+            "name": "view",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "personal",
+                "household"
+              ],
+              "type": "string",
+              "default": "personal",
+              "title": "View"
+            }
           }
         ],
         "responses": {
@@ -1539,6 +1567,20 @@
               ],
               "title": "Date From"
             }
+          },
+          {
+            "name": "view",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "personal",
+                "household"
+              ],
+              "type": "string",
+              "default": "personal",
+              "title": "View"
+            }
           }
         ],
         "responses": {
@@ -1571,7 +1613,7 @@
           "finance"
         ],
         "summary": "List Budgets",
-        "description": "Each budget for `month`'s month (default: this one): its limit, what last month carried\nin, what's available, spent and remaining.",
+        "description": "Each budget for `month`'s month (default: this one): its limit, what last month carried\nin, what's available, spent and remaining, counting the accounts of `view`.",
         "operationId": "listBudgets",
         "parameters": [
           {
@@ -1589,6 +1631,20 @@
                 }
               ],
               "title": "Month"
+            }
+          },
+          {
+            "name": "view",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "personal",
+                "household"
+              ],
+              "type": "string",
+              "default": "personal",
+              "title": "View"
             }
           }
         ],
@@ -2008,6 +2064,22 @@
             ],
             "title": "Hidden At"
           },
+          "is_pot": {
+            "type": "boolean",
+            "title": "Is Pot"
+          },
+          "pot_category_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pot Category Id"
+          },
           "transaction_count": {
             "type": "integer",
             "title": "Transaction Count"
@@ -2035,6 +2107,8 @@
           "include_in_net_worth",
           "is_owner",
           "hidden_at",
+          "is_pot",
+          "pot_category_id",
           "transaction_count",
           "balance"
         ],
@@ -2085,6 +2159,29 @@
               }
             ],
             "title": "Hidden"
+          },
+          "is_pot": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Pot"
+          },
+          "pot_category_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pot Category Id"
           }
         },
         "type": "object",

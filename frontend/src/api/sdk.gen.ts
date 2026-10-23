@@ -93,7 +93,8 @@ export const deleteAccount = <ThrowOnError extends boolean = false>(options: Opt
 /**
  * Update Account
  *
- * Only an account's owners can change it. Hiding it is for the whole household.
+ * Only an account's owners can change it. Hiding it, or making it a shared pot, is for
+ * the whole household.
  */
 export const updateAccount = <ThrowOnError extends boolean = false>(options: Options<UpdateAccountData, ThrowOnError>): RequestResult<UpdateAccountResponses, UpdateAccountErrors, ThrowOnError> => (options.client ?? client).patch<UpdateAccountResponses, UpdateAccountErrors, ThrowOnError>({
     url: '/api/finance/accounts/{account_id}',
@@ -340,7 +341,7 @@ export const getNetWorth = <ThrowOnError extends boolean = false>(options?: Opti
  * List Budgets
  *
  * Each budget for `month`'s month (default: this one): its limit, what last month carried
- * in, what's available, spent and remaining.
+ * in, what's available, spent and remaining, counting the accounts of `view`.
  */
 export const listBudgets = <ThrowOnError extends boolean = false>(options?: Options<ListBudgetsData, ThrowOnError>): RequestResult<ListBudgetsResponses, ListBudgetsErrors, ThrowOnError> => (options?.client ?? client).get<ListBudgetsResponses, ListBudgetsErrors, ThrowOnError>({ url: '/api/finance/budgets', ...options });
 

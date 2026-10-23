@@ -109,8 +109,10 @@ async def test_spending_and_cash_flow(home: Home) -> None:
             ("1100.00", "117.00", "983.00"),
         ]
 
-    # Another member doesn't see the owner's private account, even as a total.
+    # Another member doesn't see the owner's private account, even as a total. (They own no
+    # account here, so only the household view has anything for them.)
     async with api(home.member) as client:
+        params["view"] = "household"
         spending = (await client.get("/api/finance/insights/spending", params=params)).json()
         [food] = spending["groups"]
         assert food["amounts"] == ["30.00", "70.00"]
@@ -166,7 +168,9 @@ async def test_net_worth(home: Home) -> None:
         assert worth["total"] == "1100.00"
 
     async with api(home.member) as client:
-        worth = (await client.get("/api/finance/insights/net-worth")).json()
+        worth = (
+            await client.get("/api/finance/insights/net-worth", params={"view": "household"})
+        ).json()
         assert worth["total"] == "1000.00"
         assert [a["name"] for a in worth["accounts"]] == ["Conta"]
 

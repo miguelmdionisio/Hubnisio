@@ -12,7 +12,7 @@ import { UpcomingCard } from './overview/upcoming-card';
 export function HomePage() {
   return (
     <>
-      <PageHeader title="Overview" />
+      <PageHeader title="Overview" showsView />
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="grid gap-4 sm:grid-cols-3 lg:col-span-3">
           <NetWorthTile />

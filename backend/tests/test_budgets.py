@@ -157,7 +157,8 @@ async def test_budgets_api(home: Home) -> None:
 
     # The same budgets for another member, without the owner's private account.
     async with api(home.member) as client:
-        listed = (await client.get("/api/finance/budgets", params={"month": "2026-10-01"})).json()
+        params = {"month": "2026-10-01", "view": "household"}
+        listed = (await client.get("/api/finance/budgets", params=params)).json()
         [food] = listed["budgets"]
         assert food["children"][0]["spent"] == "80.00"
 
@@ -286,7 +287,8 @@ async def test_overall_budget_api(home: Home) -> None:
 
     # Another member doesn't have the owner's private account in the total.
     async with api(home.member) as client:
-        listed = (await client.get("/api/finance/budgets", params={"month": "2026-10-01"})).json()
+        params = {"month": "2026-10-01", "view": "household"}
+        listed = (await client.get("/api/finance/budgets", params=params)).json()
         assert listed["overall"]["spent"] == "157.00"
 
     async with api(home.owner) as client:

@@ -33,6 +33,7 @@ from hubnisio.finance.insights.spending import (
     total_spending,
 )
 from hubnisio.finance.models import Budget, BudgetLimit, CategoryKind, Overspend, TransactionKind
+from hubnisio.finance.scoping import View
 
 
 @dataclass(frozen=True)
@@ -86,7 +87,7 @@ class BudgetSpec:
 
 
 async def budgets_for_month(
-    session: AsyncSession, principal: Principal, month: date
+    session: AsyncSession, principal: Principal, month: date, *, view: View
 ) -> schemas.BudgetsOut:
     month = month_start(month)
     categories = await household_categories(session, principal)
@@ -104,7 +105,7 @@ async def budgets_for_month(
         BudgetSpec(budget.category_id, budget.rollover, budget.overspend, limits[budget.id])
         for budget in budgets
     ]
-    sums = await monthly_sums(session, principal, first_month(specs, month), month)
+    sums = await monthly_sums(session, principal, first_month(specs, month), month, view=view)
     return compute_budgets(month, specs, categories, sums)
 
 

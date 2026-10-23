@@ -41,6 +41,7 @@ export function categoryNames(groups: CategoryGroupOut[] | undefined): Map<strin
 /**
  * Pick a category, searchable. `onChange(null)` hands the choice back to rules and the
  * merchant's default ("Automatic"); `noneLabel` renames that entry, or hides it with `null`.
+ * `kind` offers only expense or only income categories.
  */
 export function CategoryPicker({
   value,
@@ -49,6 +50,7 @@ export function CategoryPicker({
   disabled,
   className,
   noneLabel = 'Automatic (rules and merchant)',
+  kind,
 }: {
   value: string | null;
   onChange: (categoryId: string | null) => void;
@@ -56,10 +58,11 @@ export function CategoryPicker({
   disabled?: boolean;
   className?: string;
   noneLabel?: string | null;
+  kind?: CategoryGroupOut['kind'];
 }) {
   const [open, setOpen] = useState(false);
   const categories = useCategories();
-  const groups = activeGroups(categories.data);
+  const groups = activeGroups(categories.data).filter((group) => !kind || group.kind === kind);
   const choose = (categoryId: string | null) => {
     setOpen(false);
     if (categoryId !== value) onChange(categoryId);

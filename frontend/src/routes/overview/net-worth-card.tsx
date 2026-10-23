@@ -8,13 +8,15 @@ import {
   ChartTooltipContent,
 } from '@/components/ui/chart';
 import { formatCompactMoney, formatDate, formatMoney } from '@/lib/format';
+import { useView } from '@/lib/view';
 import { axisTicks } from './chart-data';
 import { Note, Panel } from './panel';
 
 const config = { amount: { label: 'Net worth', color: 'var(--chart-1)' } } satisfies ChartConfig;
 
 export function NetWorthCard() {
-  const netWorth = useQuery(getNetWorthOptions());
+  const { view } = useView();
+  const netWorth = useQuery(getNetWorthOptions({ query: { view } }));
   return (
     <Panel
       title="Net worth over time"

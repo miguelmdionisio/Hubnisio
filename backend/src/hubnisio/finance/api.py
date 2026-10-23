@@ -27,6 +27,8 @@ from hubnisio.finance.models import (
     Account,
     AccountOwner,
     BalanceSnapshot,
+    Category,
+    CategoryKind,
     Connection,
     ConnectionStatus,
     ProviderAccount,
@@ -263,8 +265,11 @@ async def update_account(
     session: DbSession,
     principal: CurrentPrincipal,
 ) -> schemas.AccountOut:
-    """Only an account's owners can change it. Hiding it is for the whole household."""
+    """Only an account's owners can change it. Hiding it, or making it a shared pot, is for
+    the whole household."""
     account = await _own_account(session, principal, account_id)
+    if body.pot_category_id is not None:
+        await _pot_category(session, principal, body.pot_category_id)
     if "display_name" in body.model_fields_set:
         account.display_name = (body.display_name or "").strip() or None
     if body.visibility is not None:
@@ -273,6 +278,10 @@ async def update_account(
         account.include_in_net_worth = body.include_in_net_worth
     if body.hidden is not None and body.hidden != (account.hidden_at is not None):
         account.hidden_at = datetime.now(UTC) if body.hidden else None
+    if body.is_pot is not None:
+        account.is_pot = body.is_pot
+    if "pot_category_id" in body.model_fields_set:
+        account.pot_category_id = body.pot_category_id
     await session.commit()
     balances = await latest_balances(session, [account.id])
     counts = await _transaction_counts(session, [account.id])
@@ -331,6 +340,27 @@ async def _own_account(
     if account is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "No such account among yours.")
     return account
+
+
+async def _pot_category(
+    session: AsyncSession, principal: Principal, category_id: uuid.UUID
+) -> Category:
+    """A household expense category in use: where contributions to a pot count."""
+    category = await session.scalar(
+        select(Category).where(
+            Category.id == category_id,
+            Category.household_id == principal.household_id,
+            Category.user_id.is_(None),
+        )
+    )
+    if category is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "No such category.")
+    if category.kind != CategoryKind.EXPENSE or category.archived_at is not None:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            "Contributions to a pot need an expense category that isn't archived.",
+        )
+    return category
 
 
 async def _transaction_counts(
@@ -491,6 +521,8 @@ def _account_out(
         include_in_net_worth=account.include_in_net_worth,
         is_owner=owned,
         hidden_at=account.hidden_at,
+        is_pot=account.is_pot,
+        pot_category_id=account.pot_category_id,
         transaction_count=transaction_counts.get(account.id, 0),
         balance=(
             schemas.Balance(

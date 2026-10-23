@@ -5,6 +5,7 @@ import { BudgetBar } from '@/components/budget-bar';
 import { formatMoney, formatMonth } from '@/lib/format';
 import { currentMonth, monthStart } from '@/lib/months';
 import { cn } from '@/lib/utils';
+import { useView } from '@/lib/view';
 import { cardLink, Note, Panel } from './panel';
 
 const eur = (amount: string) => formatMoney(amount, 'EUR');
@@ -39,7 +40,8 @@ function BudgetItem({
 
 export function BudgetsCard() {
   const month = currentMonth();
-  const budgets = useQuery(listBudgetsOptions({ query: { month: monthStart(month) } }));
+  const { view } = useView();
+  const budgets = useQuery(listBudgetsOptions({ query: { month: monthStart(month), view } }));
   return (
     <Panel
       title="Budgets this month"

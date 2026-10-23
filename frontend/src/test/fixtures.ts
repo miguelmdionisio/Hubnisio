@@ -27,6 +27,8 @@ export const account: AccountOut = {
   include_in_net_worth: true,
   is_owner: true,
   hidden_at: null,
+  is_pot: false,
+  pot_category_id: null,
   transaction_count: 0,
   balance: null,
 };

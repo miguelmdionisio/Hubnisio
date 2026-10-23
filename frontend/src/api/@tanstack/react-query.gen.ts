@@ -212,7 +212,8 @@ export const deleteAccountMutation = (options?: Partial<Options<DeleteAccountDat
 /**
  * Update Account
  *
- * Only an account's owners can change it. Hiding it is for the whole household.
+ * Only an account's owners can change it. Hiding it, or making it a shared pot, is for
+ * the whole household.
  */
 export const updateAccountMutation = (options?: Partial<Options<UpdateAccountData>>): UseMutationOptions<UpdateAccountResponse, UpdateAccountError, Options<UpdateAccountData>> => {
     const mutationOptions: UseMutationOptions<UpdateAccountResponse, UpdateAccountError, Options<UpdateAccountData>> = {
@@ -722,7 +723,7 @@ export const listBudgetsQueryKey = (options?: Options<ListBudgetsData>) => creat
  * List Budgets
  *
  * Each budget for `month`'s month (default: this one): its limit, what last month carried
- * in, what's available, spent and remaining.
+ * in, what's available, spent and remaining, counting the accounts of `view`.
  */
 export const listBudgetsOptions = (options?: Options<ListBudgetsData>) => queryOptions<ListBudgetsResponse, ListBudgetsError, ListBudgetsResponse, ReturnType<typeof listBudgetsQueryKey>>({
     queryFn: async ({ queryKey, signal }) => {

@@ -19,6 +19,7 @@ import { mockApi, renderAt } from '@/test/render';
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+  localStorage.clear();
 });
 
 const month = currentMonth();
@@ -578,4 +579,40 @@ test('says so when a month has no spending', async () => {
   const donut = await card('Spending breakdown');
   expect(await donut.findByText(/No spending to chart in/)).toBeDefined();
   expect(donut.queryByRole('list')).toBeNull();
+});
+
+test('counts Mine by default; the toggle switches the cards to Household and is remembered', async () => {
+  const calls = api();
+  const counted = (view: string) =>
+    new Set(
+      calls
+        .filter((call) => call.search.get('view') === view)
+        .map((call) => call.path.replace('/api/finance/', '')),
+    );
+
+  renderAt('/');
+
+  const toggle = within(await screen.findByRole('group', { name: 'View' }));
+  expect(toggle.getByRole('button', { name: 'Mine' }).getAttribute('aria-pressed')).toBe('true');
+  expect(await screen.findByText(/A shared pot counts as what you move into it/)).toBeDefined();
+  await card('Net worth');
+  expect(counted('personal')).toEqual(
+    new Set(['insights/net-worth', 'insights/spending', 'insights/cash-flow', 'budgets']),
+  );
+  expect(counted('household').size).toBe(0);
+
+  fireEvent.click(toggle.getByRole('button', { name: 'Household' }));
+  expect(await screen.findByText('Every account in full, shared pots included.')).toBeDefined();
+  await vi.waitFor(() =>
+    expect(counted('household')).toEqual(
+      new Set(['insights/net-worth', 'insights/spending', 'insights/cash-flow', 'budgets']),
+    ),
+  );
+
+  cleanup();
+  renderAt('/');
+  const again = within(await screen.findByRole('group', { name: 'View' }));
+  expect(again.getByRole('button', { name: 'Household' }).getAttribute('aria-pressed')).toBe(
+    'true',
+  );
 });

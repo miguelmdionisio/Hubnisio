@@ -139,6 +139,14 @@ Findings that shape it ([research](../research/oss-finance-analysis.md)):
 - **Cash flow** is built from the same sums: income categories plus uncategorized income, against expense categories plus uncategorized spending. So it always agrees with the category chart.
 - **Computed on read,** with no job and no cache tables (unlike Firefly's `period_statistics`). Revisit if it gets slow.
 
+### Shared pots and the Mine view *(added before M4)*
+
+- **The model** is in [ADR-0005](0005-household-data-model.md), "Shared pots and two views". Spending, cash flow, budgets and net worth take `view=personal|household`, `personal` (Mine) by default.
+- **Mine's sums** (`insights.spending.monthly_sums`): transactions on `mine_account_ids` only. A transfer pair whose other side is on a pot isn't a transfer there: the viewer's side counts by its sign in the pot's `pot_category_id`, ignoring any category or kind set on the transaction, or as uncategorized by its sign without one. So a contribution is spending, and money back from the pot lowers that category's spending. Pairs between the viewer's own accounts stay transfers.
+- **Downstream:** spending, cash flow, category budgets and the overall budget all read those sums, so they follow the view. Mine's net worth sums `listed_mine_account_ids`, so the pot's balance is left out.
+- **The pot's category:** an expense category of the household, not archived. Deleting it sets the pot to none (`ON DELETE SET NULL`), and its contributions become uncategorized. Only a transfer pair makes a move a contribution: a move marked as a transfer but left unpaired stays out of Mine's sums.
+- **Household** is unchanged: the same sums and net worth as before G5.
+
 ### FX rates *(added in M3)*
 
 - **Base currency:** EUR, a constant rather than a setting. Every insight is in EUR.

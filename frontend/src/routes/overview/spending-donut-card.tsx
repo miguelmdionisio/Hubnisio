@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/chart';
 import { formatMoney, formatMonth } from '@/lib/format';
 import { currentMonth, monthStart, shiftMonth } from '@/lib/months';
+import { useView } from '@/lib/view';
 import type { TransactionSearch } from '../finance/transactions';
 import { type DonutSlice, donutSlices, OTHER } from './chart-data';
 import { Note, Panel } from './panel';
@@ -44,7 +45,10 @@ function percent(share: number): string {
 export function SpendingDonutCard() {
   const [month, setMonth] = useState(currentMonth);
   const [path, setPath] = useState<string[]>([]); // what has been drilled into, outermost first
-  const spending = useQuery(getSpendingOptions({ query: { months: 1, until: monthStart(month) } }));
+  const { view } = useView();
+  const spending = useQuery(
+    getSpendingOptions({ query: { months: 1, until: monthStart(month), view } }),
+  );
   const goTo = (next: string) => {
     setMonth(next);
     setPath([]);

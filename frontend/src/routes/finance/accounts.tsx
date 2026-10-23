@@ -8,6 +8,7 @@ import { deleteAccount } from '@/api/sdk.gen';
 import type { AccountDeleteBlocked, AccountOut, AccountUpdate } from '@/api/types.gen';
 import { PageHeader } from '@/components/app-shell';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -33,6 +34,7 @@ import {
 } from '@/components/ui/table';
 import { errorMessage } from '@/lib/errors';
 import { formatMoney, formatRelative } from '@/lib/format';
+import { CategoryPicker, categoryNames, useCategories } from './category-picker';
 import { useAccounts } from './use-accounts';
 
 const BALANCE_LABELS: Record<string, string> = {
@@ -45,6 +47,7 @@ const BALANCE_LABELS: Record<string, string> = {
 export function AccountsPage() {
   const queryClient = useQueryClient();
   const accounts = useAccounts();
+  const names = categoryNames(useCategories().data);
   const update = useMutation({
     ...updateAccountMutation(),
     // An account's settings show everywhere: net worth, upcoming payments, filters.
@@ -103,6 +106,7 @@ export function AccountsPage() {
               <TableHead className="text-right">Balance</TableHead>
               <TableHead>Private</TableHead>
               <TableHead>In net worth</TableHead>
+              <TableHead>Shared pot</TableHead>
               <TableHead>
                 <span className="sr-only">Actions</span>
               </TableHead>
@@ -144,6 +148,11 @@ export function AccountsPage() {
                   ) : (
                     <span className="text-muted-foreground">Not synced</span>
                   )}
+                  {account.is_pot && (
+                    <Badge variant="outline" className="mt-1">
+                      Not in Mine
+                    </Badge>
+                  )}
                 </TableCell>
                 <TableCell>
                   <Switch
@@ -165,6 +174,31 @@ export function AccountsPage() {
                     }
                   />
                 </TableCell>
+                <TableCell>
+                  <Switch
+                    aria-label={`${account.name} is a shared pot`}
+                    checked={account.is_pot}
+                    disabled={!account.is_owner || update.isPending}
+                    onCheckedChange={(checked) => change(account, { is_pot: checked })}
+                  />
+                  {account.is_pot && (
+                    <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+                      Contributions:
+                      <CategoryPicker
+                        kind="expense"
+                        noneLabel="Uncategorized"
+                        value={account.pot_category_id}
+                        disabled={!account.is_owner || update.isPending}
+                        onChange={(categoryId) => change(account, { pot_category_id: categoryId })}
+                        className="h-6 text-xs"
+                      >
+                        {account.pot_category_id
+                          ? (names.get(account.pot_category_id) ?? 'Unknown category')
+                          : 'Uncategorized'}
+                      </CategoryPicker>
+                    </div>
+                  )}
+                </TableCell>
                 <TableCell className="text-right">
                   {account.is_owner && (
                     <Button
@@ -183,6 +217,13 @@ export function AccountsPage() {
           </TableBody>
           <Totals accounts={accounts.listed} />
         </Table>
+      )}
+      {accounts.listed.length > 0 && (
+        <p className="mt-2 text-sm text-muted-foreground">
+          A shared pot is an account you share with someone outside the hub: in Mine, what you move
+          into it counts as spending in its category, and its own spending and balance count only in
+          Household.
+        </p>
       )}
       <HiddenAccounts
         accounts={accounts.hidden}
@@ -229,7 +270,7 @@ function Totals({ accounts }: { accounts: AccountOut[] }) {
             <div key={currency}>{formatMoney(amount, currency)}</div>
           ))}
         </TableCell>
-        <TableCell colSpan={3} />
+        <TableCell colSpan={4} />
       </TableRow>
     </TableFooter>
   );

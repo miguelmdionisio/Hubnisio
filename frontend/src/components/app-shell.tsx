@@ -12,7 +12,10 @@ import {
   Wallet,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Toaster } from '@/components/ui/sonner';
+import { useView, VIEW_LABELS, VIEW_NOTES, type View, ViewProvider } from '@/lib/view';
 
 type Path =
   | '/'
@@ -58,13 +61,44 @@ function NavSection({ title, children }: { title: string; children: ReactNode })
   );
 }
 
+/** Mine or Household: which accounts the overview, charts and budgets count. */
+function ViewToggle() {
+  const { view, setView } = useView();
+  return (
+    <fieldset aria-label="View" className="mt-4 flex rounded-md border bg-background p-0.5">
+      {(['personal', 'household'] satisfies View[]).map((option) => (
+        <Button
+          key={option}
+          variant={view === option ? 'secondary' : 'ghost'}
+          size="sm"
+          className="h-7 flex-1"
+          aria-pressed={view === option}
+          title={VIEW_NOTES[option]}
+          onClick={() => setView(option)}
+        >
+          {VIEW_LABELS[option]}
+        </Button>
+      ))}
+    </fieldset>
+  );
+}
+
 export function AppShell() {
+  return (
+    <ViewProvider>
+      <Shell />
+    </ViewProvider>
+  );
+}
+
+function Shell() {
   return (
     <div className="flex min-h-screen bg-background text-foreground">
       <aside className="sticky top-0 h-screen w-56 shrink-0 overflow-y-auto border-r bg-sidebar px-3 py-4">
         <Link to="/" className="block px-2 text-lg font-semibold">
           Hubnisio
         </Link>
+        <ViewToggle />
         <nav className="mt-6 space-y-6" aria-label="Main">
           <div className="space-y-0.5">
             <NavLink to="/" icon={House}>
@@ -107,22 +141,36 @@ export function AppShell() {
   );
 }
 
+/** `showsView`: the page counts the accounts of the chosen view, so it says which. */
 export function PageHeader({
   title,
   description,
   actions,
+  showsView,
 }: {
   title: string;
   description?: string;
   actions?: ReactNode;
+  showsView?: boolean;
 }) {
   return (
     <div className="mb-6 flex items-start justify-between gap-4">
       <div>
         <h1 className="text-2xl font-semibold">{title}</h1>
         {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
+        {showsView && <ViewNote />}
       </div>
       {actions && <div className="flex shrink-0 gap-2">{actions}</div>}
     </div>
+  );
+}
+
+function ViewNote() {
+  const { view } = useView();
+  return (
+    <p className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
+      <Badge variant="secondary">{VIEW_LABELS[view]}</Badge>
+      {VIEW_NOTES[view]}
+    </p>
   );
 }

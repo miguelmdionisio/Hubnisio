@@ -3,6 +3,11 @@
 What counts (ADR-0007): booked transactions that aren't transfers, in euros at the rate on
 their date. A category's sum is net, so a refund in an expense category lowers its spending.
 Transactions without a category are summed by their kind (expense or income).
+
+In the personal view (ADR-0005, "Shared pots") only the principal's own accounts count, and a
+transfer pair with a shared pot isn't a transfer: the principal's side counts by its sign in
+the pot's contributions category, or by its sign as uncategorized. Money moved back from the
+pot lowers that category's spending.
 """
 
 import uuid
@@ -12,13 +17,15 @@ from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
 
-from sqlalchemy import Date, DateTime, cast, func, not_, or_, select
+from sqlalchemy import ColumnElement, Date, DateTime, and_, cast, false, func, not_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
 from hubnisio.core.auth import Principal
 from hubnisio.finance.fx.convert import eur_amount
 from hubnisio.finance.kinds import IS_TRANSFER
 from hubnisio.finance.models import (
+    Account,
     Category,
     CategoryAssignment,
     CategoryKind,
@@ -28,7 +35,7 @@ from hubnisio.finance.models import (
     TransactionStatus,
     Transfer,
 )
-from hubnisio.finance.scoping import visible_account_ids
+from hubnisio.finance.scoping import View, counted_account_ids, visible_account_ids
 
 CENT = Decimal("0.01")
 
@@ -79,10 +86,41 @@ def cents(amount: Decimal) -> Decimal:
 
 
 async def monthly_sums(
-    session: AsyncSession, principal: Principal, first: date, last: date
+    session: AsyncSession, principal: Principal, first: date, last: date, *, view: View
 ) -> MonthlySums:
-    """Sums for the months from `first`'s to `last`'s, over the accounts the principal sees."""
+    """Sums for the months from `first`'s to `last`'s, over the accounts that count in
+    `view` (finance/scoping.py)."""
     month = cast(func.date_trunc("month", cast(Transaction.occurred_on, DateTime)), Date)
+    query = (
+        select()
+        .select_from(Transaction)
+        .outerjoin(
+            Transfer,
+            or_(Transfer.outgoing_id == Transaction.id, Transfer.incoming_id == Transaction.id),
+        )
+    )
+    category: ColumnElement[uuid.UUID] = CategoryAssignment.category_id.expression
+    to_pot: ColumnElement[bool] = false()
+    if view == "personal":
+        other_side, pot = aliased(Transaction), aliased(Account)
+        query = query.outerjoin(
+            other_side,
+            and_(
+                or_(other_side.id == Transfer.outgoing_id, other_side.id == Transfer.incoming_id),
+                other_side.id != Transaction.id,
+            ),
+        ).outerjoin(
+            pot,
+            and_(
+                pot.id == other_side.account_id,
+                pot.is_pot,
+                pot.id.in_(visible_account_ids(principal)),
+            ),
+        )
+        to_pot = pot.id.is_not(None)
+        # A move to or from a pot takes the pot's category and its own sign, whatever was
+        # decided about the transaction.
+        category = func.coalesce(pot.pot_category_id, CategoryAssignment.category_id)
     eur = eur_amount(
         func.coalesce(CategoryAssignment.amount, Transaction.amount),
         Transaction.currency,
@@ -90,31 +128,30 @@ async def monthly_sums(
     )
     positive = Transaction.amount > 0
     rows = await session.execute(
-        select(
+        query.add_columns(
             month,
-            CategoryAssignment.category_id,
+            category,
             TransactionAnnotation.kind_override,
             positive,
             func.sum(eur),
             func.count().filter(eur.is_(None)),
         )
-        .select_from(Transaction)
-        .outerjoin(TransactionAnnotation, TransactionAnnotation.transaction_id == Transaction.id)
-        .outerjoin(CategoryAssignment, CategoryAssignment.transaction_id == Transaction.id)
         .outerjoin(
-            Transfer,
-            or_(Transfer.outgoing_id == Transaction.id, Transfer.incoming_id == Transaction.id),
+            TransactionAnnotation,
+            and_(TransactionAnnotation.transaction_id == Transaction.id, not_(to_pot)),
+        )
+        .outerjoin(
+            CategoryAssignment,
+            and_(CategoryAssignment.transaction_id == Transaction.id, not_(to_pot)),
         )
         .where(
-            Transaction.account_id.in_(visible_account_ids(principal)),
+            Transaction.account_id.in_(counted_account_ids(principal, view)),
             Transaction.status == TransactionStatus.BOOKED,
             Transaction.occurred_on >= month_start(first),
             Transaction.occurred_on < add_months(month_start(last), 1),
-            not_(IS_TRANSFER),
+            or_(not_(IS_TRANSFER), to_pot),
         )
-        .group_by(
-            month, CategoryAssignment.category_id, TransactionAnnotation.kind_override, positive
-        )
+        .group_by(month, category, TransactionAnnotation.kind_override, positive)
     )
     sums = MonthlySums()
     for month_, category_id, override, is_positive, total, unconverted in rows:

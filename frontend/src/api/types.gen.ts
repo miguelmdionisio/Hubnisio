@@ -66,6 +66,14 @@ export type AccountOut = {
      */
     hidden_at: string | null;
     /**
+     * Is Pot
+     */
+    is_pot: boolean;
+    /**
+     * Pot Category Id
+     */
+    pot_category_id: string | null;
+    /**
      * Transaction Count
      */
     transaction_count: number;
@@ -89,6 +97,14 @@ export type AccountUpdate = {
      * Hidden
      */
     hidden?: boolean | null;
+    /**
+     * Is Pot
+     */
+    is_pot?: boolean | null;
+    /**
+     * Pot Category Id
+     */
+    pot_category_id?: string | null;
 };
 
 /**
@@ -2233,6 +2249,10 @@ export type GetSpendingData = {
          * Until
          */
         until?: string | null;
+        /**
+         * View
+         */
+        view?: 'personal' | 'household';
     };
     url: '/api/finance/insights/spending';
 };
@@ -2267,6 +2287,10 @@ export type GetCashFlowData = {
          * Until
          */
         until?: string | null;
+        /**
+         * View
+         */
+        view?: 'personal' | 'household';
     };
     url: '/api/finance/insights/cash-flow';
 };
@@ -2297,6 +2321,10 @@ export type GetNetWorthData = {
          * Date From
          */
         date_from?: string | null;
+        /**
+         * View
+         */
+        view?: 'personal' | 'household';
     };
     url: '/api/finance/insights/net-worth';
 };
@@ -2327,6 +2355,10 @@ export type ListBudgetsData = {
          * Month
          */
         month?: string | null;
+        /**
+         * View
+         */
+        view?: 'personal' | 'household';
     };
     url: '/api/finance/budgets';
 };

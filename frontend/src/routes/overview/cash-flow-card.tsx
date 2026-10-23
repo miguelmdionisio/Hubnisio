@@ -10,6 +10,7 @@ import {
   ChartTooltipContent,
 } from '@/components/ui/chart';
 import { formatCompactMoney, formatMoney, formatMonth } from '@/lib/format';
+import { useView } from '@/lib/view';
 import { cashFlowRows } from './chart-data';
 import { Note, Panel } from './panel';
 
@@ -20,7 +21,8 @@ const config = {
 } satisfies ChartConfig;
 
 export function CashFlowCard() {
-  const cashFlow = useQuery(getCashFlowOptions({ query: { months: 12 } }));
+  const { view } = useView();
+  const cashFlow = useQuery(getCashFlowOptions({ query: { months: 12, view } }));
   return (
     <Panel
       title="Income vs spending"

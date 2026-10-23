@@ -10,6 +10,7 @@ import {
 import { formatMoney } from '@/lib/format';
 import { currentMonth, monthStart } from '@/lib/months';
 import { cn } from '@/lib/utils';
+import { useView } from '@/lib/view';
 import { netWorthChange } from './chart-data';
 import { Note, Panel, QueryView } from './panel';
 
@@ -21,7 +22,8 @@ function Figure({ className, children }: { className?: string; children: ReactNo
 }
 
 export function NetWorthTile() {
-  const netWorth = useQuery(getNetWorthOptions());
+  const { view } = useView();
+  const netWorth = useQuery(getNetWorthOptions({ query: { view } }));
   return (
     <Panel title="Net worth" query={netWorth}>
       {(data) => {
@@ -51,7 +53,8 @@ export function NetWorthTile() {
  * what was spent. */
 export function ThisMonthTile() {
   const month = currentMonth();
-  const budgets = useQuery(listBudgetsOptions({ query: { month: monthStart(month) } }));
+  const { view } = useView();
+  const budgets = useQuery(listBudgetsOptions({ query: { month: monthStart(month), view } }));
   return (
     <Panel title="This month" query={budgets}>
       {(data) => {
@@ -81,7 +84,8 @@ export function ThisMonthTile() {
 }
 
 function SpendingWithoutBudgets({ month }: { month: string }) {
-  const cashFlow = useQuery(getCashFlowOptions({ query: { months: 12 } }));
+  const { view } = useView();
+  const cashFlow = useQuery(getCashFlowOptions({ query: { months: 12, view } }));
   return (
     <QueryView query={cashFlow}>
       {(data) => {
