@@ -4,8 +4,11 @@ A private, self-hosted personal hub, one app per domain; finance first. Decision
 
 ## Where things stand
 
-- **Done:** M1 (Enable Banking link and sync: BPI and Revolut, about 1,650 transactions); M2 (categories, merchants, rules, transfer pairs, notes and tags, and their pages).
-- **Next:** M3 insights (budgets with rollover/overspend, recurring payments, FX rates, net worth, first charts). Then M4 AI (analytics views, `hub_ai` role, MCP server); M5 server (Tailscale, Caddy, passkey login replacing the dev user, Postgres roles, backups); M6 Trading 212.
+- **Done:**
+  - M1: Enable Banking link and sync (BPI and Revolut, about 1,650 transactions).
+  - M2: categories, merchants, rules, transfer pairs, notes and tags, and their pages.
+  - M3: daily FX rates into EUR; spending, cash flow and net worth, computed on read; budgets with rollover and overspend; detected recurring payments the user confirms; the Budgets, Recurring and overview pages (Recharts).
+- **Next:** M4 AI (analytics views, `hub_ai` role, MCP server). Then M5 server (Tailscale, Caddy, passkey login replacing the dev user, Postgres roles, backups); M6 Trading 212.
 
 ## Layout and rules of the code
 
@@ -15,7 +18,7 @@ A private, self-hosted personal hub, one app per domain; finance first. Decision
 - **Bank facts vs user layer:** only the sync writes `transactions` and `balance_snapshots`. Everything decided about a transaction lives in the user-layer tables. Precedence: manual > rule > counterparty default > ai.
 - **Migrations:** autogenerate against a throwaway Postgres container, then finish by hand: named constraints, enum types created once, downgrade drops them. `tests/test_migrations.py` checks models and migrations agree.
 - **Tests:**
-  - Backend tests use a real Postgres via testcontainers (Docker must be running).
+  - Backend tests use a real Postgres via testcontainers (Docker must be running). Finance API tests share the `home` fixture (`tests/households.py`): two members, the seeded categories, three accounts (one private). The database isn't reset between tests, so `fx_rates`, being global, needs test-only currency codes such as `XTS`.
   - Frontend tests render the whole app with `src/test/render.tsx` (`renderAt`, `mockApi`) and `src/test/fixtures.ts`.
 - **Display:** one locale, `en-GB`, in `frontend/src/lib/format.ts`.
 
@@ -63,3 +66,4 @@ The user commits to `main` and approves pushes. Check CI with `gh run list` afte
   - The Compose worker doesn't reload code: after backend changes, run `docker compose restart worker`. The API reloads itself.
   - The frontend dev server is HTTPS with a self-signed certificate: `https://localhost:5173`.
   - On Windows outside Docker, start uvicorn with `--reload`: psycopg async can't use the default Proactor event loop.
+  - Admin commands run in the API container: `docker compose exec api python -m hubnisio.cli --help` (`recategorize`, `detect-recurring`, `fx-backfill`, …). New migrations: `docker compose run --rm migrate`.

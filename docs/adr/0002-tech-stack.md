@@ -29,7 +29,11 @@
 - **React + TypeScript** single-page app, built with **Vite**, managed with **pnpm**.
 - **TanStack Query** for server state, **TanStack Router** for typed routes.
 - **Generated API client** from FastAPI's OpenAPI schema (e.g. `@hey-api/openapi-ts`). CI regenerates it and fails on drift.
-- **Tailwind + shadcn/ui** components. The charting library (ECharts or Recharts) is picked when the first dashboard is built.
+- **Tailwind + shadcn/ui** components.
+- **Charts: Recharts, through shadcn's `chart` component** *(decided in M3, at the first dashboard)*.
+  - It's themed with the app's CSS variables, so charts follow light and dark like everything else.
+  - It's React components rather than an imperative API, and a smaller bundle than ECharts.
+  - The dashboards plot monthly aggregates and daily net worth, a few hundred points at most, so ECharts' canvas speed and extra chart types (sankey, heatmaps, zoom) aren't needed yet. Revisit if a chart needs one of them.
 - In production the SPA is static files served by the reverse proxy; the backend serves only the API.
 
 ### Quality
@@ -76,7 +80,7 @@ The UI is where this project is most demanding: charts, filters, big tables. Tha
 
 - **Easier:** frontend types always match the API; heavy dashboards are straightforward; provider sync and the API share async code.
 - **Harder:** two toolchains to keep updated; auth (sessions, passkeys) is our own code ([ADR-0004](0004-hosting-and-security.md)).
-- **Revisit:** the charting library at the first dashboard; whether SQLAdmin earns its keep.
+- **Revisit:** whether SQLAdmin earns its keep; ECharts, if a chart needs what Recharts lacks.
 
 ## Action Items
 

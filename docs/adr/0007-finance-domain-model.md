@@ -215,11 +215,28 @@ What it showed:
 - **`TRF` is not "transfer".** `TRF SEPA+ INST` (35 transactions, 12 in) and `TRF CR INTRAB` (7, 6 in) are mostly payments to and from other people. Only transfers between the household's own accounts are transfers; marking every `TRF` would hide real spending.
 - **Patterns worth a rule on BPI** (counts are BPI transactions): `comissao` (26, includes the VAT on it), `imposto` (6), `lev. atm` (4), `reforco bpi poupanca` (3, a move to savings), `dev. compra` (2, refunds in), `paypal` (8), and card purchases by merchant name.
 
+### First insights run (M3, 2026-10-22)
+
+Run against the live data after M3's migrations. Counts and shares only.
+
+| | Result |
+|---|---|
+| FX rates | 117 dirham rates from currency-api, 2024-10-22 to 2026-10-22 (weekly back then, daily for the last two weeks). No other currency is in use: Revolut's USD card payments arrive already in euros |
+| Net worth | Starts 2026-07-24 (BPI's history), 91 daily points. Today's total equals the sum of the accounts' balances, and no account-day is unconverted. Going by each account's own first transaction would have started on 2026-08-03 instead, as one BPI account had nothing in its first ten days |
+| Spending, last 12 months | 95.8% uncategorized, as only a handful of transactions have a category yet. The charts work, but tell little until the BPI rules and Revolut brand rules exist |
+| Recurring series | 11 suggested: 9 monthly (2 of them income) and 2 weekly. 6 monthly ones come from BPI descriptions, 3 payments each (BPI's 90 days); 1 varies in amount. 37 transactions are linked |
+| Budgets | None yet |
+
+What it showed:
+
+- **No long same-amount Revolut subscriptions exist** in two years of data: no group of four or more same-amount payments to one merchant has a monthly rhythm. The weekly-rhythm groups (4) weren't linked, which is right: they look like habits, not subscriptions.
+- **The first rule for "other payments in the span" was too loose.** Allowing as many as the chain's own let shopping every three days pass as two interleaved weekly series. Half is the limit now.
+
 ## Action Items
 
 1. [x] Migrations for the bank-facts tables in the `finance` schema (user-layer tables come with M2).
 2. [x] Enable Banking provider: linking, `longest` first fetch, overlapping incremental sync, pending replacement.
 3. [x] Dedup test suite (synthetic payloads modelled on real ones). Pending→booked matching moves to M2, with the user layer.
-4. [ ] Rules engine plus the category precedence logic.
+4. [x] Rules engine plus the category precedence logic (M2).
 5. [x] Recurring detection job.
 6. [x] Budget calculation with per-category rollover and overspend settings.
