@@ -27,6 +27,10 @@ class Settings(BaseSettings):
     # Where `cli ai-login` writes each member's AI connection string (ADR-0006), one file per
     # login. Compose bind-mounts secrets/ai there, since the command writes it.
     ai_secrets_dir: Path = Path("../secrets/ai")
+    # The MCP server (hubnisio.ai): the kill switch, and the member login it connects as (one of
+    # the files above). It never uses database_url.
+    ai_enabled: bool = False
+    ai_dsn_file: Path | None = None
 
     # Enable Banking (ADR-0003): the application ID (the name of its .pem key file), and the URL the
     # bank sends the browser back to after authorization (https; allowed in the Control Panel).

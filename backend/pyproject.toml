@@ -8,6 +8,7 @@ dependencies = [
     "cryptography>=50.0.2",
     "fastapi>=0.159.1",
     "httpx>=0.28.1",
+    "mcp>=2.3.0",
     "procrastinate==3.10.0",
     "psycopg[binary,pool]>=3.3.6",
     "pydantic-settings>=2.16.1",
@@ -46,7 +47,7 @@ root_package = "hubnisio"
 name = "Entrypoints on top, domain modules in the middle, core at the bottom"
 type = "layers"
 layers = [
-    "main | worker | cli",
+    "main | worker | cli | ai",
     "jobs",
     "finance",
     "core",

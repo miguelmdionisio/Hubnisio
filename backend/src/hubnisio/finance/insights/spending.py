@@ -22,6 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
 from hubnisio.core.auth import Principal
+from hubnisio.finance import schemas
 from hubnisio.finance.fx.convert import eur_amount
 from hubnisio.finance.kinds import IS_TRANSFER
 from hubnisio.finance.models import (
@@ -224,3 +225,66 @@ def total_spending(
         if sum_month == month and category is not None and category.kind == CategoryKind.EXPENSE:
             total -= amount
     return total
+
+
+def spending_by_group(
+    sums: MonthlySums, categories: Mapping[uuid.UUID, CategoryInfo], window: Sequence[date]
+) -> schemas.Spending:
+    """The spending chart's data for `window`'s months: each expense group with spending, its
+    categories, and uncategorized spending. `sums` cover those months."""
+    by_month = spent(sums, categories, window)
+
+    def amounts(category_id: uuid.UUID) -> list[Decimal]:
+        return [cents(by_month.get((month, category_id), Decimal())) for month in window]
+
+    used = {category_id for _, category_id in by_month}
+    groups: list[schemas.SpendingGroup] = []
+    for group in (c for c in categories.values() if c.parent_id is None and c.id in used):
+        children = [
+            schemas.SpendingCategory(id=c.id, name=c.name, amounts=amounts(c.id))
+            for c in categories.values()
+            if c.parent_id == group.id and c.id in used
+        ]
+        children.sort(key=lambda c: sum(c.amounts), reverse=True)
+        groups.append(
+            schemas.SpendingGroup(
+                id=group.id, name=group.name, amounts=amounts(group.id), categories=children
+            )
+        )
+    groups.sort(key=lambda g: sum(g.amounts), reverse=True)
+    return schemas.Spending(
+        months=list(window),
+        groups=groups,
+        uncategorized=[
+            cents(-sums.uncategorized.get((month, TransactionKind.EXPENSE), Decimal()))
+            for month in window
+        ],
+        unconverted=sums.unconverted,
+    )
+
+
+def cash_flow(
+    sums: MonthlySums, categories: Mapping[uuid.UUID, CategoryInfo], window: Sequence[date]
+) -> schemas.CashFlow:
+    """Income and spending for `window`'s months, from the same sums as the spending chart."""
+    income = {
+        month: sums.uncategorized.get((month, TransactionKind.INCOME), Decimal())
+        for month in window
+    }
+    for (month, category_id), total in sums.by_category.items():
+        category = categories.get(category_id)
+        if category is not None and category.kind == CategoryKind.INCOME and month in income:
+            income[month] += total
+    spending = {month: total_spending(sums, categories, month) for month in window}
+    return schemas.CashFlow(
+        months=[
+            schemas.CashFlowMonth(
+                month=month,
+                income=cents(income[month]),
+                spending=cents(spending[month]),
+                net=cents(income[month] - spending[month]),
+            )
+            for month in window
+        ],
+        unconverted=sums.unconverted,
+    )

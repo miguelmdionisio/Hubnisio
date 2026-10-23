@@ -43,6 +43,10 @@
 - A `query_sql` escape hatch: SELECT-only, on `analytics` only, with a statement timeout and a row limit.
 - Reachable only on the private network, with a per-client token. *(Amended in M4: until the server exists (M5) it runs over local stdio, started by Claude Code or Desktop with `docker compose exec`, so it has no port and no token.)*
 - *(Added in M4)* The AI's numbers come from the app's own code: the server loads the views into the dataclasses the app uses (`MonthlySums`, `CategoryInfo`, budget limits) and calls the same pure functions (`spent`, `total_spending`, `compute_budgets`).
+- *(As built in M4, slice A2)* The package `hubnisio/ai`, run as `python -m hubnisio.ai` in the api container (README, "Using the hub from Claude"). Its tools are `list_accounts`, `list_categories`, `search_transactions`, `spending_summary`, `cashflow`, `budget_status`, `recurring_payments`, `balances` (each account's latest balance, and net worth today), `uncategorized_overview` and `query_sql`; `net_worth_history` comes in slice A4. The insight tools take `view` (`personal` by default), as the API does, and `spending_summary`, `cashflow` and `budget_status` return the API's own shapes from the same pure functions. `tests/test_ai.py` checks every tool against the app.
+  - Each call opens its own connection as the member's login. Its reads run in a `READ ONLY` transaction; then the call is recorded in a read-write one. A call that fails is recorded too, without a row count.
+  - `query_sql` runs `SELECT * FROM (<query>) q LIMIT 501` with one bind parameter, so psycopg sends it as a single prepared statement and nothing can be chained after it. Postgres accepts only a query in that place, and no data-modifying `WITH` below the top level. It returns at most 500 rows, with `statement_timeout` set to 5 s for its transaction.
+  - `balances` converts only balances in euros (every account is in euros today) and reports others as unconverted, until the `analytics` schema has exchange rates.
 
 ### LLM-assisted categorization
 
@@ -56,7 +60,7 @@
 
 - A config switch disables all external AI calls.
 - Every external call is recorded in the audit log: what was sent, and when.
-- *(Amended in M4)* The switch is `HUBNISIO_AI_ENABLED`: without it the MCP server won't start. Each tool call is recorded in `core.ai_calls` (when, which login, which tool, its arguments and the row count, never the data returned) by `analytics.record_call`. That function is `SECURITY DEFINER`, takes the login from `session_user`, and fails in a read-only transaction, so `query_sql` can't write to the audit. The record outlives a revoked login.
+- *(Amended in M4)* The switch is `HUBNISIO_AI_ENABLED`, set in `.env` and passed to the containers by Compose: without it the MCP server won't start. The server connects only with the member's connection string in `HUBNISIO_AI_DSN_FILE`, never with the app's own database URL, and refuses to start if that login isn't mapped to a member. Each tool call is recorded in `core.ai_calls` (when, which login, which tool, its arguments and the row count, never the data returned) by `analytics.record_call`. That function is `SECURITY DEFINER`, takes the login from `session_user`, and fails in a read-only transaction, so `query_sql` can't write to the audit. The record outlives a revoked login.
 - Models are picked per task: a smaller model for bulk categorization, a larger one for analysis and chat.
 
 ## Options Considered
@@ -103,5 +107,5 @@ B costs a modest amount of upfront work and makes the AI layer safe structurally
 ## Action Items
 
 1. [x] Create the `analytics` schema and the `hub_ai` role once the finance tables exist. *(M4, slice A1.)*
-2. [ ] First MCP tools: `search_transactions` and `spending_summary`.
+2. [x] First MCP tools: `search_transactions` and `spending_summary`. *(M4, slice A2, with the other read tools.)*
 3. [ ] Categorization suggestions with a fingerprint cache and audit logging.

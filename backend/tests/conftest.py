@@ -5,15 +5,21 @@ Database tests are skipped when Docker isn't reachable, unless REQUIRE_DOCKER=1 
 
 import asyncio
 import os
-from collections.abc import Iterator
+import uuid
+from collections.abc import AsyncIterator, Iterator
 from pathlib import Path
 
 import pytest
 from alembic.config import Config
+from analytics_data import Data, Login, email_of, populate
 from households import Home, make_home
+from sqlalchemy import delete
 
+from hubnisio.cli import ai_login, ai_role_name
 from hubnisio.core.db import get_engine, get_sessionmaker
+from hubnisio.core.models import Household
 from hubnisio.core.settings import get_settings
+from hubnisio.finance.models import FxRate
 
 ALEMBIC_INI = Path(__file__).parents[1] / "alembic.ini"
 
@@ -74,3 +80,29 @@ def migrated_database(alembic_config: Config, database_url: str) -> Iterator[str
 async def home(migrated_database: str) -> Home:
     """A household with two members and three accounts (see households.py)."""
     return await make_home()
+
+
+@pytest.fixture
+async def logins(
+    home: Home, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> AsyncIterator[dict[uuid.UUID, Login]]:
+    """An AI login for each member, made by the CLI command (ADR-0006)."""
+    monkeypatch.setenv("HUBNISIO_AI_SECRETS_DIR", str(tmp_path))
+    get_settings.cache_clear()
+    result: dict[uuid.UUID, Login] = {}
+    for principal in (home.owner, home.member):
+        assert await ai_login(await email_of(principal), revoke=False) == 0
+        role = ai_role_name(principal.user_id)
+        result[principal.user_id] = Login(role, (tmp_path / role).read_text().strip())
+    yield result
+    get_settings.cache_clear()
+
+
+@pytest.fixture
+async def data(home: Home) -> AsyncIterator[Data]:
+    """The cases in analytics_data.py. Removed afterwards: the FX tests look at every currency
+    in use, and these are fake."""
+    yield await populate(home)
+    async with get_sessionmaker()() as session, session.begin():
+        await session.execute(delete(Household).where(Household.id == home.owner.household_id))
+        await session.execute(delete(FxRate).where(FxRate.quote_currency == "XTQ"))

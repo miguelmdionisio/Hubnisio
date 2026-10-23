@@ -41,6 +41,40 @@ After that, `docker compose up` starts everything.
   to https URLs), so the browser warns the first time: accept it once, before linking a bank.
 - API docs: http://localhost:8000/docs
 
+## Using the hub from Claude
+
+Claude Code and Claude Desktop can read your data through the hub's MCP server ([ADR-0006](docs/adr/0006-ai-access.md)). It runs in the api container and connects as your own Postgres login, which can only read the `analytics` views. So it sees what you see in the app (your view by default, or the household's) and changes nothing. Every tool call is recorded in `core.ai_calls`, without the data it returned.
+
+1. Turn it on: set `HUBNISIO_AI_ENABLED=true` in `.env`, then rebuild and recreate the containers. The stack must be running whenever Claude uses the server.
+   ```bash
+   docker compose up -d
+   ```
+2. Create your login. The command prints its role name (`hub_ai_…`) and writes its connection string to `secrets/ai/<role>`.
+   ```bash
+   docker compose exec api python -m hubnisio.cli ai-login --email you@example.com
+   ```
+3. Register the server in Claude Code, with your role name and the full path to `compose.yaml`. Add `--scope user` to use it from any folder.
+   ```bash
+   claude mcp add hubnisio -- docker compose -f /path/to/Hubnisio/compose.yaml exec -T -e HUBNISIO_AI_DSN_FILE=/run/secrets/ai/<role> api python -m hubnisio.ai
+   ```
+   For Claude Desktop, add the same command to `claude_desktop_config.json` (Settings → Developer → Edit Config):
+   ```json
+   {
+     "mcpServers": {
+       "hubnisio": {
+         "command": "docker",
+         "args": ["compose", "-f", "/path/to/Hubnisio/compose.yaml", "exec", "-T",
+                  "-e", "HUBNISIO_AI_DSN_FILE=/run/secrets/ai/<role>",
+                  "api", "python", "-m", "hubnisio.ai"]
+       }
+     }
+   }
+   ```
+
+The tools: `list_accounts`, `list_categories`, `search_transactions`, `spending_summary`, `cashflow`, `budget_status`, `recurring_payments`, `balances`, `uncategorized_overview`, and `query_sql` for anything else (one read-only query over the views, at most 500 rows, 5 seconds).
+
+To turn it off, set `HUBNISIO_AI_ENABLED=false` and run `docker compose up -d` again. To cut off one member, add `--revoke` to the `ai-login` command. Each member who wants it gets their own login and registers it in their own Claude.
+
 ## Work on it without Docker
 
 Needs [uv](https://docs.astral.sh/uv/) and Node 24 (pnpm comes through corepack). The database still runs in Compose: `docker compose up db migrate`.
