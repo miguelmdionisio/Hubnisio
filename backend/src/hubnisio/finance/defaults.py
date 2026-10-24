@@ -86,6 +86,18 @@ RULES: list[dict[str, Any]] = [
         "conditions": [{"field": "bank_code", "op": "is", "value": "T212_TRANSFER"}],
         "actions": [{"type": "set_kind", "kind": "transfer"}],
     },
+    {
+        # Money moves only to and from the member's own accounts. Pairing still links the
+        # bank's side when the hub has it (it runs first); this covers the ones it doesn't,
+        # e.g. from before a bank's history starts.
+        "name": "Trading 212 deposits and withdrawals are transfers",
+        "match": RuleMatch.ANY,
+        "conditions": [
+            {"field": "bank_code", "op": "is", "value": "T212_DEPOSIT"},
+            {"field": "bank_code", "op": "is", "value": "T212_WITHDRAW"},
+        ],
+        "actions": [{"type": "set_kind", "kind": "transfer"}],
+    },
 ]
 
 

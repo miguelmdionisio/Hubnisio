@@ -15,7 +15,6 @@ A private, self-hosted personal hub, one app per domain; finance first. Decision
 - **Deferred:** M5 server (Tailscale, Caddy, passkey login replacing the dev user, Postgres roles, backups) waits until the user has an always-on machine. Don't start it, and don't build anything that needs one, until they say so.
 - **Next:** M6 Trading 212, planned in [ADR-0008](docs/adr/0008-investments.md) (accepted 2026-10-24): T1 (provider and cash) and T2 (trades and holdings) are done; then T3 (prices and net worth over time), T4 (returns and AI).
 - **Waiting on the user:**
-  - deciding whether every Trading 212 deposit and withdrawal counts as a transfer. 8 deposits and 3 withdrawals predate BPI's history in the hub, so they have no bank side to pair with and count as income and spending for now;
   - reviewing the 175 AI category suggestions;
   - hiding or deleting their unused Revolut accounts on the Accounts page;
   - deciding on a BPI `pagserv` → Utilities rule and an Uber rule (Uber Eats is a separate merchant).

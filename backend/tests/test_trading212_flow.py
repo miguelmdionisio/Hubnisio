@@ -346,6 +346,8 @@ async def test_link_then_sync_brings_in_value_cash_and_dividends(setup: Setup) -
     items = {item["reference"]: item for item in page.json()["items"]}
     assert set(items) == {"t1", "t2", "t3", "t4", "t5", "t6", "d1"}
     assert items["t2"]["amount"] == "-300.0000"  # a withdrawal is money out
+    # With no bank side to pair with, still a transfer: by seeded rule.
+    assert (items["t2"]["kind"], items["t2"]["transfer"]) == ("transfer", None)
     assert items["t4"]["amount"] == "-0.5000"
     assert (items["d1"]["bank_code"], items["d1"]["kind"]) == ("T212_DIVIDEND", "income")
     assert items["d1"]["category"]["name"] == "Dividends"
