@@ -11,8 +11,9 @@ A private, self-hosted personal hub, one app per domain; finance first. Decision
   - Gaps G1–G6: an overall budget, hiding and deleting accounts, Revolut brand rules, the spending donut, shared pots with the Mine / Household view, repayments that lower their category.
   - M4 AI (ADR-0006): the `analytics` views and per-member logins (A1, `5cc86b6`); the MCP server with read tools (A2, `b3fb32c`); AI category suggestions (A3, `210d80e`); `net_worth_history` and net worth's inputs in the views (A4). Live since 2026-10-23: the user's AI login exists, `HUBNISIO_AI_ENABLED` is on, and the read tools work from Claude Code. The first categorization pass suggested 175 categories, which the user approves on the Transactions page (one click each, or "Approve the N shown"). IBANs in descriptions reach the AI masked as `[IBAN]`.
 - **Deferred:** M5 server (Tailscale, Caddy, passkey login replacing the dev user, Postgres roles, backups) waits until the user has an always-on machine. Don't start it, and don't build anything that needs one, until they say so.
-- **Next:** M6 Trading 212, through its own API. It's not planned yet, so plan it with the user first.
+- **Next:** M6 Trading 212, planned in [ADR-0008](docs/adr/0008-investments.md) (accepted 2026-10-24): slices T1 (provider and cash), T2 (trades and holdings), T3 (prices and net worth over time), T4 (returns and AI).
 - **Waiting on the user:**
+  - creating a read-only Trading 212 API key at `secrets/trading212/<name>` (ADR-0008, action item 1);
   - reviewing the 175 AI category suggestions;
   - hiding or deleting their unused Revolut accounts on the Accounts page;
   - deciding on a BPI `pagserv` → Utilities rule and an Uber rule (Uber Eats is a separate merchant).

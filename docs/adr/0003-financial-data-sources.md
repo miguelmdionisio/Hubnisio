@@ -84,5 +84,5 @@ A buys features immediately and charges for it forever in integration and constr
 1. [x] Register an Enable Banking application and generate the key pair; store the private key outside the repo ([ADR-0004](0004-hosting-and-security.md)).
 2. [x] Confirm Revolut appears and returns the accounts. It links through the Lithuanian entity (country LT); one consent returned all five accounts, both current accounts with Portuguese IBANs. Observations: [ADR-0007](0007-finance-domain-model.md#what-the-banks-actually-send-first-live-sync-2026-10-22).
 3. [ ] Check whether Enable Banking's restricted-mode terms allow a household member to link her own accounts under the same application.
-4. [ ] Check whether Trading 212's API covers cash-account and card transactions or only investment-account movements.
+4. [x] Check whether Trading 212's API covers cash-account and card transactions or only investment-account movements. Only the investment account's: deposits, withdrawals, fees, transfers, interest, dividends and orders, no card payments ([ADR-0008](0008-investments.md)).
 5. [x] Write the finance domain model ADR from the research report ([ADR-0007](0007-finance-domain-model.md)).

@@ -182,7 +182,7 @@ Findings that shape it ([research](../research/oss-finance-analysis.md)):
 ### Investments (Trading 212)
 
 - A separate sub-model: instruments (ISIN, ticker, currency), trades, dividends, cash movements, holdings, prices.
-- Its performance model will be decided when that provider is built.
+- Its performance model will be decided when that provider is built. *(Decided in [ADR-0008](0008-investments.md).)*
 
 ## Options Considered
 
