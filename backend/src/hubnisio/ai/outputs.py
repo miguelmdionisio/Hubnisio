@@ -112,7 +112,8 @@ class AccountBalance(BaseModel):
     currency: str
     # The bank's latest balance, spendable first: what the Accounts page shows.
     balance: Decimal | None
-    balance_type: str | None  # ISO 20022: ITAV interim available, CLBD closing booked, …
+    # ISO 20022: ITAV interim available, CLBD closing booked, …; TVAL a broker's total value.
+    balance_type: str | None
     fetched_at: datetime | None
     in_net_worth: bool  # counts in this view's net worth
     # Today's balance as net worth counts it: the latest booked balance, moved by the booked

@@ -32,6 +32,7 @@ from hubnisio.finance.models import (
     Connection,
     ConnectionStatus,
     ProviderAccount,
+    ProviderName,
     Source,
     SyncRun,
     SyncStatus,
@@ -221,8 +222,12 @@ async def sync_connection(
     connection = await _own_connection(session, principal, connection_id)
     if connection.status is not ConnectionStatus.ACTIVE:
         raise HTTPException(status.HTTP_409_CONFLICT, "Link this bank again first.")
+    # Only banks have a limit that the user's presence lifts.
+    banking = connection.provider is ProviderName.ENABLE_BANKING
     queued = await tasks.defer_sync(
-        connection.id, trigger=SyncTrigger.USER, psu_headers=_psu_headers(request)
+        connection.id,
+        trigger=SyncTrigger.USER,
+        psu_headers=_psu_headers(request) if banking else None,
     )
     return schemas.SyncQueued(queued=queued)
 
@@ -488,6 +493,7 @@ async def _connections_out(
     return [
         schemas.ConnectionOut(
             id=connection.id,
+            provider=connection.provider,
             institution_name=connection.institution_name,
             institution_country=connection.institution_country,
             status=connection.status,
@@ -495,6 +501,7 @@ async def _connections_out(
             days_left=(
                 max((connection.valid_until - now).days, 0) if connection.valid_until else None
             ),
+            key_file=connection.key_file,
             last_synced_at=connection.last_synced_at,
             syncing=connection.id in syncing,
             last_error=last_error.get(connection.id),
@@ -523,6 +530,7 @@ def _account_out(
         hidden_at=account.hidden_at,
         is_pot=account.is_pot,
         pot_category_id=account.pot_category_id,
+        is_investment=account.is_investment,
         transaction_count=transaction_counts.get(account.id, 0),
         balance=(
             schemas.Balance(

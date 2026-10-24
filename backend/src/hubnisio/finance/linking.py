@@ -1,10 +1,15 @@
-"""Linking a bank through Enable Banking (ADR-0003).
+"""Linking a bank through Enable Banking (ADR-0003), or a Trading 212 account (ADR-0008).
+
+A bank:
 
 1. `start_connection`: create a pending connection and ask Enable Banking for the bank's
    authorization URL. The browser goes there; the user approves in the bank's app.
 2. The bank redirects the browser back with `code` and `state`.
 3. `complete_connection`: turn the code into a session, then match each account it gives
    access to against the household's accounts, so a joint account is stored once (ADR-0005).
+
+Trading 212: `link_trading212`, once `cli t212-link` has checked the member's key against the
+account summary.
 """
 
 import hashlib
@@ -27,15 +32,18 @@ from hubnisio.finance.models import (
     ProviderName,
     ProviderPayload,
 )
+from hubnisio.finance.providers.base import Fetched
 from hubnisio.finance.providers.enable_banking.client import EnableBankingClient
 from hubnisio.finance.providers.enable_banking.errors import AlreadyAuthorized
 from hubnisio.finance.providers.enable_banking.schemas import SessionAccount
+from hubnisio.finance.providers.trading212.schemas import AccountSummary
 
 # Most banks allow 180 days of consent; ask for the bank's maximum, capped at that.
 MAX_CONSENT = timedelta(days=180)
 DEFAULT_CONSENT = timedelta(days=90)
 # Enable Banking rejects a valid_until past the bank's maximum, measured on its own clock.
 CONSENT_MARGIN = timedelta(minutes=10)
+TRADING212 = "Trading 212"
 
 
 class UnknownBank(Exception):
@@ -263,3 +271,88 @@ def bank_label(product: str | None, details: str | None, holder: str | None) -> 
         if cleaned and cleaned.casefold() != (holder or "").strip().casefold():
             return cleaned
     return None
+
+
+async def link_trading212(
+    session: AsyncSession,
+    principal: Principal,
+    *,
+    key_file: str,
+    summary: Fetched[AccountSummary],
+) -> tuple[Connection, Account]:
+    """Link the Trading 212 account a member's key reads, in the member's household. The
+    caller commits.
+
+    The account is matched on `trading212:<account id>`, so linking again (a new key, or after
+    the key was rejected) keeps its history. So does the member's connection to it: it gets the
+    new key file and is active again. A new account is an investment account, left out of net
+    worth until its value over time is built (ADR-0008, slice T3)."""
+    uid = str(summary.data.id)
+    identity = f"trading212:{uid}"
+    account = await session.scalar(
+        select(Account).where(
+            Account.household_id == principal.household_id,
+            Account.identification_hash == identity,
+        )
+    )
+    if account is None:
+        account = Account(
+            household_id=principal.household_id,
+            identification_hash=identity,
+            institution_name=TRADING212,
+            currency=summary.data.currency,
+            is_investment=True,
+            include_in_net_worth=False,
+        )
+        session.add(account)
+        await session.flush()
+    await session.execute(
+        insert(AccountOwner)
+        .values(account_id=account.id, user_id=principal.user_id)
+        .on_conflict_do_nothing()
+    )
+
+    connection = await session.scalar(
+        select(Connection)
+        .join(ProviderAccount, ProviderAccount.connection_id == Connection.id)
+        .where(
+            Connection.household_id == principal.household_id,
+            Connection.user_id == principal.user_id,
+            Connection.provider == ProviderName.TRADING212,
+            ProviderAccount.account_id == account.id,
+        )
+        .order_by(Connection.created_at.desc())
+        .limit(1)
+    )
+    if connection is None:
+        connection = Connection(
+            household_id=principal.household_id,
+            user_id=principal.user_id,
+            provider=ProviderName.TRADING212,
+            institution_name=TRADING212,
+            status=ConnectionStatus.ACTIVE,
+            key_file=key_file,
+        )
+        session.add(connection)
+        await session.flush()
+        session.add(
+            ProviderAccount(
+                connection_id=connection.id, provider_account_uid=uid, account_id=account.id
+            )
+        )
+    else:
+        connection.key_file = key_file
+        connection.status = ConnectionStatus.ACTIVE
+    session.add(
+        ProviderPayload(
+            household_id=principal.household_id,
+            connection_id=connection.id,
+            account_id=account.id,
+            kind=summary.kind,
+            request=summary.request,
+            response=summary.raw,
+            fetched_at=datetime.now(UTC),
+        )
+    )
+    await session.flush()
+    return connection, account

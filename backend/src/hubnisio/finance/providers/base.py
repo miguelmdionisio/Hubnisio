@@ -10,7 +10,8 @@ from collections.abc import AsyncIterator, Callable, Mapping
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Any, Protocol
+from types import TracebackType
+from typing import Any, Protocol, Self
 
 from hubnisio.finance.models import TransactionStatus
 
@@ -19,13 +20,24 @@ from hubnisio.finance.models import TransactionStatus
 class Fetched[T]:
     """One provider response: what was asked, the raw JSON, and its parsed form."""
 
-    kind: str  # e.g. "balances", "transactions"
+    kind: str  # e.g. "balances", "transactions"; "summary", "dividends" for Trading 212
     request: dict[str, Any]
     raw: dict[str, Any]
     data: T
 
 
 class Provider(Protocol):
+    """A provider's client, used as `async with`."""
+
+    async def __aenter__(self) -> Self: ...
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None: ...
+
     def fetch(
         self,
         account_uid: str,
@@ -81,7 +93,8 @@ class NormalizedPage:
 
 @dataclass(frozen=True, slots=True)
 class Normalizer:
-    """Turns one provider's raw payloads into records. Pure: no I/O, no clock."""
+    """Turns one provider's raw payloads into records, by the payload's kind. Pure: no I/O, no
+    clock. Kinds it has no function for are stored but not applied."""
 
-    transactions: Callable[[dict[str, Any]], NormalizedPage]
-    balances: Callable[[dict[str, Any]], list[BalanceRecord]]
+    transactions: Mapping[str, Callable[[dict[str, Any]], NormalizedPage]]
+    balances: Mapping[str, Callable[[dict[str, Any]], list[BalanceRecord]]]

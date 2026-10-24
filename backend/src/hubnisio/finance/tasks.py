@@ -11,11 +11,17 @@ from hubnisio.core.db import get_sessionmaker
 from hubnisio.finance import sync
 from hubnisio.finance.fx.sources import FxClient
 from hubnisio.finance.fx.store import refresh_rates
+from hubnisio.finance.models import ProviderName
 
 blueprint = procrastinate.Blueprint()
 
-# Banks allow about 4 unattended fetches a day; on hitting the limit, try again later.
-RATE_LIMIT_RETRY: TimeDeltaParams = {"hours": 6}
+# On hitting a provider's rate limit, try again later.
+RATE_LIMIT_RETRY: dict[ProviderName, TimeDeltaParams] = {
+    # Banks allow about 4 unattended fetches a day.
+    ProviderName.ENABLE_BANKING: {"hours": 6},
+    # Trading 212's limits are per minute, and the client already waited for a few resets.
+    ProviderName.TRADING212: {"minutes": 15},
+}
 
 
 @blueprint.task(name="sync_connection", queue="sync")
@@ -27,8 +33,8 @@ async def sync_connection(
     outcome = await sync.sync_connection(
         uuid.UUID(connection_id), trigger=sync.SyncTrigger(trigger), psu_headers=psu_headers
     )
-    if outcome.rate_limited:
-        await defer_sync(uuid.UUID(connection_id), schedule_in=RATE_LIMIT_RETRY)
+    if outcome.rate_limited and outcome.provider is not None:
+        await defer_sync(uuid.UUID(connection_id), schedule_in=RATE_LIMIT_RETRY[outcome.provider])
 
 
 # Three runs a day stay under the banks' limit of 4 unattended fetches, leaving one spare.

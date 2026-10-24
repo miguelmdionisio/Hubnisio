@@ -1,9 +1,10 @@
-"""Bringing a connection's accounts up to date (ADR-0003, ADR-0007).
+"""Bringing a connection's accounts up to date (ADR-0003, ADR-0007, ADR-0008).
 
-For each account the connection reaches: fetch balances and transactions, store every raw
-response, then apply them. The first sync asks for the longest history the bank offers (full
-history is often only available for about an hour after linking); later syncs re-fetch from
-two weeks before the latest booked transaction, so late-booked items are picked up.
+For each account the connection reaches: fetch balances and transactions through the
+connection's provider, store every raw response, then apply them. The first sync asks for the
+longest history the provider offers (a bank's full history is often only available for about an
+hour after linking); later syncs re-fetch from two weeks before the latest booked transaction,
+so late-booked items are picked up.
 
 Each account's sync is recorded in `finance.sync_runs`. Raw payloads are committed before
 they're applied, so a parser bug never loses data (see ingest/apply.py's APPLY_FAILED).
@@ -38,7 +39,7 @@ from hubnisio.finance.models import (
     Transaction,
     TransactionStatus,
 )
-from hubnisio.finance.providers.base import Fetched
+from hubnisio.finance.providers.base import Fetched, Provider
 from hubnisio.finance.providers.enable_banking.client import EnableBankingClient
 from hubnisio.finance.providers.enable_banking.errors import (
     EnableBankingError,
@@ -47,6 +48,8 @@ from hubnisio.finance.providers.enable_banking.errors import (
     SessionEnded,
     WrongPeriod,
 )
+from hubnisio.finance.providers.trading212 import errors as t212
+from hubnisio.finance.providers.trading212.client import Trading212Client
 
 logger = logging.getLogger(__name__)
 
@@ -68,14 +71,22 @@ class AccountResult(enum.Enum):
 
 @dataclass
 class SyncOutcome:
+    provider: ProviderName | None = None
     succeeded: int = 0
     failed: int = 0
     rate_limited: bool = False
     session_ended: bool = False
 
 
-def default_client() -> EnableBankingClient:
-    return EnableBankingClient.from_settings(get_settings())
+def default_client(connection: Connection) -> Provider:
+    settings = get_settings()
+    match connection.provider:
+        case ProviderName.ENABLE_BANKING:
+            return EnableBankingClient.from_settings(settings)
+        case ProviderName.TRADING212:
+            if not connection.key_file:
+                raise RuntimeError(f"Connection {connection.id} names no key file.")
+            return Trading212Client(settings.trading212_keys_dir / connection.key_file)
 
 
 async def active_connection_ids() -> list[uuid.UUID]:
@@ -92,7 +103,7 @@ async def sync_connection(
     *,
     trigger: SyncTrigger,
     psu_headers: Mapping[str, str] | None = None,
-    client_factory: Callable[[], EnableBankingClient] = default_client,
+    client_factory: Callable[[Connection], Provider] = default_client,
 ) -> SyncOutcome:
     sessionmaker = get_sessionmaker()
     started_at = datetime.now(UTC)
@@ -100,11 +111,11 @@ async def sync_connection(
         connection = await session.get(Connection, connection_id)
         if connection is None or connection.status is not ConnectionStatus.ACTIVE:
             return SyncOutcome()
+        provider = connection.provider
         if connection.valid_until is not None and connection.valid_until <= datetime.now(UTC):
             connection.status = ConnectionStatus.EXPIRED
-            return SyncOutcome(session_ended=True)
+            return SyncOutcome(provider, session_ended=True)
         household_id = connection.household_id
-        provider = connection.provider
         links = (
             await session.execute(
                 select(ProviderAccount.provider_account_uid, ProviderAccount.account_id)
@@ -115,8 +126,8 @@ async def sync_connection(
             )
         ).all()
 
-    outcome = SyncOutcome()
-    async with client_factory() as client:
+    outcome = SyncOutcome(provider)
+    async with client_factory(connection) as client:
         for uid, account_id in links:
             result = await _sync_account(
                 client,
@@ -147,7 +158,7 @@ async def sync_connection(
             connection = await session.get(Connection, connection_id)
             if connection is not None:
                 connection.last_synced_at = datetime.now(UTC)
-        await _refresh_user_layer(household_id, started_at)
+        await _refresh_user_layer(household_id, started_at, initial=trigger is SyncTrigger.INITIAL)
     logger.info(
         "Synced connection %s: %d accounts succeeded, %d failed.",
         connection_id,
@@ -158,7 +169,7 @@ async def sync_connection(
 
 
 async def _sync_account(
-    client: EnableBankingClient,
+    client: Provider,
     *,
     connection_id: uuid.UUID,
     household_id: uuid.UUID,
@@ -198,7 +209,13 @@ async def _sync_account(
             strategy = "longest"
             async for item in client.fetch(account_uid, None, psu_headers):
                 fetched.append((item, datetime.now(UTC)))
-    except (EnableBankingError, PaginationError, httpx.HTTPError, ValidationError) as exc:
+    except (
+        EnableBankingError,
+        PaginationError,
+        t212.Trading212Error,
+        httpx.HTTPError,
+        ValidationError,
+    ) as exc:
         error = exc
     except Exception as exc:
         logger.exception("Unexpected error syncing account %s.", account_id)
@@ -228,9 +245,9 @@ async def _sync_account(
 
     if error is not None:
         logger.warning("Sync of account %s failed: %s.", account_id, _error_code(error))
-        if isinstance(error, SessionEnded):
+        if isinstance(error, SessionEnded | t212.KeyRejected):
             return AccountResult.SESSION_ENDED
-        if isinstance(error, RateLimited):
+        if isinstance(error, RateLimited | t212.RateLimited):
             return AccountResult.RATE_LIMITED
         return AccountResult.FAILED
 
@@ -260,12 +277,14 @@ async def _sync_account(
     return AccountResult.SUCCEEDED
 
 
-async def _refresh_user_layer(household_id: uuid.UUID, started_at: datetime) -> None:
+async def _refresh_user_layer(
+    household_id: uuid.UUID, started_at: datetime, *, initial: bool
+) -> None:
     """Pair transfers and categorize what this sync touched. A failure here is logged, not
     raised: the bank data is stored, and the next sync or "Run rules now" retries."""
     try:
         async with get_sessionmaker()() as session, session.begin():
-            result = await after_sync(session, household_id, started_at)
+            result = await after_sync(session, household_id, started_at, initial=initial)
         logger.info(
             "Categorized %d transactions (%d with a category), %d new counterparties.",
             result.processed,
@@ -288,7 +307,8 @@ async def _since(session: AsyncSession, account_id: uuid.UUID) -> date | None:
 
 
 async def _expire_connection(connection_id: uuid.UUID) -> None:
-    """The bank ended the session (expired, closed or revoked): the user has to link again."""
+    """The bank ended the session (expired, closed or revoked), or Trading 212 rejected the
+    key: the user has to link again."""
     async with get_sessionmaker()() as session, session.begin():
         connection = await session.get(Connection, connection_id)
         if connection is not None:
@@ -297,6 +317,8 @@ async def _expire_connection(connection_id: uuid.UUID) -> None:
 
 def _error_code(error: Exception) -> str:
     match error:
+        case t212.Trading212Error(code=code):
+            return code
         case EnableBankingError(code=str(code)):
             return code
         case EnableBankingError(status=status):

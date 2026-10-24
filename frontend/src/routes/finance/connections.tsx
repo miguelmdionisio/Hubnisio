@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Landmark, LoaderCircle, RefreshCw } from 'lucide-react';
+import { Landmark, LoaderCircle, RefreshCw, TrendingUp } from 'lucide-react';
 import { useState } from 'react';
 import {
   deleteConnectionMutation,
@@ -58,7 +58,7 @@ export function ConnectionsPage() {
     <>
       <PageHeader
         title="Bank connections"
-        description="Each connection is your consent for the hub to read one bank's accounts. It can't move money."
+        description="Each connection is your consent for the hub to read one bank's accounts, or a read-only Trading 212 API key. Neither can move money."
         actions={<Button onClick={() => setLinking(true)}>Link a bank</Button>}
       />
       {connections.isPending && <Skeleton className="h-36 w-full max-w-xl" />}
@@ -115,20 +115,25 @@ function ConnectionCard({
     },
   });
 
+  // Trading 212 is linked with a key file and `cli t212-link`, not through the browser.
+  const broker = connection.provider === 'trading212';
+  const country = connection.institution_country;
   const expired = connection.status === 'expired';
   const expiresSoon =
     !expired && connection.days_left !== null && connection.days_left <= RENEWAL_WARNING_DAYS;
   const accounts = connection.account_ids.length;
+  const Icon = broker ? TrendingUp : Landmark;
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Landmark className="size-4 text-muted-foreground" aria-hidden />
+          <Icon className="size-4 text-muted-foreground" aria-hidden />
           {connection.institution_name}
         </CardTitle>
         <CardDescription>
           {accounts} {accounts === 1 ? 'account' : 'accounts'}
+          {connection.key_file && ` · API key file ${connection.key_file}`}
           {connection.days_left !== null &&
             !expired &&
             ` · consent valid for ${connection.days_left} more days`}
@@ -154,10 +159,18 @@ function ConnectionCard({
         </p>
         {connection.last_error && (
           <p className="text-destructive">
-            The last sync failed: {describeSyncError(connection.last_error)}.
+            The last sync failed: {describeSyncError(connection.last_error, connection.provider)}.
           </p>
         )}
-        {expired && <p>The bank ended this consent. Link again to keep syncing.</p>}
+        {expired &&
+          (broker ? (
+            <p>
+              Trading 212 rejected the API key. Fix it or save a new one, then run{' '}
+              <code>t212-link</code> again to keep syncing.
+            </p>
+          ) : (
+            <p>The bank ended this consent. Link again to keep syncing.</p>
+          ))}
         {expiresSoon && (
           <p className="text-amber-700 dark:text-amber-400">
             The consent ends in {connection.days_left} days. Link again to renew it.
@@ -171,16 +184,11 @@ function ConnectionCard({
         )}
       </CardContent>
       <CardFooter className="gap-2">
-        {(expired || expiresSoon) && (
+        {(expired || expiresSoon) && !broker && country && (
           <Button
             disabled={relink.isPending}
             onClick={() =>
-              relink.mutate({
-                body: {
-                  institution_name: connection.institution_name,
-                  country: connection.institution_country,
-                },
-              })
+              relink.mutate({ body: { institution_name: connection.institution_name, country } })
             }
           >
             Link again
@@ -206,8 +214,9 @@ function ConnectionCard({
           <DialogHeader>
             <DialogTitle>Disconnect {connection.institution_name}?</DialogTitle>
             <DialogDescription>
-              The hub stops syncing and asks the bank to end the consent. The accounts and the
-              history already fetched stay.
+              {broker
+                ? 'The hub stops syncing. The account and the history already fetched stay. Delete the API key in Trading 212 too.'
+                : 'The hub stops syncing and asks the bank to end the consent. The accounts and the history already fetched stay.'}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

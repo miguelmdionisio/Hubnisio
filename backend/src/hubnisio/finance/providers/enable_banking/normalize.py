@@ -71,7 +71,10 @@ def normalize_balances(raw: dict[str, Any]) -> list[BalanceRecord]:
     ]
 
 
-normalizer = Normalizer(transactions=normalize_transactions, balances=normalize_balances)
+normalizer = Normalizer(
+    transactions={"transactions": normalize_transactions},
+    balances={"balances": normalize_balances},
+)
 
 
 def _items(transactions: object) -> list[dict[str, Any]]:

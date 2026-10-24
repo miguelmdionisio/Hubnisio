@@ -43,6 +43,13 @@ What the API offers (Public API v0, beta, read 2026-10-24 at docs.trading212.com
   - a `TRANSFER` (between Trading 212 accounts) is marked as a transfer by a seeded rule.
 - **Trades aren't transactions.** A buy moves cash into a holding inside the same account, so it's neither spending nor income. Fees and taxes on a trade are costs in its result (see "Returns"), not spending.
 - **Pies:** not modelled. Their cash counts as cash, and their holdings and orders come through positions and the order history.
+- *(As built in T1)* The details:
+  - **Bank codes** are the type with a `T212_` prefix (`T212_DEPOSIT`, `T212_WITHDRAW`, …, and `T212_DIVIDEND`, with the dividend's own type as `sub_code`). Revolut already sends `TRANSFER` and `FEE`, so a rule on the bare type would mark Revolut payments to other people as transfers.
+  - **Entry references:** `transactions:<reference>` and `dividends:<reference>`.
+  - **Signs:** withdrawals and fees are made money out whatever sign they come with; every other type keeps Trading 212's sign, so a deposit or interest is money in and a transfer goes either way. **To confirm at the first live sync:** the sign of withdrawals, fees and transfers, and that deposits come positive.
+  - **Dates:** a movement's day is its timestamp's UTC day. **Text:** no counterparty; the description names the type ("Deposit", "Interest on cash", "Dividend: <name> (<ticker>)").
+  - **Seeded rules**, after the Revolut exchange rule: `T212_DIVIDEND` → Income › Dividends; `T212_INTEREST_ON_FREE_CASH` or `T212_LENDING_INTEREST` → Income › Interest; `T212_FEE` → Bills & fees › Bank fees; `T212_TRANSFER` → kind transfer. Dividends sits between Interest and Other income.
+  - **Pairing:** a newly linked account's first sync pairs transfers across all history, not the usual last 60 days, so deposits older than that pair too.
 
 ### Trades, instruments and holdings
 
@@ -59,6 +66,15 @@ What the API offers (Public API v0, beta, read 2026-10-24 at docs.trading212.com
   - The first sync pages through the whole history, which Trading 212 keeps from the account's opening.
   - Later syncs stop paging at two weeks before the latest item already stored.
   - The client honours the rate-limit headers and backs off on 429.
+- *(As built in T1)* The details:
+  - **The key file** holds two lines, `key=<API key>` and `secret=<API secret>`; blank lines and `#` comments are ignored. The folder is `HUBNISIO_TRADING212_KEYS_DIR` (default `../secrets/trading212`), mounted read-only at `/run/secrets/trading212` in the api and worker containers. The README says how to make the key.
+  - **The connection:** provider `trading212`, `key_file` (the name only), no country (`institution_country` is now nullable) and no expiry.
+  - **The account:** `is_investment` on and `include_in_net_worth` off, matched on `identification_hash = trading212:<account id>`. `cli t212-link --email … --key-file …` touches only that member's household. Linking again reuses the account and the member's connection to it, which takes the new file name and is active again.
+  - **The balance:** the summary's `totalValue` is a snapshot of type `TVAL`. The cash stays in the stored summary payload, for T3.
+  - **Payloads:** kinds `summary`, `transactions` and `dividends`, each stored before it's applied. A key that reads another account than the connection's fails the sync before anything is stored.
+  - **Paging:** `limit=50`, following `nextPagePath`. A later sync stops after the first page holding an item dated before its cutoff: two weeks before the account's latest stored transaction, either kind.
+  - **Errors** (the sync's `error_code`): 401 is `KEY_REJECTED` and expires the connection until it's linked again; 403 is `MISSING_PERMISSION`; an unreadable key file is `KEY_FILE`; a key for another account is `WRONG_ACCOUNT`.
+  - **Rate limits:** when a response says an endpoint's allowance is used up, the next call to it waits for `x-ratelimit-reset`. A 429 waits for the reset too (at least 1, 2, then 4 seconds) and gives up after 4 tries as `RATE_LIMITED`; the sync is then retried in 15 minutes. A wait is never longer than 2 minutes.
 
 ### Value over time: rebuilt from trades
 
@@ -144,6 +160,6 @@ Each slice is one fresh session. It ends committed and pushed once its checks pa
 
 ## Action Items
 
-1. [ ] The user creates a read-only API key (account data, history, portfolio) in the Trading 212 app. If their public IP is stable, they restrict the key to it. They save the key at `secrets/trading212/<name>` in the format T1 documents.
+1. [ ] The user creates a read-only API key (account data, history, portfolio) in the Trading 212 app. If their public IP is stable, they restrict the key to it. They save the key at `secrets/trading212/<name>` in the format T1 documents (README, "Linking Trading 212").
 2. [ ] Approve the live-data writes in the session that does them: the first link and sync, and the Dividends category and bank-code rules in the existing household (seeding covers only new ones).
 3. [ ] After T3: switch on "Include in net worth" for the Trading 212 account.

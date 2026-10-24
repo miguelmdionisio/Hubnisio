@@ -13,6 +13,7 @@ from hubnisio.finance.models import (
     CategoryKind,
     ConnectionStatus,
     Overspend,
+    ProviderName,
     RecurringStatus,
     Review,
     RuleMatch,
@@ -45,11 +46,13 @@ class CompleteConnection(BaseModel):
 
 class ConnectionOut(BaseModel):
     id: uuid.UUID
+    provider: ProviderName
     institution_name: str
-    institution_country: str
+    institution_country: str | None  # null for Trading 212
     status: ConnectionStatus
-    valid_until: datetime | None
+    valid_until: datetime | None  # null when access doesn't expire (Trading 212's key)
     days_left: int | None  # days until the consent expires; warn from 14
+    key_file: str | None  # Trading 212: the name of the API key's file
     last_synced_at: datetime | None
     syncing: bool
     last_error: str | None  # error code of the latest finished sync, if it failed
@@ -80,6 +83,8 @@ class AccountOut(BaseModel):
     hidden_at: datetime | None
     is_pot: bool  # a shared pot: out of the Mine view (ADR-0005)
     pot_category_id: uuid.UUID | None  # where contributions to the pot count in Mine
+    # A broker account: its balance is its value, type TVAL (ADR-0008).
+    is_investment: bool
     transaction_count: int
     balance: Balance | None
 

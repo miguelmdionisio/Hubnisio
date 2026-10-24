@@ -53,6 +53,7 @@ def _enum(python_enum: type[enum.StrEnum], name: str) -> Enum:
 
 class ProviderName(enum.StrEnum):
     ENABLE_BANKING = "enable_banking"
+    TRADING212 = "trading212"  # its own API, with a read-only key (ADR-0008)
 
 
 class ConnectionStatus(enum.StrEnum):
@@ -144,7 +145,8 @@ class FxSource(enum.StrEnum):
 
 
 class Connection(Base):
-    """One provider consent, owned by the user who gave it (PSD2 consent is personal)."""
+    """One provider consent, owned by the user who gave it (PSD2 consent is personal). For
+    Trading 212, the member's API key, which lives in a file (ADR-0008)."""
 
     __tablename__ = "connections"
     __table_args__ = {"schema": SCHEMA}  # noqa: RUF012
@@ -156,19 +158,22 @@ class Connection(Base):
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("core.users.id", ondelete="CASCADE"))
     provider: Mapped[ProviderName] = mapped_column(_enum(ProviderName, "provider"))
     institution_name: Mapped[str] = mapped_column(String(100))
-    institution_country: Mapped[str] = mapped_column(String(2))
+    institution_country: Mapped[str | None] = mapped_column(String(2))  # null: not a bank
     status: Mapped[ConnectionStatus] = mapped_column(_enum(ConnectionStatus, "connection_status"))
     # Encrypted with core.crypto; null until authorization completes.
     session_id_encrypted: Mapped[str | None] = mapped_column(Text)
     # SHA-256 of the `state` sent to the bank; lets the callback (even reloaded) find this row.
     auth_state_hash: Mapped[str | None] = mapped_column(String(64), unique=True)
     valid_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Trading 212: the name of the key's file in the keys folder. Never the key itself.
+    key_file: Mapped[str | None] = mapped_column(String(100))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class Account(Base):
-    """A real bank account, stored once per household however many connections reach it."""
+    """A real bank or broker account, stored once per household however many connections
+    reach it."""
 
     __tablename__ = "accounts"
     __table_args__ = (
@@ -194,6 +199,7 @@ class Account(Base):
         ForeignKey("core.households.id", ondelete="CASCADE")
     )
     # Enable Banking's identification_hash: stable across sessions, unlike account UIDs.
+    # Trading 212's is `trading212:<account id>`.
     identification_hash: Mapped[str | None] = mapped_column(Text)
     iban: Mapped[str | None] = mapped_column(String(34))
     institution_name: Mapped[str] = mapped_column(String(100))
@@ -214,6 +220,8 @@ class Account(Base):
     pot_category_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("finance.categories.id", ondelete="SET NULL")
     )
+    # A broker account (ADR-0008): its balance is its value, cash plus holdings at market value.
+    is_investment: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -388,7 +396,7 @@ class BalanceSnapshot(Base):
     sync_run_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("finance.sync_runs.id", ondelete="SET NULL")
     )
-    balance_type: Mapped[str] = mapped_column(String(4))  # CLBD, ITAV, ...
+    balance_type: Mapped[str] = mapped_column(String(4))  # CLBD, ITAV, ...; TVAL for a broker
     amount: Mapped[Decimal] = mapped_column(Money)
     currency: Mapped[str] = mapped_column(String(3))
     reference_date: Mapped[date | None] = mapped_column(Date)

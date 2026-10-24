@@ -74,6 +74,10 @@ export type AccountOut = {
      */
     pot_category_id: string | null;
     /**
+     * Is Investment
+     */
+    is_investment: boolean;
+    /**
      * Transaction Count
      */
     transaction_count: number;
@@ -535,6 +539,7 @@ export type ConnectionOut = {
      * Id
      */
     id: string;
+    provider: ProviderName;
     /**
      * Institution Name
      */
@@ -542,7 +547,7 @@ export type ConnectionOut = {
     /**
      * Institution Country
      */
-    institution_country: string;
+    institution_country: string | null;
     status: ConnectionStatus;
     /**
      * Valid Until
@@ -552,6 +557,10 @@ export type ConnectionOut = {
      * Days Left
      */
     days_left: number | null;
+    /**
+     * Key File
+     */
+    key_file: string | null;
     /**
      * Last Synced At
      */
@@ -772,6 +781,11 @@ export type OverallBudgetOut = {
  * What overspending a budget does to the next month (ADR-0007, "Budgets").
  */
 export type Overspend = 'forgive' | 'carry';
+
+/**
+ * ProviderName
+ */
+export type ProviderName = 'enable_banking' | 'trading212';
 
 /**
  * RecurringOut

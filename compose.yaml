@@ -15,6 +15,8 @@ x-backend: &backend
     HUBNISIO_ENCRYPTION_KEYS_FILE: /run/secrets/encryption_keys
     # Members' AI connection strings, written by `cli ai-login` in the api container.
     HUBNISIO_AI_SECRETS_DIR: /run/secrets/ai
+    # Trading 212 API keys (ADR-0008), one file per account, read by `cli t212-link` and the sync.
+    HUBNISIO_TRADING212_KEYS_DIR: /run/secrets/trading212
     # The MCP server's switch (ADR-0006): it starts only when .env sets this to true.
     HUBNISIO_AI_ENABLED: ${HUBNISIO_AI_ENABLED:-false}
     # File-change events don't cross from a Windows host into the container; poll instead.
@@ -54,6 +56,8 @@ services:
       - ./backend/src:/app/src
       # A folder, not a Compose secret: the command writes to it (secrets/ is gitignored).
       - ./secrets/ai:/run/secrets/ai
+      # A folder, so the stack starts without it and a new key needs no restart.
+      - ./secrets/trading212:/run/secrets/trading212:ro
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:
@@ -65,6 +69,7 @@ services:
     command: ["procrastinate", "--app=hubnisio.worker.app", "worker"]
     volumes:
       - ./backend/src:/app/src
+      - ./secrets/trading212:/run/secrets/trading212:ro
     depends_on:
       migrate:
         condition: service_completed_successfully

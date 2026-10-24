@@ -2138,6 +2138,10 @@
             ],
             "title": "Pot Category Id"
           },
+          "is_investment": {
+            "type": "boolean",
+            "title": "Is Investment"
+          },
           "transaction_count": {
             "type": "integer",
             "title": "Transaction Count"
@@ -2167,6 +2171,7 @@
           "hidden_at",
           "is_pot",
           "pot_category_id",
+          "is_investment",
           "transaction_count",
           "balance"
         ],
@@ -2988,12 +2993,22 @@
             "format": "uuid",
             "title": "Id"
           },
+          "provider": {
+            "$ref": "#/components/schemas/ProviderName"
+          },
           "institution_name": {
             "type": "string",
             "title": "Institution Name"
           },
           "institution_country": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Institution Country"
           },
           "status": {
@@ -3021,6 +3036,17 @@
               }
             ],
             "title": "Days Left"
+          },
+          "key_file": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key File"
           },
           "last_synced_at": {
             "anyOf": [
@@ -3061,11 +3087,13 @@
         "type": "object",
         "required": [
           "id",
+          "provider",
           "institution_name",
           "institution_country",
           "status",
           "valid_until",
           "days_left",
+          "key_file",
           "last_synced_at",
           "syncing",
           "last_error",
@@ -3403,6 +3431,14 @@
         ],
         "title": "Overspend",
         "description": "What overspending a budget does to the next month (ADR-0007, \"Budgets\")."
+      },
+      "ProviderName": {
+        "type": "string",
+        "enum": [
+          "enable_banking",
+          "trading212"
+        ],
+        "title": "ProviderName"
       },
       "RecurringOut": {
         "properties": {

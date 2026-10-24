@@ -238,7 +238,7 @@ class Hub:
         self, connection: dict[str, Any], trigger: sync.SyncTrigger = sync.SyncTrigger.SCHEDULED
     ) -> sync.SyncOutcome:
         return await sync.sync_connection(
-            uuid.UUID(connection["id"]), trigger=trigger, client_factory=self.client
+            uuid.UUID(connection["id"]), trigger=trigger, client_factory=lambda _: self.client()
         )
 
 

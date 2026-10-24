@@ -10,8 +10,12 @@ from hubnisio.finance.ingest.store import StoreResult, store_balances, store_tra
 from hubnisio.finance.models import ProviderName, ProviderPayload
 from hubnisio.finance.providers.base import Normalizer
 from hubnisio.finance.providers.enable_banking.normalize import normalizer as enable_banking
+from hubnisio.finance.providers.trading212.normalize import normalizer as trading212
 
-NORMALIZERS: dict[ProviderName, Normalizer] = {ProviderName.ENABLE_BANKING: enable_banking}
+NORMALIZERS: dict[ProviderName, Normalizer] = {
+    ProviderName.ENABLE_BANKING: enable_banking,
+    ProviderName.TRADING212: trading212,
+}
 
 # The error code of a sync whose fetch completed but whose payloads couldn't be applied (a
 # parser bug). Its payloads are complete, so renormalize replays it once the bug is fixed.
@@ -31,24 +35,21 @@ async def apply_payloads(
     normalizer = NORMALIZERS[provider]
     seen: list[SeenRecord] = []
     for payload in payloads:
-        match payload.kind:
-            case "balances":
-                await store_balances(
-                    session,
-                    household_id=household_id,
-                    account_id=account_id,
-                    sync_run_id=sync_run_id,
-                    records=normalizer.balances(payload.response),
-                    fetched_at=payload.fetched_at,
-                )
-            case "transactions":
-                page = normalizer.transactions(payload.response)
-                seen.extend(
-                    SeenRecord(record=record, payload_id=payload.id, seen_at=payload.fetched_at)
-                    for record in page.records
-                )
-            case _:
-                pass
+        if (balances := normalizer.balances.get(payload.kind)) is not None:
+            await store_balances(
+                session,
+                household_id=household_id,
+                account_id=account_id,
+                sync_run_id=sync_run_id,
+                records=balances(payload.response),
+                fetched_at=payload.fetched_at,
+            )
+        elif (transactions := normalizer.transactions.get(payload.kind)) is not None:
+            page = transactions(payload.response)
+            seen.extend(
+                SeenRecord(record=record, payload_id=payload.id, seen_at=payload.fetched_at)
+                for record in page.records
+            )
     return await store_transactions(
         session, household_id=household_id, account_id=account_id, seen=seen
     )

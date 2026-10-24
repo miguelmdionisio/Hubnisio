@@ -11,11 +11,13 @@ afterEach(() => {
 function connection(overrides: Partial<ConnectionOut>): ConnectionOut {
   return {
     id: 'c1',
+    provider: 'enable_banking',
     institution_name: 'Banco BPI',
     institution_country: 'PT',
     status: 'active',
     valid_until: '2027-04-20T12:00:00Z',
     days_left: 170,
+    key_file: null,
     last_synced_at: new Date(Date.now() - 5 * 60_000).toISOString(),
     syncing: false,
     last_error: null,
@@ -83,4 +85,34 @@ test('an empty list invites linking a bank', async () => {
   renderAt('/finance/connections');
 
   expect(await screen.findByText('No banks linked yet')).toBeDefined();
+});
+
+test('a Trading 212 connection syncs, and asks for t212-link when its key is rejected', async () => {
+  const t212 = {
+    provider: 'trading212' as const,
+    institution_name: 'Trading 212',
+    institution_country: null,
+    valid_until: null,
+    days_left: null,
+    key_file: 'invest',
+    account_ids: ['a9'],
+  };
+  mockApi({
+    'GET /api/finance/connections': () => [
+      connection({ id: 'c1', ...t212 }),
+      connection({ id: 'c2', ...t212, status: 'expired', last_error: 'KEY_REJECTED' }),
+    ],
+  });
+
+  renderAt('/finance/connections');
+
+  const cards = (await screen.findAllByText('Trading 212')).map(
+    (title) => title.closest('[data-slot="card"]') as HTMLElement,
+  );
+  const [active, expired] = cards as [HTMLElement, HTMLElement];
+  expect(within(active).getByText('1 account · API key file invest')).toBeDefined();
+  expect(within(active).getByRole('button', { name: /sync now/i })).toBeDefined();
+  expect(within(expired).getByText(/Fix it or save a new one/)).toBeDefined();
+  expect(within(expired).getByText(/run.*again to keep syncing/)).toBeDefined();
+  expect(within(expired).queryByRole('button', { name: 'Link again' })).toBeNull();
 });

@@ -23,6 +23,7 @@ function account(id: string, overrides: Partial<AccountOut>): AccountOut {
     hidden_at: null,
     is_pot: false,
     pot_category_id: null,
+    is_investment: false,
     transaction_count: 0,
     balance: {
       balance_type: 'ITAV',
@@ -215,4 +216,34 @@ test('a shared pot shows its balance with a badge, and takes a category for cont
   await waitFor(() =>
     expect(calls.find((call) => call.path.endsWith('/a1'))?.body).toEqual({ is_pot: true }),
   );
+});
+
+test('an investment account shows its value, outside the total until counted', async () => {
+  mockApi({
+    'GET /api/finance/accounts': () => [
+      account('a1', {}),
+      account('a9', {
+        name: 'Trading 212 EUR',
+        institution_name: 'Trading 212',
+        iban_masked: null,
+        cash_account_type: null,
+        is_investment: true,
+        include_in_net_worth: false,
+        balance: {
+          balance_type: 'TVAL',
+          amount: '1234.5600',
+          currency: 'EUR',
+          fetched_at: new Date().toISOString(),
+        },
+      }),
+    ],
+  });
+
+  renderAt('/finance/accounts');
+
+  expect(await screen.findByText('Trading 212 · investments')).toBeDefined();
+  expect(screen.getByText('€1,234.56')).toBeDefined();
+  expect(screen.getByText(/^value ·/)).toBeDefined();
+  const total = screen.getByText('Total').closest('tr') as HTMLElement;
+  expect(within(total).getByText('€90.00')).toBeDefined(); // the bank account only
 });

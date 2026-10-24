@@ -3,30 +3,46 @@
 import argparse
 import asyncio
 import os
+import re
 import secrets
 import sys
 import uuid
+from collections.abc import Callable
 from datetime import date
 from pathlib import Path
 from typing import LiteralString
 
+import httpx
 import psycopg
 from psycopg import sql
 from psycopg.rows import TupleRow
+from pydantic import ValidationError
 from sqlalchemy import exists, func, select, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from hubnisio.core.auth import Principal
 from hubnisio.core.db import get_engine, get_sessionmaker
 from hubnisio.core.models import AiLogin, Household, HouseholdMember, HouseholdRole, User
 from hubnisio.core.settings import get_settings
+from hubnisio.finance import tasks
 from hubnisio.finance.categorize.run import run_all
 from hubnisio.finance.defaults import seed_household
 from hubnisio.finance.fx.sources import FxClient
 from hubnisio.finance.fx.store import earliest_transaction_day, rate_summary, refresh_rates
 from hubnisio.finance.ingest.renormalize import renormalize_account
+from hubnisio.finance.linking import link_trading212
 from hubnisio.finance.models import Account, RecurringSeries
+from hubnisio.finance.providers.trading212.client import Trading212Client
+from hubnisio.finance.providers.trading212.errors import (
+    KeyFileError,
+    KeyRejected,
+    MissingPermission,
+    Trading212Error,
+)
 from hubnisio.finance.recurring.run import detect_recurring
+from hubnisio.finance.sync import SyncTrigger
+from hubnisio.jobs import app as job_app
 
 
 async def bootstrap(email: str, name: str, household_name: str) -> int:
@@ -142,6 +158,68 @@ async def fx_backfill(since: date | None) -> int:
     return 1 if result.failed else 0
 
 
+# A file in the keys folder: no path, no hidden files.
+KEY_FILE_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,99}")
+
+
+async def t212_link(
+    email: str,
+    key_file: str,
+    *,
+    client_factory: Callable[[Path], Trading212Client] = Trading212Client,
+) -> int:
+    """Link the Trading 212 account a key file reads for a member (ADR-0008), then queue its
+    first sync. Prints no key, value or account number."""
+    email = email.strip().lower()
+    if not KEY_FILE_NAME.fullmatch(key_file):
+        print("--key-file takes a file's name in the keys folder, e.g. invest.", file=sys.stderr)
+        return 1
+    path = get_settings().trading212_keys_dir / key_file
+    async with get_sessionmaker()() as session:
+        member = (
+            await session.execute(
+                select(HouseholdMember.user_id, HouseholdMember.household_id, HouseholdMember.role)
+                .join(User, User.id == HouseholdMember.user_id)
+                .where(User.email == email)
+            )
+        ).one_or_none()
+    if member is None:
+        print(f"No household member has the email {email}.", file=sys.stderr)
+        return 1
+    principal = Principal(member.user_id, member.household_id, member.role)
+
+    try:
+        async with client_factory(path) as client:
+            summary = await client.get_summary()
+    except KeyFileError as exc:
+        print(f"{exc.message} See the README for the format.", file=sys.stderr)
+        return 1
+    except KeyRejected:
+        print(
+            "Trading 212 rejected the key. Check it, and the IP addresses it's limited to.",
+            file=sys.stderr,
+        )
+        return 1
+    except MissingPermission:
+        print("The key lacks the Account data permission.", file=sys.stderr)
+        return 1
+    except (Trading212Error, httpx.HTTPError, ValidationError) as exc:
+        print(f"Couldn't read the account summary: {exc}.", file=sys.stderr)
+        return 1
+
+    async with get_sessionmaker()() as session, session.begin():
+        connection, account = await link_trading212(
+            session, principal, key_file=key_file, summary=summary
+        )
+    async with job_app.open_async():
+        await tasks.defer_sync(connection.id, trigger=SyncTrigger.INITIAL)
+    print(
+        f"Linked Trading 212 for {email}: account {account.id}. Its first sync is queued; "
+        "the worker fetches the whole history."
+    )
+    return 0
+
+
 AI_GROUP = "hub_ai"
 # Set on every AI login: read-only transactions and short statements by default. The grants
 # are what keep it out of everything but `analytics`; these only make the defaults safe.
@@ -247,6 +325,8 @@ async def _run(args: argparse.Namespace) -> int:
                 return await bootstrap(args.email, args.name, args.household)
             case "ai-login":
                 return await ai_login(args.email, revoke=args.revoke)
+            case "t212-link":
+                return await t212_link(args.email, args.key_file)
             case "renormalize":
                 return await renormalize(args.account)
             case "recategorize":
@@ -279,6 +359,17 @@ def main(argv: list[str] | None = None) -> int:
     ai_login_parser.add_argument("--email", required=True)
     ai_login_parser.add_argument(
         "--revoke", action="store_true", help="drop the login and its connection string"
+    )
+
+    t212_parser = commands.add_parser(
+        "t212-link",
+        help="link a member's Trading 212 account from an API key file, and sync it",
+    )
+    t212_parser.add_argument("--email", required=True)
+    t212_parser.add_argument(
+        "--key-file",
+        required=True,
+        help="the key file's name in the Trading 212 keys folder (secrets/trading212)",
     )
 
     renormalize_parser = commands.add_parser(

@@ -6,6 +6,7 @@ import {
   listTransactionsInfiniteQueryKey,
   startConnectionMutation,
 } from '@/api/@tanstack/react-query.gen';
+import type { ProviderName } from '@/api/types.gen';
 
 const POLL_MS = 3000;
 
@@ -49,7 +50,7 @@ export function useStartConnection() {
 }
 
 /** What a sync error code means, in words. */
-export function describeSyncError(code: string): string {
+export function describeSyncError(code: string, provider: ProviderName = 'enable_banking'): string {
   switch (code) {
     case 'ASPSP_RATE_LIMIT_EXCEEDED':
       return "the bank's daily limit on automatic syncs was reached; it retries in a few hours";
@@ -57,8 +58,20 @@ export function describeSyncError(code: string): string {
     case 'CLOSED_SESSION':
     case 'REVOKED_SESSION':
       return 'the bank ended the consent';
+    case 'KEY_REJECTED':
+      return 'Trading 212 rejected the API key';
+    case 'MISSING_PERMISSION':
+      return 'the API key lacks a permission (it needs account data, history and portfolio)';
+    case 'RATE_LIMITED':
+      return "Trading 212's rate limit was reached; it retries in a few minutes";
+    case 'KEY_FILE':
+      return "the hub couldn't read the API key's file";
+    case 'WRONG_ACCOUNT':
+      return 'the API key is for another Trading 212 account';
     case 'NETWORK':
-      return "Enable Banking couldn't be reached";
+      return provider === 'trading212'
+        ? "Trading 212 couldn't be reached"
+        : "Enable Banking couldn't be reached";
     case 'APPLY_FAILED':
     case 'UNEXPECTED_RESPONSE':
       return "the hub couldn't read the bank's data";

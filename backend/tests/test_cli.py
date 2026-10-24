@@ -43,7 +43,7 @@ def test_bootstrap_creates_owner_once(
             """,
             (email,),
         ).fetchone() or (0, 0, 0)
-    assert (groups, categories, rules) == (11, 41, 1)  # the household starts with defaults
+    assert (groups, categories, rules) == (11, 42, 5)  # the household starts with defaults
 
 
 def test_renormalize_an_account_without_syncs(

@@ -18,10 +18,13 @@ TRANSFER_LOOKBACK = timedelta(days=60)
 
 
 async def after_sync(
-    session: AsyncSession, household_id: uuid.UUID, since: datetime
+    session: AsyncSession, household_id: uuid.UUID, since: datetime, *, initial: bool = False
 ) -> CategorizeResult:
     """Pair recent transfers, categorize what the sync touched (and anything just paired), then
-    detect recurring series. The caller commits."""
+    detect recurring series. The caller commits.
+
+    After a newly linked account's first sync (`initial`), transfers are paired across all
+    history: its past may meet older moves on other accounts, such as deposits to a broker."""
     touched = set(
         await session.scalars(
             select(Transaction.id)
@@ -29,7 +32,7 @@ async def after_sync(
             .where(Account.household_id == household_id, Transaction.last_seen_at >= since)
         )
     )
-    lookback = (datetime.now(UTC) - TRANSFER_LOOKBACK).date()
+    lookback = None if initial else (datetime.now(UTC) - TRANSFER_LOOKBACK).date()
     linked = await detect_transfers(session, household_id, since=lookback)
     result = await categorize(session, household_id, touched | linked)
     await detect_recurring(session, household_id, date.today())

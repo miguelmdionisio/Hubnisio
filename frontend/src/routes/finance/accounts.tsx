@@ -42,6 +42,7 @@ const BALANCE_LABELS: Record<string, string> = {
   CLAV: 'available',
   ITBD: 'booked',
   CLBD: 'booked',
+  TVAL: 'value', // a broker's: cash plus holdings at market value
 };
 
 export function AccountsPage() {
@@ -64,7 +65,7 @@ export function AccountsPage() {
     <>
       <PageHeader
         title="Accounts"
-        description="Balances as the banks report them at each sync."
+        description="Balances as the banks report them at each sync. An investment account shows its value: cash plus holdings at market value."
         actions={
           <Button variant="outline" asChild>
             <Link to="/finance/connections">Bank connections</Link>
@@ -129,7 +130,10 @@ export function AccountsPage() {
                       </Button>
                     )}
                   </div>
-                  <div className="text-xs text-muted-foreground">{account.institution_name}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {account.institution_name}
+                    {account.is_investment && ' · investments'}
+                  </div>
                 </TableCell>
                 <TableCell className="font-mono text-xs">{account.iban_masked ?? '—'}</TableCell>
                 <TableCell className="text-right">

@@ -10,10 +10,13 @@ A private, self-hosted personal hub, one app per domain; finance first. Decision
   - M3: daily FX rates into EUR; spending, cash flow and net worth, computed on read; budgets with rollover and overspend; detected recurring payments the user confirms; the Budgets, Recurring and overview pages (Recharts).
   - Gaps G1–G6: an overall budget, hiding and deleting accounts, Revolut brand rules, the spending donut, shared pots with the Mine / Household view, repayments that lower their category.
   - M4 AI (ADR-0006): the `analytics` views and per-member logins (A1, `5cc86b6`); the MCP server with read tools (A2, `b3fb32c`); AI category suggestions (A3, `210d80e`); `net_worth_history` and net worth's inputs in the views (A4). Live since 2026-10-23: the user's AI login exists, `HUBNISIO_AI_ENABLED` is on, and the read tools work from Claude Code. The first categorization pass suggested 175 categories, which the user approves on the Transactions page (one click each, or "Approve the N shown"). IBANs in descriptions reach the AI masked as `[IBAN]`.
+  - M6 T1 (ADR-0008): Trading 212 as a provider (`finance/providers/trading212`). `cli t212-link` links a member's key file; the sync turns the summary into a `TVAL` balance and cash movements and dividends into transactions (bank codes `T212_<type>`); seeded Dividends category and bank-code rules; the account shows on Accounts and Connections, outside net worth. Not linked live yet.
 - **Deferred:** M5 server (Tailscale, Caddy, passkey login replacing the dev user, Postgres roles, backups) waits until the user has an always-on machine. Don't start it, and don't build anything that needs one, until they say so.
-- **Next:** M6 Trading 212, planned in [ADR-0008](docs/adr/0008-investments.md) (accepted 2026-10-24): slices T1 (provider and cash), T2 (trades and holdings), T3 (prices and net worth over time), T4 (returns and AI).
+- **Next:** M6 Trading 212, planned in [ADR-0008](docs/adr/0008-investments.md) (accepted 2026-10-24): T1 (provider and cash) is done; then T2 (trades and holdings), T3 (prices and net worth over time), T4 (returns and AI).
 - **Waiting on the user:**
-  - creating a read-only Trading 212 API key at `secrets/trading212/<name>` (ADR-0008, action item 1);
+  - applying migration 0015 to the live database (`docker compose run --rm migrate`), then `docker compose up -d` for the Trading 212 keys mount and `docker compose restart worker`. Until then the running API (which reloads code) fails on accounts and connections;
+  - creating a read-only Trading 212 API key at `secrets/trading212/<name>` (ADR-0008, action item 1; format in the README);
+  - in the existing household, before the first Trading 212 sync: the Income › Dividends category and the four `T212_*` rules (ADR-0008, "As built in T1"), which seeding gives only new households. Then `t212-link`, and checking the signs of the first sync's withdrawals and fees;
   - reviewing the 175 AI category suggestions;
   - hiding or deleting their unused Revolut accounts on the Accounts page;
   - deciding on a BPI `pagserv` → Utilities rule and an Uber rule (Uber Eats is a separate merchant).

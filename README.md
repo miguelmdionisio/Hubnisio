@@ -78,6 +78,24 @@ To categorize with Claude, run the server's `categorize_uncategorized` prompt (i
 
 To turn it off, set `HUBNISIO_AI_ENABLED=false` and run `docker compose up -d` again. To cut off one member, add `--revoke` to the `ai-login` command. Each member who wants it gets their own login and registers it in their own Claude.
 
+## Linking Trading 212
+
+The hub reads a Trading 212 Invest account through Trading 212's own API, with a read-only key ([ADR-0008](docs/adr/0008-investments.md)). The key stays in a file: the database records only the file's name.
+
+1. In the Trading 212 app, go to Settings → API (Beta) and generate a key on the live account. Tick only **Account data**, **History** and **Portfolio**: no orders and no pies, so the key can't trade. If your public IP address doesn't change, limit the key to it. Copy the key and the secret; the secret is shown only once.
+2. Save both in a file in `secrets/trading212/`, named after the account, for example `secrets/trading212/invest`. It holds two lines; blank lines and lines starting with `#` are ignored:
+   ```
+   key=<API key>
+   secret=<API secret>
+   ```
+   Compose mounts that folder read-only into the api and worker containers. After adding it for the first time, run `docker compose up -d` so they get the mount.
+3. Link it to your user. The command checks the key against the account summary, creates the connection and the account, and queues the first sync, which fetches the whole history:
+   ```bash
+   docker compose exec api python -m hubnisio.cli t212-link --email you@example.com --key-file invest
+   ```
+
+The account then shows on the Accounts page with its value (cash plus holdings at market value), and on Bank connections with "Sync now"; the scheduled syncs include it. It starts outside net worth, until the hub can rebuild its value over time. Deposits and withdrawals pair with the bank's side as transfers, and dividends, interest and fees get their categories from rules. If Trading 212 later rejects the key (deleted, or your IP address changed), the connection shows "Needs linking again": fix the key or save a new one, then run the same command again. The account keeps its history. Each member links their own key.
+
 ## Work on it without Docker
 
 Needs [uv](https://docs.astral.sh/uv/) and Node 24 (pnpm comes through corepack). The database still runs in Compose: `docker compose up db migrate`.

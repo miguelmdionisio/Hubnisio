@@ -10,11 +10,13 @@ afterEach(() => {
 
 const linked: ConnectionOut = {
   id: 'c1',
+  provider: 'enable_banking',
   institution_name: 'Banco BPI',
   institution_country: 'PT',
   status: 'active',
   valid_until: '2027-04-20T12:00:00Z',
   days_left: 179,
+  key_file: null,
   last_synced_at: null,
   syncing: true,
   last_error: null,

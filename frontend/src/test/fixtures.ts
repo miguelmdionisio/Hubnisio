@@ -29,6 +29,7 @@ export const account: AccountOut = {
   hidden_at: null,
   is_pot: false,
   pot_category_id: null,
+  is_investment: false,
   transaction_count: 0,
   balance: null,
 };

@@ -101,8 +101,8 @@ export function CallbackPage() {
         <p>Your history is in.</p>
       ) : connection.last_error ? (
         <p className="text-destructive">
-          The first sync failed: {describeSyncError(connection.last_error)}. You can retry from the
-          connections page.
+          The first sync failed: {describeSyncError(connection.last_error, connection.provider)}.
+          You can retry from the connections page.
         </p>
       ) : (
         <p className="flex items-center gap-2 text-muted-foreground">
