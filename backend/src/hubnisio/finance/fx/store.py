@@ -10,14 +10,24 @@ from sqlalchemy import Date, cast, func, or_, select, union_all
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from hubnisio.finance.fx.convert import BASE_CURRENCY
+from hubnisio.finance.fx.convert import BASE_CURRENCY, rated_currency
 from hubnisio.finance.fx.sources import (
     CURRENCY_API_FIRST_DATE,
     FxClient,
     FxSourceError,
     is_currency_code,
 )
-from hubnisio.finance.models import Account, BalanceSnapshot, FxRate, FxSource, Transaction
+from hubnisio.finance.models import (
+    Account,
+    BalanceSnapshot,
+    Fill,
+    FxRate,
+    FxSource,
+    HoldingSnapshot,
+    Instrument,
+    PortfolioSnapshot,
+    Transaction,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -52,8 +62,9 @@ async def earliest_transaction_day(session: AsyncSession) -> date | None:
 
 
 async def currencies_in_use(session: AsyncSession) -> dict[str, date]:
-    """Every non-euro currency an account, transaction (its own or original) or balance
-    snapshot uses, with the first day it shows up."""
+    """Every non-euro currency an account, transaction (its own or original), balance
+    snapshot or instrument traded or held uses, with the first day it shows up. Pence count
+    as pounds (ADR-0008)."""
     snapshot_day = func.coalesce(
         BalanceSnapshot.reference_date, cast(BalanceSnapshot.fetched_at, Date)
     )
@@ -68,13 +79,25 @@ async def currencies_in_use(session: AsyncSession) -> dict[str, date]:
         .where(Transaction.original_currency.is_not(None))
         .group_by(Transaction.original_currency),
         select(BalanceSnapshot.currency, func.min(snapshot_day)).group_by(BalanceSnapshot.currency),
+        select(Instrument.currency, func.min(cast(Fill.filled_at, Date)))
+        .join(Fill, Fill.instrument_id == Instrument.id)
+        .group_by(Instrument.currency),
+        select(Instrument.currency, func.min(cast(PortfolioSnapshot.fetched_at, Date)))
+        .join(HoldingSnapshot, HoldingSnapshot.instrument_id == Instrument.id)
+        .join(PortfolioSnapshot, PortfolioSnapshot.id == HoldingSnapshot.portfolio_snapshot_id)
+        .group_by(Instrument.currency),
     ).subquery()
     rows = await session.execute(
-        select(appearances.c[0], func.min(appearances.c[1]))
-        .where(appearances.c[0] != BASE_CURRENCY)
-        .group_by(appearances.c[0])
+        select(appearances.c[0], func.min(appearances.c[1])).group_by(appearances.c[0])
     )
-    return {currency: first for currency, first in rows if is_currency_code(currency)}
+    needs: dict[str, date] = {}
+    for currency, first in rows:
+        if currency is None or not is_currency_code(currency):
+            continue
+        rated = rated_currency(currency)
+        if rated != BASE_CURRENCY:
+            needs[rated] = min(first, needs.get(rated, first))
+    return needs
 
 
 def sample_dates(start: date, end: date) -> list[date]:

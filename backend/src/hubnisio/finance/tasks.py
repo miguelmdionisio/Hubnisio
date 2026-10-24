@@ -1,5 +1,6 @@
 """Finance background jobs, registered on the shared job app in hubnisio/jobs.py."""
 
+import logging
 import uuid
 from collections.abc import Mapping
 
@@ -12,6 +13,10 @@ from hubnisio.finance import sync
 from hubnisio.finance.fx.sources import FxClient
 from hubnisio.finance.fx.store import refresh_rates
 from hubnisio.finance.models import ProviderName
+from hubnisio.finance.prices.sources import PriceClient
+from hubnisio.finance.prices.store import refresh_prices
+
+logger = logging.getLogger(__name__)
 
 blueprint = procrastinate.Blueprint()
 
@@ -59,6 +64,23 @@ async def fetch_fx_rates(timestamp: int) -> None:
         raise RuntimeError(
             "Exchange rates not fetched for " + ", ".join(sorted(result.failed)) + "."
         )
+
+
+# After the day's closes in Europe (Xetra and Milan close by 16:30 UTC); the US closes of the
+# day before are final too. Today's own close waits for the next run. The cron runs in the
+# worker's timezone (UTC in the container).
+@blueprint.periodic(cron="45 16 * * *")
+@blueprint.task(name="fetch_prices")
+async def fetch_prices(timestamp: int) -> None:
+    """Fill in the instruments' closes missing since the last run (ADR-0008). What was fetched
+    is kept even if some instrument failed; the failure then fails the job, and the next run
+    fills the gap. An instrument without a symbol is only logged: it needs one by hand."""
+    async with PriceClient() as client, get_sessionmaker()() as session, session.begin():
+        result = await refresh_prices(session, client)
+    for ticker in result.unmapped:
+        logger.warning("No price symbol found for %s: set one with cli prices-symbol.", ticker)
+    if result.failed:
+        raise RuntimeError("Prices not fetched for " + ", ".join(sorted(result.failed)) + ".")
 
 
 async def defer_sync(

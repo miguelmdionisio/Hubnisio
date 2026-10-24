@@ -3,6 +3,9 @@
 An amount is converted at the rate for its day: the latest rate published on or before that
 day, if it is at most MAX_RATE_AGE_DAYS old. Without one the result is NULL (None), never the
 amount unconverted, so callers can leave it out and say so.
+
+Instruments can be quoted in a fraction of a currency (ADR-0008): pence (GBX) convert at the
+pound's rate times 100. Only `RateTable` needs that; transactions are never in pence.
 """
 
 from bisect import bisect_right
@@ -28,6 +31,13 @@ BASE_CURRENCY = "EUR"
 # Banks and the ECB skip weekends and holidays; currency-api history is sampled weekly.
 MAX_RATE_AGE_DAYS = 10
 _MONEY_STEP = Decimal("0.0001")
+# A currency quoted in a fraction of another: (the other, units per one of it).
+MINOR_UNITS: dict[str, tuple[str, Decimal]] = {"GBX": ("GBP", Decimal(100))}
+
+
+def rated_currency(currency: str) -> str:
+    """The currency whose rates `fx_rates` holds for this one: GBP for GBX, else itself."""
+    return MINOR_UNITS[currency][0] if currency in MINOR_UNITS else currency
 
 
 def rate_on(
@@ -82,7 +92,7 @@ class RateTable:
     async def load(
         cls, session: AsyncSession, currencies: Iterable[str], first: date, last: date
     ) -> RateTable:
-        wanted = {currency for currency in currencies if currency != BASE_CURRENCY}
+        wanted = {rated_currency(c) for c in currencies} - {BASE_CURRENCY}
         rates: dict[str, list[tuple[date, Decimal]]] = {currency: [] for currency in wanted}
         if wanted:
             rows = await session.execute(
@@ -101,6 +111,10 @@ class RateTable:
     def rate(self, currency: str, on: date) -> Decimal | None:
         if currency == BASE_CURRENCY:
             return Decimal(1)
+        if currency in MINOR_UNITS:
+            whole, units = MINOR_UNITS[currency]
+            rate = self.rate(whole, on)
+            return None if rate is None else rate * units
         rates = self._rates.get(currency, [])
         index = bisect_right(rates, on, key=lambda item: item[0]) - 1
         if index < 0 or (on - rates[index][0]).days > MAX_RATE_AGE_DAYS:

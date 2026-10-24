@@ -778,6 +778,39 @@ export type InvestmentAccount = {
      * Interest
      */
     interest: Array<string>;
+    check: InvestmentCheck | null;
+};
+
+/**
+ * InvestmentCheck
+ *
+ * The value rebuilt from trades and daily prices against Trading 212's own (ADR-0008).
+ */
+export type InvestmentCheck = {
+    /**
+     * On
+     */
+    on: string;
+    /**
+     * Rebuilt Value
+     */
+    rebuilt_value: string | null;
+    /**
+     * Difference
+     */
+    difference: string | null;
+    /**
+     * Unpriced
+     */
+    unpriced: Array<string>;
+    /**
+     * Unexplained Cash
+     */
+    unexplained_cash: string;
+    /**
+     * Unexplained
+     */
+    unexplained: Array<UnexplainedQuantity>;
 };
 
 /**
@@ -844,6 +877,10 @@ export type NetWorthOut = {
      * Unconverted
      */
     unconverted: number;
+    /**
+     * Unpriced
+     */
+    unpriced: number;
 };
 
 /**
@@ -1501,6 +1538,24 @@ export type TransferLink = {
      * Incoming Id
      */
     incoming_id: string;
+};
+
+/**
+ * UnexplainedQuantity
+ */
+export type UnexplainedQuantity = {
+    /**
+     * Ticker
+     */
+    ticker: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Quantity
+     */
+    quantity: string;
 };
 
 /**

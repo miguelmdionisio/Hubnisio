@@ -6,7 +6,7 @@ import sys
 import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -16,6 +16,7 @@ import pytest
 from analytics_data import OCTOBER, SEPTEMBER, VIEWS, Data, Login, new_account, save
 from households import Home, add, api, make_home
 from mcp import Client, StdioServerParameters
+from portfolios import Trade, investment_account, new_instrument, set_prices
 from sqlalchemy import select, update
 from sqlalchemy.dialects.postgresql import insert
 
@@ -136,6 +137,37 @@ async def foreign_account(home: Home) -> uuid.UUID:
     return wise
 
 
+async def broker_account(home: Home) -> uuid.UUID:
+    """The owner's shared investment account (ADR-0008), in net worth: a euro ETF priced
+    every few days, and a stock in XTQ, whose rates leave gaps (see foreign_account). Today:
+    2 ETF at 110 and 3 shares at 50 XTQ (30 euros), with 500 cash."""
+    today = date.today()
+
+    def ago(days: int) -> date:
+        return today - timedelta(days=days)
+
+    etf = await new_instrument(kind="ETF")
+    stock = await new_instrument(currency="XTQ")
+    account = await investment_account(
+        home,
+        home.owner,
+        as_of=datetime.combine(today, time(9), UTC),
+        cash="500",
+        total_value="750",
+        holdings={etf.id: ("2", "110"), stock.id: ("3", "50")},
+        trades=[
+            Trade(etf.id, ago(40), "3", "100", "300"),
+            Trade(etf.id, ago(25), "-1", "104", "104", side="SELL"),
+            Trade(stock.id, ago(8), "3", "45", "27"),
+        ],
+        movements={ago(60): "700.00", ago(9): "23.00"},
+    )
+    await set_prices(etf.id, {ago(n): str(100 + n % 7) for n in range(40, 0, -6)})
+    await set_prices(etf.id, {today: "110"})
+    await set_prices(stock.id, {ago(8): "45", today: "50"})
+    return account
+
+
 # Agreement with the app.
 
 
@@ -173,6 +205,7 @@ async def test_insights_agree_with_the_app(home: Home, logins: dict[uuid.UUID, L
 @pytest.mark.usefixtures("data")
 async def test_balances_agree_with_net_worth(home: Home, logins: dict[uuid.UUID, Login]) -> None:
     wise = await foreign_account(home)
+    broker = await broker_account(home)
     async with get_sessionmaker()() as session:
         for principal in principals(home):
             listed = set(await session.scalars(listed_account_ids(principal)))
@@ -198,6 +231,8 @@ async def test_balances_agree_with_net_worth(home: Home, logins: dict[uuid.UUID,
                     if principal == home.owner:
                         assert accounts[home.savings]["in_net_worth"] == (view == "household")
                         assert _decimal(accounts[wise]["balance_today_eur"]) == Decimal("100.00")
+                        # Cash, the ETF at 110 and the stock at 50 XTQ, 5 to the euro.
+                        assert _decimal(accounts[broker]["balance_today_eur"]) == Decimal("750.00")
 
 
 @pytest.mark.usefixtures("data")
@@ -205,6 +240,7 @@ async def test_net_worth_history_agrees_with_net_worth(
     home: Home, logins: dict[uuid.UUID, Login]
 ) -> None:
     await foreign_account(home)
+    await broker_account(home)
     today = date.today()
     recent = today - timedelta(days=20)
 
@@ -221,10 +257,11 @@ async def test_net_worth_history_agrees_with_net_worth(
                         await call(client, "net_worth_history", every="day", view=view)
                     )
                     assert len(app.points) > 1, context
-                    assert (daily.total, daily.points, daily.unconverted) == (
+                    assert (daily.total, daily.points, daily.unconverted, daily.unpriced) == (
                         app.total,
                         app.points,
                         app.unconverted,
+                        app.unpriced,
                     ), context
                     assert by_id(daily.accounts) == by_id(app.accounts), context
 

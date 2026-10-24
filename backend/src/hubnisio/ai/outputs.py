@@ -117,7 +117,8 @@ class AccountBalance(BaseModel):
     fetched_at: datetime | None
     in_net_worth: bool  # counts in this view's net worth
     # Today's balance as net worth counts it: the latest booked balance, moved by the booked
-    # transactions since its date (as_of).
+    # transactions since its date (as_of). An investment account's: its cash and holdings at
+    # today's prices, rebuilt from its latest positions (as_of their day) and trades.
     balance_today: Decimal | None
     balance_today_eur: Decimal | None  # None: no balance, or no exchange rate for today
     as_of: date | None
@@ -128,6 +129,7 @@ class Balances(BaseModel):
     net_worth: Decimal  # today, in euros: the accounts with in_net_worth
     accounts: list[AccountBalance]  # every account that isn't hidden
     unconverted: int  # accounts in net worth left out: no exchange rate for today
+    unpriced: int  # holdings of investment accounts left out: no price or exchange rate today
 
 
 Every = Literal["day", "week", "month"]
@@ -140,6 +142,7 @@ class NetWorthHistory(BaseModel):
     points: list[schemas.NetWorthPoint]  # oldest first: each day, Sunday or month end, and today
     accounts: list[schemas.NetWorthAccount]  # those in net worth, with their balance today
     unconverted: int  # account-days of the daily series left out: no exchange rate
+    unpriced: int  # holding-days of investment accounts left out: no price or exchange rate
 
 
 class UncategorizedGroup(BaseModel):

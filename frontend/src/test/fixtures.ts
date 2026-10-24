@@ -215,6 +215,7 @@ export function netWorth(
     points: points.map(([on, amount]) => ({ on, amount })),
     accounts: [],
     unconverted: 0,
+    unpriced: 0,
     ...overrides,
   };
 }
@@ -313,6 +314,7 @@ export function investmentAccount(
     holdings: [],
     dividends: Array(months).fill('0.00'),
     interest: Array(months).fill('0.00'),
+    check: null,
     ...overrides,
   };
 }

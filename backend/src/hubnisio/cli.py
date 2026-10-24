@@ -33,6 +33,8 @@ from hubnisio.finance.fx.store import earliest_transaction_day, rate_summary, re
 from hubnisio.finance.ingest.renormalize import renormalize_account
 from hubnisio.finance.linking import link_trading212
 from hubnisio.finance.models import Account, RecurringSeries
+from hubnisio.finance.prices.sources import PriceClient
+from hubnisio.finance.prices.store import price_summary, refresh_prices, set_symbol
 from hubnisio.finance.providers.trading212.client import Trading212Client
 from hubnisio.finance.providers.trading212.errors import (
     KeyFileError,
@@ -158,6 +160,42 @@ async def fx_backfill(since: date | None) -> int:
     for currency, error in sorted(result.failed.items()):
         print(f"{currency} failed: {error}", file=sys.stderr)
     return 1 if result.failed else 0
+
+
+async def prices_backfill(since: date | None) -> int:
+    """Rebuild the prices from trades and positions, find the instruments' symbols, and fetch
+    their missing closes since `since` (default: each one's first day held). Then show what is
+    stored."""
+    async with PriceClient() as client, get_sessionmaker()() as session, session.begin():
+        result = await refresh_prices(session, client, since=since or date.min)
+        stored = await price_summary(session)
+    for ticker, symbol in sorted(result.found.items()):
+        print(f"{ticker}: found as {symbol}.")
+    for ticker, rows in sorted(result.written.items()):
+        print(f"{ticker}: {rows} closes written.")
+    if not result.written:
+        print("No new closes to write.")
+    for item in stored:
+        print(
+            f"Stored {item.source}: {item.rows} prices of {item.instruments} instruments, "
+            f"{item.first} to {item.last}."
+        )
+    for ticker in sorted(result.unmapped):
+        print(f"{ticker}: no symbol found; set one with prices-symbol.", file=sys.stderr)
+    for ticker, error in sorted(result.failed.items()):
+        print(f"{ticker} failed: {error}", file=sys.stderr)
+    return 1 if result.failed or result.unmapped else 0
+
+
+async def prices_symbol(ticker: str, symbol: str | None) -> int:
+    """Set an instrument's symbol at the price source by hand, or let it be found again, then
+    fetch its closes."""
+    async with get_sessionmaker()() as session, session.begin():
+        if not await set_symbol(session, ticker, symbol):
+            print(f"No instrument has the ticker {ticker}.", file=sys.stderr)
+            return 1
+    print(f"{ticker}: {f'symbol set to {symbol}' if symbol else 'symbol to be found again'}.")
+    return await prices_backfill(None)
 
 
 # A file in the keys folder: no path, no hidden files.
@@ -337,6 +375,10 @@ async def _run(args: argparse.Namespace) -> int:
                 return await detect_recurring_series(args.household)
             case "fx-backfill":
                 return await fx_backfill(args.since)
+            case "prices-backfill":
+                return await prices_backfill(args.since)
+            case "prices-symbol":
+                return await prices_symbol(args.ticker, None if args.auto else args.symbol)
             case _:
                 raise AssertionError(args.command)
     finally:
@@ -403,6 +445,29 @@ def main(argv: list[str] | None = None) -> int:
         type=date.fromisoformat,
         metavar="YYYY-MM-DD",
         help="check from this day (default: the earliest transaction)",
+    )
+
+    prices_backfill_parser = commands.add_parser(
+        "prices-backfill", help="fetch the instruments' daily closes that are missing"
+    )
+    prices_backfill_parser.add_argument(
+        "--since",
+        type=date.fromisoformat,
+        metavar="YYYY-MM-DD",
+        help="check from this day (default: each instrument's first day held)",
+    )
+
+    prices_symbol_parser = commands.add_parser(
+        "prices-symbol",
+        help="set an instrument's symbol at the price source (Yahoo) when it isn't found",
+    )
+    prices_symbol_parser.add_argument(
+        "--ticker", required=True, help="Trading 212's ticker, e.g. VUSAl_EQ"
+    )
+    symbol_choice = prices_symbol_parser.add_mutually_exclusive_group(required=True)
+    symbol_choice.add_argument("--symbol", help="Yahoo's symbol, e.g. VUSA.L")
+    symbol_choice.add_argument(
+        "--auto", action="store_true", help="forget the symbol, so it's found again"
     )
 
     args = parser.parse_args(argv)

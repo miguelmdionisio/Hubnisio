@@ -25,8 +25,12 @@ from hubnisio.finance.models import (
     BalanceSnapshot,
     Connection,
     ConnectionStatus,
+    Fill,
     FxRate,
     FxSource,
+    HoldingSnapshot,
+    Instrument,
+    PortfolioSnapshot,
     ProviderName,
     ProviderPayload,
     Transaction,
@@ -225,6 +229,84 @@ async def test_currencies_in_use_come_from_accounts_transactions_and_snapshots(
     assert "EUR" not in in_use
     assert in_use["CHF"] <= ago(30)
     assert in_use["MAD"] <= ago(21)
+
+
+async def test_instruments_traded_or_held_bring_their_currency_pence_as_pounds(
+    holdings: None,
+) -> None:
+    """An instrument's prices are converted too (ADR-0008). Removed afterwards, like the
+    rest of this test's household, so the other tests see the currencies they expect."""
+    async with get_sessionmaker()() as session, session.begin():
+        user = User(email=f"fx-{uuid.uuid4().hex[:8]}@example.com", display_name="Rui")
+        household = Household(name="Corretora")
+        session.add_all([user, household])
+        await session.flush()
+        account = Account(household_id=household.id, institution_name="Trading 212", currency="EUR")
+        pence = Instrument(ticker=f"XP{uuid.uuid4().hex[:6]}l_EQ", currency="GBX")
+        dollars = Instrument(ticker=f"XD{uuid.uuid4().hex[:6]}_US_EQ", currency="XTD")
+        connection = Connection(
+            household_id=household.id,
+            user_id=user.id,
+            provider=ProviderName.TRADING212,
+            institution_name="Trading 212",
+            status=ConnectionStatus.ACTIVE,
+        )
+        session.add_all([account, pence, dollars, connection])
+        await session.flush()
+        payload = ProviderPayload(
+            household_id=household.id,
+            connection_id=connection.id,
+            kind="orders",
+            request={},
+            response={},
+        )
+        session.add(payload)
+        await session.flush()
+        snapshot = PortfolioSnapshot(
+            household_id=household.id,
+            account_id=account.id,
+            currency="EUR",
+            total_value=Decimal(0),
+            cash=Decimal(0),
+            cash_in_pies=Decimal(0),
+            cash_reserved=Decimal(0),
+            fetched_at=datetime.combine(ago(10), datetime.min.time(), UTC),
+        )
+        session.add(snapshot)
+        await session.flush()
+        session.add_all(
+            [
+                Fill(
+                    household_id=household.id,
+                    account_id=account.id,
+                    instrument_id=pence.id,
+                    fill_id=1,
+                    side="BUY",
+                    fill_type="TRADE",
+                    filled_at=datetime.combine(ago(45), datetime.min.time(), UTC),
+                    quantity=Decimal(1),
+                    price=Decimal(100),
+                    payload_id=payload.id,
+                ),
+                HoldingSnapshot(
+                    household_id=household.id,
+                    account_id=account.id,
+                    portfolio_snapshot_id=snapshot.id,
+                    instrument_id=dollars.id,
+                    quantity=Decimal(1),
+                ),
+            ]
+        )
+    try:
+        async with get_sessionmaker()() as session:
+            in_use = await currencies_in_use(session)
+    finally:
+        async with get_sessionmaker()() as session, session.begin():
+            await session.execute(delete(Household).where(Household.id == household.id))
+
+    assert in_use["GBP"] == ago(45)  # earlier than the pound account
+    assert in_use["XTD"] == ago(10)
+    assert "GBX" not in in_use
 
 
 async def test_first_refresh_takes_each_currency_from_the_source_that_covers_it(

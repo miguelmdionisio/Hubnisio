@@ -5,7 +5,7 @@ import re
 import uuid
 from collections import defaultdict
 from collections.abc import Sequence
-from datetime import date
+from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -14,10 +14,12 @@ import psycopg
 import pytest
 from analytics_data import OCTOBER, SEPTEMBER, VIEWS, Data, Login, email_of, save
 from households import Home, add, api
+from portfolios import Trade, investment_account, new_instrument, set_prices
 from psycopg import errors, sql
 from psycopg.abc import QueryNoTemplate as Query
-from sqlalchemy import select
+from sqlalchemy import select, update
 
+from hubnisio.ai import views
 from hubnisio.ai.server import Tools
 from hubnisio.cli import ai_login
 from hubnisio.core.db import get_sessionmaker
@@ -25,14 +27,18 @@ from hubnisio.core.models import AiCall, AiLogin
 from hubnisio.finance import schemas
 from hubnisio.finance.balances import BOOKED_FIRST, SPENDABLE_FIRST, latest_balances
 from hubnisio.finance.budgets import BudgetSpec, budgets_for_month, compute_budgets
+from hubnisio.finance.insights.portfolio import load_portfolios
 from hubnisio.finance.insights.spending import CategoryInfo, MonthlySums, monthly_sums
 from hubnisio.finance.kinds import kind_is
 from hubnisio.finance.models import (
+    Account,
+    AccountVisibility,
     CategoryKind,
     Overspend,
     TransactionAnnotation,
     TransactionKind,
 )
+from hubnisio.finance.prices.table import PriceTable
 from hubnisio.finance.scoping import View, listed_account_ids
 from hubnisio.finance.transactions_api import transactions_query
 
@@ -46,10 +52,15 @@ ANALYTICS_VIEWS = {
     "budgets",
     "categories",
     "daily_movements",
+    "fills",
     "fx_rates",
+    "holdings",
+    "instrument_prices",
+    "instruments",
     "me",
     "merchants",
     "monthly_category_spend",
+    "portfolios",
     "recurring_payments",
     "transactions",
     "visible_accounts",
@@ -438,3 +449,73 @@ async def test_budgets_and_balances_agree_with_the_app(
                     " FROM analytics.balances",
                 )
             } == expected
+
+
+@pytest.mark.usefixtures("data")
+async def test_investment_views_show_only_what_the_member_may_see_and_agree_with_the_app(
+    home: Home, logins: dict[uuid.UUID, Login]
+) -> None:
+    today = date.today()
+    at = datetime.combine(today, time(9), UTC)
+    etf, stock = await new_instrument(kind="ETF"), await new_instrument()
+    shared = await investment_account(
+        home,
+        home.owner,
+        as_of=at,
+        cash="100",
+        total_value="210",
+        holdings={etf.id: ("1", "110")},
+        trades=[Trade(etf.id, today - timedelta(days=3), "1", "100", "100")],
+        movements={today - timedelta(days=10): "200.00"},
+    )
+    hers = await investment_account(
+        home,
+        home.member,
+        as_of=at,
+        cash="0",
+        total_value="50",
+        holdings={stock.id: ("1", "50")},
+        trades=[Trade(stock.id, today - timedelta(days=3), "1", "50", "50")],
+        visibility=AccountVisibility.PRIVATE,
+    )
+    await set_prices(etf.id, {today - timedelta(days=1): "105"})
+    await set_prices(stock.id, {today - timedelta(days=1): "49"})
+    owner, member = logins[home.owner.user_id], logins[home.member.user_id]
+
+    for query in (
+        "SELECT account_id FROM analytics.portfolios",
+        "SELECT account_id FROM analytics.holdings",
+        "SELECT account_id FROM analytics.fills",
+    ):
+        assert ids(owner, query) == {shared}, query
+        assert ids(member, query) == {shared, hers}, query
+    # Instruments are public, but which ones the member holds privately isn't the owner's.
+    for query in (
+        "SELECT id FROM analytics.instruments",
+        "SELECT instrument_id FROM analytics.instrument_prices",
+    ):
+        assert ids(owner, query) == {etf.id}, query
+        assert ids(member, query) == {etf.id, stock.id}, query
+    assert rows(owner, "SELECT is_investment FROM analytics.accounts WHERE id = %s", [shared]) == [
+        (True,)
+    ]
+
+    # Loaded into the app's dataclasses, the views give what the app loads.
+    first = today - timedelta(days=5)
+    async with get_sessionmaker()() as session:
+        app = await load_portfolios(session, [shared])
+        app_prices = await PriceTable.load(session, {etf.id}, first, today)
+    async with await psycopg.AsyncConnection.connect(owner.dsn) as connection:
+        loaded = await views.portfolios(connection, [shared, hers])
+        loaded_prices = await views.price_table(connection, {etf.id, stock.id}, first, today)
+    assert loaded == app
+    assert loaded_prices.instruments == app_prices.instruments
+    for n in range(6):
+        day = first + timedelta(days=n)
+        assert loaded_prices.price(etf.id, day) == app_prices.price(etf.id, day), day
+
+    # A hidden account has no portfolio, as it has no balance; its history still shows.
+    async with get_sessionmaker()() as session, session.begin():
+        await session.execute(update(Account).where(Account.id == shared).values(hidden_at=at))
+    assert ids(owner, "SELECT account_id FROM analytics.portfolios") == set()
+    assert ids(owner, "SELECT account_id FROM analytics.fills") == {shared}

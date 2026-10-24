@@ -41,6 +41,7 @@ from hubnisio.finance.models import (
     Transaction,
     TransactionStatus,
 )
+from hubnisio.finance.prices.store import account_instruments, store_broker_prices
 from hubnisio.finance.providers.base import Fetched, Provider
 from hubnisio.finance.providers.enable_banking.client import EnableBankingClient
 from hubnisio.finance.providers.enable_banking.errors import (
@@ -282,7 +283,22 @@ async def _sync_account(
             run.error_code = APPLY_FAILED
             run.finished_at = datetime.now(UTC)
         return AccountResult.FAILED
+    if NORMALIZERS[provider].fills:  # only a broker has trades and positions
+        await _store_prices(account_id)
     return AccountResult.SUCCEEDED
+
+
+async def _store_prices(account_id: uuid.UUID) -> None:
+    """The prices in a broker's trades and positions (ADR-0008). A failure here is logged, not
+    raised: the trades are stored, and the daily price task rebuilds these prices too."""
+    try:
+        async with get_sessionmaker()() as session, session.begin():
+            written = await store_broker_prices(
+                session, await account_instruments(session, account_id)
+            )
+        logger.info("Stored %d prices from trades and positions.", written)
+    except Exception:
+        logger.exception("Storing the prices from account %s's trades failed.", account_id)
 
 
 async def _refresh_user_layer(

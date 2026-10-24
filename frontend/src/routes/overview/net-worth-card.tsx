@@ -75,6 +75,12 @@ export function NetWorthCard() {
                 accounts' history: no exchange rate into euros.
               </Note>
             )}
+            {data.unpriced > 0 && (
+              <Note className="mt-2">
+                {data.unpriced} {data.unpriced === 1 ? 'holding-day is' : 'holding-days are'} left
+                out of investment accounts' history: no price for the day.
+              </Note>
+            )}
           </>
         );
       }}

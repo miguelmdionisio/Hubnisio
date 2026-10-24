@@ -109,6 +109,31 @@ What the API offers (Public API v0, beta, read 2026-10-24 at docs.trading212.com
   - **Currencies:** prices are in the instrument's currency and converted through `fx_rates`, which now also covers instrument currencies. Pence (`GBX`) is a hundredth of a pound.
 - **Net worth:** the investment account's value on a day is its cash plus its holdings at that day's prices, in place of the bank anchor-and-move. `load_inputs` and the `analytics` views change together ([ADR-0006](0006-ai-access.md)). Until then, the account is created with `include_in_net_worth` off, so net worth isn't wrong in between.
 - **The check:** the rebuilt value today must match the summary's total value. The difference is reported, never hidden.
+- *(As built in T3)* The details:
+  - **The price source is Yahoo Finance's chart endpoint** (keyless, unofficial), chosen on 2026-10-24 against the 19 instruments traded: 13 US stocks, and 6 UCITS ETFs in EUR (4 on Milan, 2 on Xetra).
+    - Keyless and official: none publishes share prices. The ECB has only exchange rates, and Trading 212 no price history.
+    - A free tier with a key: EODHD's gives a year of history, and the trades go back 13 months; Twelve Data's covers US markets only; Alpha Vantage's has no Milan. Stooq now sits behind a JavaScript check.
+    - Yahoo had all 19, in their own currency, from before the first trade. It answers an HTTP library's default User-Agent with 429, so the client names itself.
+  - **Symbols** are found once and kept on the instrument (`price_symbol`).
+    - A European ticker's last letter names its exchange (`m` Milan, `d` Xetra, `l` London, `p` Paris, `a` Amsterdam), so `VOLTm_EQ` is `VOLT.MI`. Yahoo's ISIN search lists only the London and Stuttgart listings of those ETFs.
+    - A US ticker goes through the ISIN first: Trading 212 keeps a ticker after a rename (4 of the 13, such as FB for META), and Yahoo's FB is now another instrument.
+    - A candidate counts only if it's quoted in the instrument's currency, has its type, and its closes are within 0.8 to 1.25 times the broker's prices on the same days (the median).
+    - `cli prices-symbol --ticker … --symbol …` sets one by hand; `--auto` forgets it. A symbol Yahoo drops is looked for again, unless set by hand.
+  - **Closes are as traded:** Yahoo divides the days before a split by its ratio, and the hub multiplies them back, so a close fits its day's quantities, as a fill's price does.
+  - **One price per instrument and day:** the day's close, else the latest sync's price for the position, else the latest fill's (trades only: a corporate action's price isn't one). The broker's prices are rebuilt from the stored fills and snapshots after each sync, by renormalize and by every refresh. After a sync they're stored in their own transaction, so a failure (a database without migration 0017, say) never fails the sync.
+  - **The daily task** `fetch_prices` (16:45 UTC, after Xetra and Milan close) fetches each instrument's closes after its newest one, for the days it was held: from its first fill to its last, or to yesterday while held, since today's close isn't final. A failed instrument fails the job, which keeps what it fetched; one without a symbol is only logged. `cli prices-backfill` checks every day held.
+  - **FX:** `fx_rates` covers the currencies of every instrument traded or held. Pence convert at the pound's rate times 100, in `RateTable`.
+  - **The rebuild** (`insights/portfolio.py`) uses the side with the absolute values: `+|quantity|` for a buy and `−|quantity|` for a sell, corporate actions included; cash `−|net value|` for a buy and `+|net value|` for a sell, plus the booked transactions. The cash is the snapshot's available, in pies and reserved. A fill counts before or after the snapshot by its time; a cash movement by its day.
+  - *Checked on live data (2026-10-24):* from the 58 fills and 411 days of cash movements, the rebuild ends at the snapshot exactly, with no cash and no quantity of any of the 19 instruments unexplained. So the signs above are right.
+  - **Net worth:** an investment account with a snapshot counts at its rebuilt value; one without has no balance yet, and its `TVAL` balance is never used. Its whole history is known, so it never makes the series start later; with no bank account, the series starts at its first movement. `unpriced` counts the holding-days left out, in the API, the MCP tools and the overview's note.
+  - **The check:** `check` in `GET /api/finance/investments`, shown as "Check against Trading 212" on the Investments page.
+    - The rebuilt value on the latest sync's day against the summary's total value, with the holdings it left out.
+    - What the history doesn't explain: the cash and shares the rebuild holds before the first movement, which should be none.
+  - **Analytics** (migration 0017):
+    - `accounts` gains `is_investment` at the end.
+    - New views: `portfolios` and `holdings` (the latest snapshot's, of listed accounts), `fills` (hidden accounts too), and `instruments` and `instrument_prices`.
+    - Those two show only what the member's visible accounts traded or held, so another member's private holdings never show by name.
+    - `ai/views.py` loads them into the same `Portfolio` and `PriceTable`, and the `balances` and `net_worth_history` tools agree with the app (tests/test_ai.py). T4's views build on these.
 
 ### Returns
 

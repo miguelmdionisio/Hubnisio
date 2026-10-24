@@ -4,7 +4,7 @@ Every sync whose fetch completed is replayed in order over the existing rows. A 
 that still has the same identity keeps its row, its ID and so its user layer (category, notes,
 transfer link). Booked rows the replay no longer produces are removed; pending rows are
 replaced, as on every sync. Balances, an investment account's fills and its snapshots have no
-user layer: they're deleted and rebuilt (ADR-0008).
+user layer: they're deleted and rebuilt (ADR-0008), and so are the prices taken from them.
 """
 
 import uuid
@@ -25,6 +25,7 @@ from hubnisio.finance.models import (
     Transaction,
     TransactionStatus,
 )
+from hubnisio.finance.prices.store import account_instruments, store_broker_prices
 
 
 @dataclass(frozen=True, slots=True)
@@ -37,6 +38,7 @@ class RenormalizeResult:
 
 async def renormalize_account(session: AsyncSession, account_id: uuid.UUID) -> RenormalizeResult:
     """Run inside a transaction: on any error, the account is left as it was."""
+    instruments = await account_instruments(session, account_id)
     for model in (BalanceSnapshot, PortfolioSnapshot, Fill):  # holdings go with their snapshot
         await session.execute(delete(model).where(model.account_id == account_id))
     before = set(
@@ -87,6 +89,9 @@ async def renormalize_account(session: AsyncSession, account_id: uuid.UUID) -> R
     fills = await session.scalar(
         select(func.count()).select_from(Fill).where(Fill.account_id == account_id)
     )
+    if fills or instruments:
+        instruments |= await account_instruments(session, account_id)
+        await store_broker_prices(session, instruments)
     return RenormalizeResult(
         syncs=len(runs), transactions=count or 0, removed=len(orphans), fills=fills or 0
     )

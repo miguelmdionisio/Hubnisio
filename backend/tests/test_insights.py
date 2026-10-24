@@ -1,16 +1,18 @@
 """Insights: spending by category, cash flow and net worth."""
 
 import uuid
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal
 
 import pytest
 from households import Home, add, api, refresh
+from portfolios import Trade, investment_account, new_instrument, set_prices
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 
 from hubnisio.core.db import get_sessionmaker
 from hubnisio.finance.models import (
+    AccountVisibility,
     BalanceSnapshot,
     Connection,
     FxRate,
@@ -189,3 +191,70 @@ async def test_net_worth(home: Home) -> None:
         )
         worth = (await client.get("/api/finance/insights/net-worth")).json()
         assert worth["points"][0] == {"on": ago(5).isoformat(), "amount": "1350.00"}
+
+
+async def test_net_worth_values_an_investment_account_from_its_portfolio(home: Home) -> None:
+    """Cash plus holdings at each day's price, rebuilt from the trades (ADR-0008), in place of
+    the broker's balance moved by its cash movements."""
+    today = date.today()
+
+    def ago(days: int) -> date:
+        return today - timedelta(days=days)
+
+    await add(home, "-10.00", 0, on=ago(5))
+    await snapshot(home, home.shared, ("CLBD", "1000.00"), reference_date=today)
+    world = await new_instrument(kind="ETF")
+    # Deposited 1000, bought 4 at 100; today 4 at 110 and 600 cash: 1040.
+    broker = await investment_account(
+        home,
+        home.owner,
+        as_of=datetime.combine(today, time(9), UTC),
+        cash="600",
+        total_value="1040",
+        holdings={world.id: ("4", "110")},
+        trades=[Trade(world.id, ago(20), "4", "100", "400")],
+        movements={ago(30): "1000.00"},
+    )
+    await snapshot(home, broker, ("TVAL", "9999.00"), reference_date=today)  # never used
+    await set_prices(world.id, {ago(20): "100", today: "110"})
+    # The member's private one never counts for the owner; one never synced has no balance.
+    await investment_account(
+        home,
+        home.member,
+        as_of=datetime.combine(today, time(9), UTC),
+        cash="5000",
+        total_value="5000",
+        visibility=AccountVisibility.PRIVATE,
+    )
+
+    async with api(home.owner) as client:
+        worth = (await client.get("/api/finance/insights/net-worth")).json()
+    # The bank's history starts the series; the broker's whole history is known. Its holding
+    # has no price for the five days before today (the fill's is over 10 days old): left out.
+    assert [(p["on"], p["amount"]) for p in worth["points"]] == [
+        *((ago(n).isoformat(), "1600.00") for n in range(5, 0, -1)),
+        (today.isoformat(), "2040.00"),
+    ]
+    assert (worth["total"], worth["unpriced"], worth["unconverted"]) == ("2040.00", 5, 0)
+    (shown,) = [a for a in worth["accounts"] if a["id"] == str(broker)]
+    assert (shown["balance"], shown["balance_eur"], shown["as_of"]) == (
+        "1040.00",
+        "1040.00",
+        today.isoformat(),
+    )
+
+    await set_prices(world.id, {ago(n): "105" for n in range(5, 0, -1)})
+    async with api(home.owner) as client:
+        worth = (await client.get("/api/finance/insights/net-worth")).json()
+    assert [p["amount"] for p in worth["points"]] == ["2020.00"] * 5 + ["2040.00"]
+    assert worth["unpriced"] == 0
+
+    async with api(home.owner) as client:
+        excluded = await client.patch(
+            f"/api/finance/accounts/{home.shared}", json={"include_in_net_worth": False}
+        )
+        assert excluded.status_code == 200, excluded.text
+        worth = (await client.get("/api/finance/insights/net-worth")).json()
+    # Only the broker left: the series starts at its first movement.
+    assert worth["points"][0] == {"on": ago(30).isoformat(), "amount": "1000.00"}
+    assert worth["points"][-1] == {"on": today.isoformat(), "amount": "1040.00"}

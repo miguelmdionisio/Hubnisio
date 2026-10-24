@@ -2,13 +2,16 @@
 
 Each account's latest snapshot is the anchor: its booked balance if the bank sends one, as an
 available balance can include an overdraft. The balance on another day is the anchor moved by
-the booked transactions between that day and the anchor's date.
+the booked transactions between that day and the anchor's date. An investment account is
+valued instead from its portfolio, rebuilt from its trades and daily prices
+(insights/portfolio.py, ADR-0008); without a snapshot of its positions it has no balance yet.
 
 The series starts on the first day every included account has data for: before that, at least
 one account's movements are unknown. A bank gives every account of one consent the same history,
 so an account's data starts with the earliest transaction of any account on its connection: an
 account opened later was simply empty before. Accounts without transactions count at their
-anchor throughout. Hidden accounts are left out, like those not included in net worth, and
+anchor throughout. A broker sends its whole history, so an investment account never makes the
+series start later. Hidden accounts are left out, like those not included in net worth, and
 in the personal view so are shared pots and other members' accounts (finance/scoping.py).
 
 `net_worth` loads the inputs and `compute_net_worth` computes from them, so the MCP server can
@@ -29,9 +32,11 @@ from hubnisio.core.auth import Principal
 from hubnisio.finance import schemas
 from hubnisio.finance.balances import BOOKED_FIRST, latest_balances
 from hubnisio.finance.fx.convert import RateTable
+from hubnisio.finance.insights.portfolio import Portfolio, Rebuild, load_portfolios
 from hubnisio.finance.insights.spending import cents
 from hubnisio.finance.models import Account, ProviderAccount, Transaction, TransactionStatus
 from hubnisio.finance.naming import account_name
+from hubnisio.finance.prices.table import PriceTable
 from hubnisio.finance.scoping import View, listed_counted_account_ids
 
 
@@ -54,14 +59,23 @@ class Anchor:
 @dataclass
 class NetWorthInputs:
     accounts: list[IncludedAccount]  # in the order they're listed
-    anchors: dict[uuid.UUID, Anchor]  # the accounts that have a balance
+    anchors: dict[uuid.UUID, Anchor]  # the bank accounts that have a balance
     # Per account with a balance: the sum of its booked transactions on each day.
     daily: dict[uuid.UUID, dict[date, Decimal]] = field(default_factory=dict)
     links: list[tuple[uuid.UUID, uuid.UUID]] = field(default_factory=list)  # (connection, account)
+    # The investment accounts that have a snapshot of their positions.
+    portfolios: dict[uuid.UUID, Portfolio] = field(default_factory=dict[uuid.UUID, Portfolio])
 
     @property
     def currencies(self) -> set[str]:
-        return {anchor.currency for anchor in self.anchors.values()}
+        """The accounts' own; the instruments' come with their prices."""
+        return {anchor.currency for anchor in self.anchors.values()} | {
+            portfolio.currency for portfolio in self.portfolios.values()
+        }
+
+    @property
+    def instrument_ids(self) -> set[uuid.UUID]:
+        return {i for portfolio in self.portfolios.values() for i in portfolio.instrument_ids}
 
     def only(self, account_ids: Collection[uuid.UUID]) -> NetWorthInputs:
         """The same inputs for some of the accounts."""
@@ -70,6 +84,7 @@ class NetWorthInputs:
             anchors={a: anchor for a, anchor in self.anchors.items() if a in account_ids},
             daily={a: days for a, days in self.daily.items() if a in account_ids},
             links=[(c, a) for c, a in self.links if a in account_ids],
+            portfolios={a: p for a, p in self.portfolios.items() if a in account_ids},
         )
 
 
@@ -83,8 +98,9 @@ async def net_worth(
 ) -> schemas.NetWorthOut:
     inputs = await load_inputs(session, principal, view)
     start = series_start(inputs, today, date_from)
-    rates = await RateTable.load(session, inputs.currencies, start, today)
-    return compute_net_worth(inputs, rates, start, today)
+    prices = await PriceTable.load(session, inputs.instrument_ids, start, today)
+    rates = await RateTable.load(session, inputs.currencies | prices.currencies, start, today)
+    return compute_net_worth(inputs, rates, prices, start, today)
 
 
 async def load_inputs(session: AsyncSession, principal: Principal, view: View) -> NetWorthInputs:
@@ -98,7 +114,8 @@ async def load_inputs(session: AsyncSession, principal: Principal, view: View) -
             .order_by(Account.institution_name, Account.created_at)
         )
     )
-    snapshots = await latest_balances(session, [account.id for account in accounts], BOOKED_FIRST)
+    banks = [account.id for account in accounts if not account.is_investment]
+    snapshots = await latest_balances(session, banks, BOOKED_FIRST)
     inputs = NetWorthInputs(
         accounts=[IncludedAccount(a.id, account_name(a), a.currency) for a in accounts],
         anchors={
@@ -109,6 +126,7 @@ async def load_inputs(session: AsyncSession, principal: Principal, view: View) -
             )
             for account_id, snapshot in snapshots.items()
         },
+        portfolios=await load_portfolios(session, [a.id for a in accounts if a.is_investment]),
     )
     if not inputs.anchors:
         return inputs
@@ -141,7 +159,8 @@ def series_start(inputs: NetWorthInputs, today: date, date_from: date | None = N
     `today`."""
     first_transactions = {a: min(days) for a, days in inputs.daily.items() if days}
     known_from = history_starts(first_transactions, inputs.links)
-    start = max(known_from.values(), default=today)
+    opened = [p.first_day for p in inputs.portfolios.values() if p.first_day is not None]
+    start = max(known_from.values(), default=min(opened, default=today))
     if date_from is not None:
         start = max(start, date_from)
     return min(start, today)
@@ -164,10 +183,10 @@ def history_starts(
 
 
 def compute_net_worth(
-    inputs: NetWorthInputs, rates: RateTable, start: date, today: date
+    inputs: NetWorthInputs, rates: RateTable, prices: PriceTable, start: date, today: date
 ) -> schemas.NetWorthOut:
     """Net worth on each day from `start` to `today`, and each account's balance today. `rates`
-    must cover those days."""
+    and `prices` must cover those days."""
     # balance(d) = anchor + (movements up to d) - (movements up to the anchor's date)
     offsets: dict[uuid.UUID, Decimal] = {}
     running: dict[uuid.UUID, Decimal] = {}
@@ -177,8 +196,13 @@ def compute_net_worth(
         offsets[account_id] = anchor.amount - up_to_anchor
         running[account_id] = sum((v for d, v in days.items() if d < start), Decimal())
 
+    valued = {
+        account_id: Rebuild(portfolio).values(start, today, prices, rates)
+        for account_id, portfolio in inputs.portfolios.items()
+    }
+
     points: list[schemas.NetWorthPoint] = []
-    unconverted = 0
+    unconverted = unpriced = 0
     day = start
     while day <= today:
         total = Decimal()
@@ -189,11 +213,31 @@ def compute_net_worth(
                 unconverted += 1
             else:
                 total += eur
+        for days in valued.values():
+            value = days[(day - start).days]
+            unpriced += len(value.unpriced)
+            if value.eur is None:
+                unconverted += 1
+            else:
+                total += value.eur
         points.append(schemas.NetWorthPoint(on=day, amount=cents(total)))
         day += timedelta(days=1)
 
     out_accounts: list[schemas.NetWorthAccount] = []
     for account in inputs.accounts:
+        if (portfolio := inputs.portfolios.get(account.id)) is not None:
+            value = valued[account.id][-1] if valued[account.id] else None
+            out_accounts.append(
+                schemas.NetWorthAccount(
+                    id=account.id,
+                    name=account.name,
+                    currency=portfolio.currency,
+                    balance=_cents(value.value if value else None),
+                    balance_eur=_cents(value.eur if value else None),
+                    as_of=portfolio.on,
+                )
+            )
+            continue
         anchor = inputs.anchors.get(account.id)
         balance = offsets[account.id] + running[account.id] if anchor else None
         eur = (
@@ -216,4 +260,9 @@ def compute_net_worth(
         points=points,
         accounts=out_accounts,
         unconverted=unconverted,
+        unpriced=unpriced,
     )
+
+
+def _cents(amount: Decimal | None) -> Decimal | None:
+    return None if amount is None else cents(amount)

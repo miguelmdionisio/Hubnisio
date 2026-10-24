@@ -94,7 +94,16 @@ The hub reads a Trading 212 Invest account through Trading 212's own API, with a
    docker compose exec api python -m hubnisio.cli t212-link --email you@example.com --key-file invest
    ```
 
-The account then shows on the Accounts page with its value (cash plus holdings at market value), and on Bank connections with "Sync now"; the scheduled syncs include it. The Investments page shows its cash, cost and result, each holding, and the dividends and interest it paid per month. It starts outside net worth, until the hub can rebuild its value over time. Deposits and withdrawals pair with the bank's side as transfers, and dividends, interest and fees get their categories from rules. If Trading 212 later rejects the key (deleted, or your IP address changed), the connection shows "Needs linking again": fix the key or save a new one, then run the same command again. The account keeps its history. Each member links their own key.
+The account then shows on the Accounts page with its value (cash plus holdings at market value), and on Bank connections with "Sync now"; the scheduled syncs include it. The Investments page shows its cash, cost and result, each holding, and the dividends and interest it paid per month. It starts outside net worth: switch on "Include in net worth" on the Accounts page to count it, at its cash plus its holdings at each day's price, rebuilt from its trades. The Investments page checks that rebuild against Trading 212's own value. Deposits and withdrawals pair with the bank's side as transfers, and dividends, interest and fees get their categories from rules. If Trading 212 later rejects the key (deleted, or your IP address changed), the connection shows "Needs linking again": fix the key or save a new one, then run the same command again. The account keeps its history. Each member links their own key.
+
+Daily prices come from Yahoo Finance, fetched by the worker every afternoon. To fetch every day missing since each holding was bought (after linking, say), and the exchange rates of the instruments' currencies:
+
+```bash
+docker compose exec api python -m hubnisio.cli prices-backfill
+docker compose exec api python -m hubnisio.cli fx-backfill
+```
+
+If an instrument has no symbol found ("no symbol found" in the output), look it up on Yahoo Finance and set it by hand, e.g. `prices-symbol --ticker VUSAl_EQ --symbol VUSA.L`; `--auto` forgets it again.
 
 ## Work on it without Docker
 

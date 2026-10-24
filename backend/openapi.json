@@ -3556,6 +3556,16 @@
             },
             "type": "array",
             "title": "Interest"
+          },
+          "check": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InvestmentCheck"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -3571,9 +3581,70 @@
           "realised_result",
           "holdings",
           "dividends",
-          "interest"
+          "interest",
+          "check"
         ],
         "title": "InvestmentAccount"
+      },
+      "InvestmentCheck": {
+        "properties": {
+          "on": {
+            "type": "string",
+            "format": "date",
+            "title": "On"
+          },
+          "rebuilt_value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rebuilt Value"
+          },
+          "difference": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Difference"
+          },
+          "unpriced": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Unpriced"
+          },
+          "unexplained_cash": {
+            "type": "string",
+            "title": "Unexplained Cash"
+          },
+          "unexplained": {
+            "items": {
+              "$ref": "#/components/schemas/UnexplainedQuantity"
+            },
+            "type": "array",
+            "title": "Unexplained"
+          }
+        },
+        "type": "object",
+        "required": [
+          "on",
+          "rebuilt_value",
+          "difference",
+          "unpriced",
+          "unexplained_cash",
+          "unexplained"
+        ],
+        "title": "InvestmentCheck",
+        "description": "The value rebuilt from trades and daily prices against Trading 212's own (ADR-0008)."
       },
       "InvestmentsOut": {
         "properties": {
@@ -3684,6 +3755,10 @@
           "unconverted": {
             "type": "integer",
             "title": "Unconverted"
+          },
+          "unpriced": {
+            "type": "integer",
+            "title": "Unpriced"
           }
         },
         "type": "object",
@@ -3691,7 +3766,8 @@
           "total",
           "points",
           "accounts",
-          "unconverted"
+          "unconverted",
+          "unpriced"
         ],
         "title": "NetWorthOut"
       },
@@ -4934,6 +5010,29 @@
           "incoming_id"
         ],
         "title": "TransferLink"
+      },
+      "UnexplainedQuantity": {
+        "properties": {
+          "ticker": {
+            "type": "string",
+            "title": "Ticker"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "quantity": {
+            "type": "string",
+            "title": "Quantity"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ticker",
+          "name",
+          "quantity"
+        ],
+        "title": "UnexplainedQuantity"
       },
       "UpcomingPayment": {
         "properties": {

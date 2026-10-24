@@ -146,6 +146,14 @@ class FxSource(enum.StrEnum):
     CURRENCY_API = "currency_api"  # fawazahmed0's currency-api, for currencies the ECB lacks
 
 
+class PriceSource(enum.StrEnum):
+    """Where an instrument's price on a day came from, in order of precedence (ADR-0008)."""
+
+    YAHOO = "yahoo"  # the daily source: Yahoo Finance's close
+    TRADING212 = "trading212"  # a position's current price at a sync
+    FILL = "fill"  # an order fill's price
+
+
 class Connection(Base):
     """One provider consent, owned by the user who gave it (PSD2 consent is personal). For
     Trading 212, the member's API key, which lives in a file (ADR-0008)."""
@@ -444,6 +452,30 @@ class Instrument(Base):
     currency: Mapped[str | None] = mapped_column(String(3))  # its prices'; GBX is pence
     type: Mapped[str | None] = mapped_column(String(32))  # STOCK, ETF, …
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    # The daily price source's symbol (finance/prices): found from the ISIN and ticker, or set
+    # by hand when they don't map. The sync never touches these.
+    price_symbol: Mapped[str | None] = mapped_column(String(32))
+    price_symbol_by_hand: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
+
+
+class InstrumentPrice(Base):
+    """Public data, so global like `fx_rates`: an instrument's price on a day, per share in its
+    currency (GBX is pence). One row per day: the daily source's close, else the latest sync's
+    price, else the latest fill's (finance/prices/store.py)."""
+
+    __tablename__ = "instrument_prices"
+    __table_args__ = (
+        CheckConstraint("price > 0", name="price_positive"),
+        {"schema": SCHEMA},
+    )
+
+    instrument_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("finance.instruments.id", ondelete="CASCADE"), primary_key=True
+    )
+    on: Mapped[date] = mapped_column(Date, primary_key=True)
+    price: Mapped[Decimal] = mapped_column(Quantity)
+    source: Mapped[PriceSource] = mapped_column(_enum(PriceSource, "price_source"))
+    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class Fill(Base):

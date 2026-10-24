@@ -184,6 +184,27 @@ test('compares with the first day when the history is shorter than 30 days', asy
   expect(await (await card('Net worth')).findByText('-€50.00 in 10 days')).toBeDefined();
 });
 
+test('says how many holding-days net worth left out for want of a price', async () => {
+  api({
+    'GET /api/finance/insights/net-worth': () =>
+      netWorth(
+        [
+          ['2026-10-21', '440.00'],
+          ['2026-10-22', '450.00'],
+        ],
+        { unpriced: 3 },
+      ),
+  });
+
+  renderAt('/');
+
+  expect(
+    await (await card('Net worth over time')).findByText(
+      /3 holding-days are left out of investment accounts' history: no price for the day\./,
+    ),
+  ).toBeDefined();
+});
+
 test('shows what was spent of what is budgeted this month', async () => {
   api();
 

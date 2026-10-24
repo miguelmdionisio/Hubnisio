@@ -1,5 +1,5 @@
 """Linking Trading 212 with `cli t212-link`, syncing it and reading it through the API, against a
-fake Trading 212 (ADR-0008, slices T1 and T2). Synthetic data only."""
+fake Trading 212 (ADR-0008, slices T1 to T3). Synthetic data only."""
 
 import base64
 import json
@@ -34,7 +34,9 @@ from hubnisio.finance.models import (
     Fill,
     HoldingSnapshot,
     Instrument,
+    InstrumentPrice,
     PortfolioSnapshot,
+    PriceSource,
     ProviderName,
     ProviderPayload,
     SyncRun,
@@ -53,6 +55,7 @@ INSTRUMENTS_PATH = "/api/v0/equity/metadata/instruments"
 INSTRUMENTS = {
     "XWLD_EQ": {"ticker": "XWLD_EQ", "isin": "XS0000000001", "name": "Test World ETF"},
     "XACM_US_EQ": {"ticker": "XACM_US_EQ", "isin": "XS0000000002", "name": "Acme Test Inc"},
+    "XEUR_EQ": {"ticker": "XEUR_EQ", "isin": "XS0000000003", "name": "Test Euro ETF"},
 }
 
 
@@ -84,9 +87,17 @@ def dividend(amount: float, days_ago: int, reference: str) -> dict[str, Any]:
 
 
 def filled(
-    fill_id: int, ticker: str, days_ago: int, quantity: float = 1, side: str = "BUY"
+    fill_id: int,
+    ticker: str,
+    days_ago: int,
+    quantity: float = 1,
+    side: str = "BUY",
+    *,
+    currency: str = "USD",
+    fx_rate: float = 1.25,
 ) -> dict[str, Any]:
-    """An order with its fill, at 100 a share in USD."""
+    """An order with its fill, at 100 a share in `currency`. The net value comes positive
+    both ways, as Trading 212 sends it."""
     return {
         "order": {
             "id": fill_id + 1000,
@@ -96,7 +107,7 @@ def filled(
             "type": "MARKET",
             "initiatedFrom": "AUTOINVEST",
             "ticker": ticker,
-            "instrument": {**INSTRUMENTS[ticker], "currency": "USD"},
+            "instrument": {**INSTRUMENTS[ticker], "currency": currency},
         },
         "fill": {
             "id": fill_id,
@@ -106,8 +117,8 @@ def filled(
             "type": "TRADE",
             "walletImpact": {
                 "currency": "EUR",
-                "fxRate": 1.25,
-                "netValue": quantity * 80,
+                "fxRate": fx_rate,
+                "netValue": abs(quantity) * 100 / fx_rate,
                 "realisedProfitLoss": 0,
                 "taxes": [{"name": "CURRENCY_CONVERSION_FEE", "quantity": 0.12, "currency": "EUR"}],
             },
@@ -115,12 +126,20 @@ def filled(
     }
 
 
-def held(ticker: str, quantity: float, value: float, cost: float) -> dict[str, Any]:
+def held(
+    ticker: str,
+    quantity: float,
+    value: float,
+    cost: float,
+    *,
+    currency: str = "USD",
+    price: float = 110,
+) -> dict[str, Any]:
     return {
-        "instrument": {**INSTRUMENTS[ticker], "currency": "USD"},
+        "instrument": {**INSTRUMENTS[ticker], "currency": currency},
         "quantity": quantity,
         "averagePricePaid": 100,
-        "currentPrice": 110,
+        "currentPrice": price,
         "walletImpact": {
             "currency": "EUR",
             "currentValue": value,
@@ -136,6 +155,8 @@ class FakeTrading212:
     comes newest first, two items a page, joined by `nextPagePath`."""
 
     account_id: int = 4242
+    total_value: float = 1234.56
+    cash: float = 34.56
     transactions: list[dict[str, Any]] = field(default_factory=list)
     dividends: list[dict[str, Any]] = field(default_factory=list)
     orders: list[dict[str, Any]] = field(default_factory=list)
@@ -163,8 +184,8 @@ class FakeTrading212:
             body = {
                 "id": self.account_id,
                 "currency": "EUR",
-                "totalValue": 1234.56,
-                "cash": {"availableToTrade": 34.56, "inPies": 0, "reservedForOrders": 0},
+                "totalValue": self.total_value,
+                "cash": {"availableToTrade": self.cash, "inPies": 0, "reservedForOrders": 0},
                 "investments": {"currentValue": 1200, "totalCost": 1100},
             }
             return httpx.Response(200, json=body)
@@ -679,3 +700,75 @@ async def test_an_account_not_synced_since_holdings_came_shows_no_figures(setup:
         [],
     )
     assert shown["dividends"] == ["0.00"] * 3
+
+
+async def test_the_value_rebuilt_from_trades_is_checked_and_counts_in_net_worth(
+    setup: Setup,
+) -> None:
+    home, t212 = setup.home, setup.t212
+    # In euros, so no exchange rate is needed. Deposited 1000; bought 4 at 100, sold 1 (its
+    # quantity negative, as Trading 212 sends it), bought 4 more: 7 held at 110 and 300 cash.
+    euros = {"currency": "EUR", "fx_rate": 1}
+    t212.positions = [held("XEUR_EQ", 7, 770, 700, currency="EUR")]
+    t212.orders = [
+        filled(3, "XEUR_EQ", 5, 4, **euros),
+        filled(2, "XEUR_EQ", 20, -1, side="SELL", **euros),
+        filled(1, "XEUR_EQ", 40, 4, **euros),
+    ]
+    t212.transactions = [movement("DEPOSIT", 1000, 50, "t1")]
+    t212.cash, t212.total_value = 300, 1070
+    t212.instruments = [{"ticker": "XEUR_EQ", "currencyCode": "EUR", "type": "ETF"}]
+    assert await setup.link(home.owner) == 0
+    connection = await connection_of(home.owner)
+    account = await account_of(home.owner)
+
+    await setup.sync(connection.id, sync.SyncTrigger.INITIAL)
+
+    async with get_sessionmaker()() as session:
+        instrument = await session.scalar(
+            select(Instrument.id).where(Instrument.ticker == "XEUR_EQ")
+        )
+        prices = {
+            on: (price, source)
+            for on, price, source in await session.execute(
+                select(InstrumentPrice.on, InstrumentPrice.price, InstrumentPrice.source).where(
+                    InstrumentPrice.instrument_id == instrument
+                )
+            )
+        }
+    assert prices[TODAY] == (110, PriceSource.TRADING212)
+    for days_ago in (5, 20, 40):
+        assert prices[TODAY - timedelta(days=days_ago)] == (100, PriceSource.FILL)
+
+    (shown,) = (await investments_of(home.owner))["accounts"]
+    assert shown["check"] == {
+        "on": TODAY.isoformat(),
+        "rebuilt_value": "1070.00",
+        "difference": "0.00",
+        "unpriced": [],
+        "unexplained_cash": "0.00",
+        "unexplained": [],
+    }
+
+    async with api(home.owner) as client:
+        included = await client.patch(
+            f"/api/finance/accounts/{account.id}", json={"include_in_net_worth": True}
+        )
+        assert included.status_code == 200, included.text
+        worth = (await client.get("/api/finance/insights/net-worth")).json()
+    points = {point["on"]: point["amount"] for point in worth["points"]}
+    assert min(points) == (TODAY - timedelta(days=50)).isoformat()  # its first movement
+    assert points[TODAY.isoformat()] == "1070.00"
+    # 4 shares at the price of 10 days before; after that none is recent enough: left out.
+    assert points[(TODAY - timedelta(days=30)).isoformat()] == "1000.00"
+    assert points[(TODAY - timedelta(days=25)).isoformat()] == "600.00"
+    assert worth["unpriced"] > 0
+
+    # A 2-for-1 split the order history doesn't show: the check says so.
+    t212.positions = [held("XEUR_EQ", 14, 770, 700, currency="EUR", price=55)]
+    await setup.sync(connection.id)
+    (shown,) = (await investments_of(home.owner))["accounts"]
+    assert shown["check"]["unexplained"] == [
+        {"ticker": "XEUR_EQ", "name": "Test Euro ETF", "quantity": "7.0000000000"}
+    ]
+    assert (shown["check"]["rebuilt_value"], shown["check"]["difference"]) == ("1070.00", "0.00")

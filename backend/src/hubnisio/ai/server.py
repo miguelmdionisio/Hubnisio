@@ -344,19 +344,21 @@ class Tools:
     async def balances(self, view: ViewArgument = "personal") -> outputs.Balances:
         """Each account's latest balance from the bank (hidden accounts left out), and net worth
         today in euros: the accounts that count in the view, at their booked balance moved by
-        the transactions booked since."""
+        the transactions booked since. An investment account counts at its cash plus its
+        holdings at today's prices."""
 
         async def read(db: Connection) -> tuple[outputs.Balances, int]:
             today = date.today()
             inputs = await views.balance_inputs(db)
             counted = await views.net_worth_accounts(db, view)
-            rates = await views.rate_table(db, inputs.currencies, today, today)
+            prices = await views.price_table(db, inputs.instrument_ids, today, today)
+            rates = await views.rate_table(db, inputs.currencies | prices.currencies, today, today)
             # Every account's balance today, and net worth from those the view counts.
             today_balances = {
                 account.id: account
-                for account in compute_net_worth(inputs, rates, today, today).accounts
+                for account in compute_net_worth(inputs, rates, prices, today, today).accounts
             }
-            worth = compute_net_worth(inputs.only(counted), rates, today, today)
+            worth = compute_net_worth(inputs.only(counted), rates, prices, today, today)
             found = [
                 outputs.AccountBalance.model_validate(
                     row
@@ -364,21 +366,25 @@ class Tools:
                         "in_net_worth": row["account_id"] in counted,
                         "balance_today": today_balances[row["account_id"]].balance,
                         "balance_today_eur": today_balances[row["account_id"]].balance_eur,
+                        "as_of": today_balances[row["account_id"]].as_of,
                     }
                 )
                 for row in await _dicts(
                     db,
                     "SELECT a.id AS account_id, a.name,"
                     " coalesce(b.currency, a.currency) AS currency,"
-                    " b.balance, b.balance_type, b.fetched_at,"
-                    " coalesce(b.reference_date, b.fetched_at::date) AS as_of"
+                    " b.balance, b.balance_type, b.fetched_at"
                     " FROM analytics.accounts a"
                     " LEFT JOIN analytics.balances b ON b.account_id = a.id"
                     " WHERE NOT a.hidden ORDER BY a.institution, a.name",
                 )
             ]
             result = outputs.Balances(
-                view=view, net_worth=worth.total, accounts=found, unconverted=worth.unconverted
+                view=view,
+                net_worth=worth.total,
+                accounts=found,
+                unconverted=worth.unconverted,
+                unpriced=worth.unpriced,
             )
             return result, len(found)
 
@@ -401,7 +407,9 @@ class Tools:
     ) -> outputs.NetWorthHistory:
         """Net worth in euros over time: the app's net worth chart. It counts the accounts in
         the view's net worth, each at its latest booked balance moved by the booked
-        transactions in between, converted at each day's exchange rate. The series starts on
+        transactions in between, converted at each day's exchange rate. An investment account
+        counts at its cash plus its holdings at each day's prices, rebuilt from its trades;
+        unpriced counts the holding-days left out for want of a price. The series starts on
         the first day every account has data for (a bank sends a few months at first), or
         date_from if later, and its last point is today. Also each account's balance today."""
 
@@ -409,8 +417,9 @@ class Tools:
             today = date.today()
             inputs = (await views.balance_inputs(db)).only(await views.net_worth_accounts(db, view))
             start = series_start(inputs, today, date_from)
-            rates = await views.rate_table(db, inputs.currencies, start, today)
-            worth = compute_net_worth(inputs, rates, start, today)
+            prices = await views.price_table(db, inputs.instrument_ids, start, today)
+            rates = await views.rate_table(db, inputs.currencies | prices.currencies, start, today)
+            worth = compute_net_worth(inputs, rates, prices, start, today)
             points = [
                 point
                 for point in worth.points
@@ -423,6 +432,7 @@ class Tools:
                 points=points,
                 accounts=worth.accounts,
                 unconverted=worth.unconverted,
+                unpriced=worth.unpriced,
             )
             return result, len(points)
 
@@ -554,7 +564,8 @@ class Tools:
 
         The views (bare names work): me, accounts, visible_accounts, transactions,
         monthly_category_spend, categories, merchants, budgets, budget_limits,
-        recurring_payments, balances, daily_movements, account_connections, fx_rates.
+        recurring_payments, balances, daily_movements, account_connections, fx_rates,
+        portfolios, holdings, fills, instruments, instrument_prices.
         Each has a comment saying what it holds, e.g.
         `SELECT obj_description('analytics.transactions'::regclass)`; their columns are in
         information_schema.columns. Prefer monthly_category_spend for monthly totals: it

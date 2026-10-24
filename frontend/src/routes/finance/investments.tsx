@@ -3,7 +3,7 @@ import { Link } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 import { getInvestmentsOptions } from '@/api/@tanstack/react-query.gen';
-import type { Holding, InvestmentAccount } from '@/api/types.gen';
+import type { Holding, InvestmentAccount, InvestmentCheck } from '@/api/types.gen';
 import { PageHeader } from '@/components/app-shell';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/table';
 import {
   formatCompactMoney,
+  formatDate,
   formatMoney,
   formatMonth,
   formatMonthName,
@@ -132,6 +133,9 @@ function AccountSection({ account, months }: { account: InvestmentAccount; month
         </div>
       )}
       {account.holdings.length > 0 && <Holdings holdings={account.holdings} money={money} />}
+      {account.check && account.value !== null && (
+        <CheckCard check={account.check} value={account.value} money={money} />
+      )}
       <IncomeCard account={account} months={months} />
     </section>
   );
@@ -219,6 +223,78 @@ function Holdings({ holdings, money }: { holdings: Holding[]; money: (amount: st
   );
 }
 
+/** The value rebuilt from trades and daily prices, which net worth uses, against Trading 212's
+ * own; and what the history doesn't explain. Shown whatever it says, never hidden. */
+function CheckCard({
+  check,
+  value,
+  money,
+}: {
+  check: InvestmentCheck;
+  value: string;
+  money: (amount: string) => string;
+}) {
+  const unexplained = Number(check.unexplained_cash) !== 0 || check.unexplained.length > 0;
+  const matches =
+    check.difference !== null &&
+    Number(check.difference) === 0 &&
+    !unexplained &&
+    check.unpriced.length === 0;
+  return (
+    <Card size="sm">
+      <CardHeader>
+        <CardTitle>
+          <h3>Check against Trading 212</h3>
+        </CardTitle>
+        <CardDescription>
+          Net worth values the account from its trades and daily prices. On {formatDate(check.on)},
+          the day of the latest sync:
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        <dl className="grid grid-cols-3 gap-4 text-sm">
+          <div>
+            <dt className="text-muted-foreground">Rebuilt</dt>
+            <dd className="font-semibold tabular-nums">
+              {check.rebuilt_value === null ? '—' : money(check.rebuilt_value)}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-muted-foreground">Trading 212</dt>
+            <dd className="font-semibold tabular-nums">{money(value)}</dd>
+          </div>
+          <div>
+            <dt className="text-muted-foreground">Difference</dt>
+            <dd className="font-semibold tabular-nums">
+              {check.difference === null ? '—' : signed(check.difference, money)}
+            </dd>
+          </div>
+        </dl>
+        {matches && <Note>They match to the cent.</Note>}
+        {check.rebuilt_value === null && <Note>No exchange rate for that day yet.</Note>}
+        {check.unpriced.length > 0 && (
+          <Note>Left out, with no price for that day: {check.unpriced.join(', ')}.</Note>
+        )}
+        {unexplained && (
+          <Note>
+            Trading 212 has{' '}
+            {[
+              ...(Number(check.unexplained_cash) !== 0
+                ? [`${difference(check.unexplained_cash, money)} cash`]
+                : []),
+              ...check.unexplained.map(
+                (item) => `${difference(item.quantity, formatQuantity)} shares of ${item.name}`,
+              ),
+            ].join(' and ')}{' '}
+            than the trades and cash movements add up to: something the history doesn't show, such
+            as a corporate action, so earlier days are off by that much.
+          </Note>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 function IncomeCard({ account, months }: { account: InvestmentAccount; months: string[] }) {
   const rows = months.map((month, index) => ({
     month,
@@ -279,6 +355,12 @@ const TYPE_LABELS: Record<string, string> = { ETF: 'ETF', STOCK: 'Stock' };
 
 function typeLabel(type: string): string {
   return TYPE_LABELS[type] ?? type.charAt(0) + type.slice(1).toLowerCase();
+}
+
+/** "5 more" or "5 less", for what the history doesn't explain. */
+function difference(amount: string, format: (amount: string) => string): string {
+  const absolute = format(String(Math.abs(Number(amount))));
+  return Number(amount) > 0 ? `${absolute} more` : `${absolute} less`;
 }
 
 function signed(amount: string, money: (amount: string) => string): string {

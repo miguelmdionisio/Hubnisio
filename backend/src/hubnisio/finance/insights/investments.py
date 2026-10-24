@@ -3,7 +3,8 @@ the dividends and interest they paid by month.
 
 Everything comes from the account's latest portfolio snapshot (the summary and positions of its
 latest sync) and from its cash movements, in the account's currency. A holding's weight is its
-share of the holdings' value, cash left out.
+share of the holdings' value, cash left out. The check sets the value rebuilt from trades and
+daily prices against Trading 212's own (insights/portfolio.py).
 
 `investments` loads the inputs and `compute_investments` computes from them, so the MCP server
 can load the same inputs from the `analytics` views and give the same figures (ADR-0006).
@@ -22,6 +23,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from hubnisio.core.auth import Principal
 from hubnisio.finance import schemas
+from hubnisio.finance.fx.convert import RateTable
+from hubnisio.finance.insights.portfolio import Portfolio, check, load_portfolios
 from hubnisio.finance.insights.spending import add_months, cents, month_start
 from hubnisio.finance.models import (
     Account,
@@ -32,6 +35,7 @@ from hubnisio.finance.models import (
     TransactionStatus,
 )
 from hubnisio.finance.naming import account_name
+from hubnisio.finance.prices.table import PriceTable
 from hubnisio.finance.providers.trading212.normalize import CODE_PREFIX, DIVIDEND_CODE
 from hubnisio.finance.scoping import listed_account_ids
 
@@ -81,12 +85,22 @@ class InvestmentInputs:
     holdings: list[Holding] = field(default_factory=list[Holding])
     # Dividends and interest: (month's first day, "dividends" or "interest") → their sum.
     income: dict[tuple[date, str], Decimal] = field(default_factory=dict[tuple[date, str], Decimal])
+    portfolio: Portfolio | None = None  # the rebuild's inputs, with the same snapshot as totals
 
 
 async def investments(
     session: AsyncSession, principal: Principal, months: Sequence[date]
 ) -> schemas.InvestmentsOut:
-    return compute_investments(await load_investments(session, principal, months), months)
+    accounts = await load_investments(session, principal, months)
+    portfolios = [account.portfolio for account in accounts if account.portfolio is not None]
+    days = [portfolio.on for portfolio in portfolios]
+    if not days:
+        return compute_investments(accounts, months, PriceTable({}, {}), RateTable({}))
+    instruments = {i for portfolio in portfolios for i in portfolio.instrument_ids}
+    prices = await PriceTable.load(session, instruments, min(days), max(days))
+    currencies = {portfolio.currency for portfolio in portfolios} | prices.currencies
+    rates = await RateTable.load(session, currencies, min(days), max(days))
+    return compute_investments(accounts, months, prices, rates)
 
 
 async def load_investments(
@@ -104,6 +118,8 @@ async def load_investments(
     if not accounts:
         return []
     ids = list(accounts)
+    for account_id, portfolio in (await load_portfolios(session, ids)).items():
+        accounts[account_id].portfolio = portfolio
 
     snapshots = list(
         await session.scalars(
@@ -171,14 +187,21 @@ async def load_investments(
 
 
 def compute_investments(
-    accounts: Sequence[InvestmentInputs], months: Sequence[date]
+    accounts: Sequence[InvestmentInputs],
+    months: Sequence[date],
+    prices: PriceTable,
+    rates: RateTable,
 ) -> schemas.InvestmentsOut:
+    """`prices` and `rates` must cover each portfolio's day, for its check."""
     return schemas.InvestmentsOut(
-        months=list(months), accounts=[_account_out(account, months) for account in accounts]
+        months=list(months),
+        accounts=[_account_out(account, months, prices, rates) for account in accounts],
     )
 
 
-def _account_out(account: InvestmentInputs, months: Sequence[date]) -> schemas.InvestmentAccount:
+def _account_out(
+    account: InvestmentInputs, months: Sequence[date], prices: PriceTable, rates: RateTable
+) -> schemas.InvestmentAccount:
     holdings = sorted(
         account.holdings,
         key=lambda holding: (
@@ -232,6 +255,7 @@ def _account_out(account: InvestmentInputs, months: Sequence[date]) -> schemas.I
         ],
         dividends=income["dividends"],
         interest=income["interest"],
+        check=check(account.portfolio, prices, rates) if account.portfolio else None,
     )
 
 

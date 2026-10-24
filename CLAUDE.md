@@ -12,9 +12,11 @@ A private, self-hosted personal hub, one app per domain; finance first. Decision
   - M4 AI (ADR-0006): the `analytics` views and per-member logins (A1, `5cc86b6`); the MCP server with read tools (A2, `b3fb32c`); AI category suggestions (A3, `210d80e`); `net_worth_history` and net worth's inputs in the views (A4). Live since 2026-10-23: the user's AI login exists, `HUBNISIO_AI_ENABLED` is on, and the read tools work from Claude Code. The first categorization pass suggested 175 categories, which the user approves on the Transactions page (one click each, or "Approve the N shown"). IBANs in descriptions reach the AI masked as `[IBAN]`.
   - M6 T1 (ADR-0008): Trading 212 as a provider (`finance/providers/trading212`). `cli t212-link` links a member's key file; the sync turns the summary into a `TVAL` balance and cash movements and dividends into transactions (bank codes `T212_<type>`); seeded Dividends category and bank-code rules; the account shows on Accounts and Connections, outside net worth. Linked live on 2026-10-24; its first sync reconciled to the cent (ADR-0008, "As built in T2").
   - M6 T2 (ADR-0008, migration 0016): trades and holdings. The sync also reads positions, the order history and the instrument list (trimmed to what's held or traded) into `instruments` (global), `fills` (never transactions) and `portfolio_snapshots` with their `holding_snapshots`; renormalize rebuilds them. `GET /api/finance/investments` and the Investments page: value, cash, cost, result, holdings with weights, dividends and interest by month.
+  - M6 T3 (ADR-0008, migration 0017): prices and value over time. `finance.instrument_prices` (global) holds a close per instrument and day from Yahoo Finance (`finance/prices`; daily task `fetch_prices`, `cli prices-backfill`, `cli prices-symbol`), else the broker's own prices from syncs and fills. `insights/portfolio.py` rebuilds an investment account's cash and holdings from its latest snapshot and trades; net worth counts it at that value, and the Investments page checks it against Trading 212's total. The `analytics` views gained `portfolios`, `holdings`, `fills`, `instruments` and `instrument_prices`.
 - **Deferred:** M5 server (Tailscale, Caddy, passkey login replacing the dev user, Postgres roles, backups) waits until the user has an always-on machine. Don't start it, and don't build anything that needs one, until they say so.
-- **Next:** M6 Trading 212, planned in [ADR-0008](docs/adr/0008-investments.md) (accepted 2026-10-24): T1 (provider and cash) and T2 (trades and holdings) are done; then T3 (prices and net worth over time), T4 (returns and AI).
+- **Next:** M6 Trading 212, planned in [ADR-0008](docs/adr/0008-investments.md) (accepted 2026-10-24): T1 (provider and cash), T2 (trades and holdings) and T3 (prices and net worth over time) are done; then T4 (returns and AI).
 - **Waiting on the user:**
+  - switching on "Include in net worth" for the Trading 212 account on the Accounts page (ADR-0008, action item 3);
   - reviewing the 175 AI category suggestions;
   - hiding or deleting their unused Revolut accounts on the Accounts page;
   - deciding on a BPI `pagserv` → Utilities rule and an Uber rule (Uber Eats is a separate merchant).
@@ -42,7 +44,7 @@ A private, self-hosted personal hub, one app per domain; finance first. Decision
 - **Scoping:** every finance query goes through `finance/scoping.py` (household + account visibility). Another member's private accounts never show, not even by name.
 - **Bank facts vs user layer:** only the sync writes `transactions` and `balance_snapshots`. Everything decided about a transaction lives in the user-layer tables. Precedence: manual > rule > counterparty default > ai.
 - **Migrations:** autogenerate against a throwaway Postgres container, then finish by hand: named constraints, enum types created once, downgrade drops them. `tests/test_migrations.py` checks models and migrations agree.
-- **Analytics views** (ADR-0006): the AI reads only the `analytics` schema, as a per-member login in the `hub_ai` group; the views filter on `session_user`. They're the SQL twins of `finance/scoping.py`, `finance/kinds.py`, `monthly_sums` and net worth's `load_inputs`: a change there needs the same change in the views.
+- **Analytics views** (ADR-0006): the AI reads only the `analytics` schema, as a per-member login in the `hub_ai` group; the views filter on `session_user`. They're the SQL twins of `finance/scoping.py`, `finance/kinds.py`, `monthly_sums`, and net worth's `load_inputs` with `load_portfolios` and `PriceTable.load`: a change there needs the same change in the views.
   - A view changes only by a new migration. `CREATE OR REPLACE VIEW` keeps its grants but can only add columns at the end. A new view needs `GRANT SELECT … TO hub_ai`.
   - The agreement and security tests in `tests/test_analytics.py` must pass.
   - The MCP server (`hubnisio/ai`, run as `python -m hubnisio.ai`) loads the views into the app's dataclasses and calls its pure functions; `tests/test_ai.py` checks each tool against the app. A shape the API returns comes from a pure function both can call.
@@ -87,6 +89,7 @@ The user commits to `main` and approves pushes. Check CI with `gh run list` afte
 
 ## Gotchas
 
+- **Prices** (ADR-0008): Yahoo Finance is keyless but unofficial, and answers httpx's default User-Agent with 429. An instrument without a symbol needs `cli prices-symbol`.
 - **Enable Banking:**
   - at most 4 unattended fetches per account per day;
   - full history only in about the first hour after linking, and BPI gives about 90 days even then;

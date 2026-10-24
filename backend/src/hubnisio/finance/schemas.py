@@ -337,6 +337,7 @@ class NetWorthOut(BaseModel):
     points: list[NetWorthPoint]  # daily, oldest first
     accounts: list[NetWorthAccount]  # the accounts included in net worth
     unconverted: int  # account-days left out: no exchange rate
+    unpriced: int  # holding-days of investment accounts left out: no price or exchange rate
 
 
 # Investments (ADR-0008): amounts in the account's currency, rounded to cents; prices per share
@@ -358,6 +359,24 @@ class Holding(BaseModel):
     weight: Decimal | None  # its share of the holdings' value, 0 to 1
 
 
+class UnexplainedQuantity(BaseModel):
+    ticker: str
+    name: str
+    quantity: Decimal  # what the latest positions hold beyond what the fills add up to
+
+
+class InvestmentCheck(BaseModel):
+    """The value rebuilt from trades and daily prices against Trading 212's own (ADR-0008)."""
+
+    on: date  # the day of the latest sync's positions
+    rebuilt_value: Decimal | None  # cash plus holdings at that day's prices; None: no FX rate
+    difference: Decimal | None  # rebuilt_value less the account's value
+    unpriced: list[str]  # holdings left out of rebuilt_value: no price or exchange rate
+    # What the history doesn't explain: cash and shares the rebuild has before any movement.
+    unexplained_cash: Decimal
+    unexplained: list[UnexplainedQuantity]
+
+
 class InvestmentAccount(BaseModel):
     id: uuid.UUID
     name: str
@@ -371,6 +390,7 @@ class InvestmentAccount(BaseModel):
     holdings: list[Holding]  # biggest first
     dividends: list[Decimal]  # one per month
     interest: list[Decimal]  # on cash and from share lending, one per month
+    check: InvestmentCheck | None  # None: not synced since positions are read
 
 
 class InvestmentsOut(BaseModel):

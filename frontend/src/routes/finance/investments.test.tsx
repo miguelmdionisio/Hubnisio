@@ -95,3 +95,53 @@ test('an account not synced since holdings came shows no figures yet', async () 
   expect(screen.queryByText('Value')).toBeNull();
   expect(screen.getByText('Nothing paid in these months.')).toBeDefined();
 });
+
+test('checks the value rebuilt from trades against Trading 212', async () => {
+  const check = {
+    on: '2026-10-20',
+    rebuilt_value: '1070.00',
+    difference: '0.00',
+    unpriced: [],
+    unexplained_cash: '0.00',
+    unexplained: [],
+  };
+  mockApi({
+    'GET /api/finance/investments': () => ({
+      months: MONTHS,
+      accounts: [investmentAccount(3, { value: '1070.00', check })],
+    }),
+  });
+
+  renderAt('/finance/investments');
+
+  expect(await screen.findByRole('heading', { name: 'Check against Trading 212' })).toBeDefined();
+  expect(screen.getByText(/On 20 Oct 2026, the day of the latest sync/)).toBeDefined();
+  expect(screen.getByText('They match to the cent.')).toBeDefined();
+});
+
+test('says what the rebuild leaves out and what the history misses', async () => {
+  const check = {
+    on: '2026-10-20',
+    rebuilt_value: '775.00',
+    difference: '-165.00',
+    unpriced: ['Acme Test Inc'],
+    unexplained_cash: '-5.00',
+    unexplained: [{ ticker: 'XWLD_EQ', name: 'Test World ETF', quantity: '3.0000000000' }],
+  };
+  mockApi({
+    'GET /api/finance/investments': () => ({
+      months: MONTHS,
+      accounts: [investmentAccount(3, { value: '940.00', check })],
+    }),
+  });
+
+  renderAt('/finance/investments');
+
+  expect(await screen.findByText('-€165.00')).toBeDefined();
+  expect(screen.getByText('€775.00')).toBeDefined();
+  expect(screen.queryByText('They match to the cent.')).toBeNull();
+  expect(screen.getByText('Left out, with no price for that day: Acme Test Inc.')).toBeDefined();
+  expect(
+    screen.getByText(/Trading 212 has €5\.00 less cash and 3 more shares of Test World ETF than/),
+  ).toBeDefined();
+});
