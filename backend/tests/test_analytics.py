@@ -11,8 +11,8 @@ from typing import Any
 
 import psycopg
 import pytest
-from analytics_data import OCTOBER, SEPTEMBER, VIEWS, Data, Login, email_of
-from households import Home, api
+from analytics_data import OCTOBER, SEPTEMBER, VIEWS, Data, Login, email_of, save
+from households import Home, add, api
 from psycopg import errors, sql
 from psycopg.abc import QueryNoTemplate as Query
 from sqlalchemy import select
@@ -28,6 +28,7 @@ from hubnisio.finance.kinds import kind_is
 from hubnisio.finance.models import (
     CategoryKind,
     Overspend,
+    TransactionAnnotation,
     TransactionKind,
 )
 from hubnisio.finance.scoping import View, listed_account_ids
@@ -230,6 +231,43 @@ async def test_a_member_cannot_act_as_another(home: Home, logins: dict[uuid.UUID
         assert connection.execute("SELECT user_id FROM analytics.me").fetchall() == [
             (home.member.user_id,)
         ]
+
+
+async def test_no_view_shows_an_iban(home: Home, logins: dict[uuid.UUID, Login]) -> None:
+    """Banks write the other party's IBAN into descriptions; the AI sees a mask instead."""
+    compact, spaced = "PT50000201231234567890154", "DE89 3704 0044 0532 0130 00"
+    transfer = await add(
+        home,
+        "-25.00",
+        3,
+        description=f"TRF SEPA+ INST 436 P/ {compact} DIAGONAL BAS",
+        counterparty=f"Rui {spaced.lower()}",
+    )
+    await save(
+        TransactionAnnotation(
+            household_id=home.owner.household_id,
+            transaction_id=transfer,
+            tags=[],
+            note=f"paid to {compact.lower()}, ref AB12",
+        )
+    )
+    purchase = await add(home, "-3.10", 4, description="COMPRA 4450 23/10 PINGO DOCE PT2025")
+    login = logins[home.owner.user_id]
+
+    texts = "SELECT description, bank_counterparty, note FROM analytics.transactions WHERE id = %s"
+    assert rows(login, texts, [transfer]) == [
+        ("TRF SEPA+ INST 436 P/ [IBAN] DIAGONAL BAS", "Rui [IBAN]", "paid to [IBAN], ref AB12")
+    ]
+    # Other references stay as they are.
+    assert rows(login, texts, [purchase]) == [("COMPRA 4450 23/10 PINGO DOCE PT2025", None, None)]
+    # Nor can a query look for one.
+    for digits in ("%0201231234%", "%3704%0044%"):
+        assert rows(
+            login,
+            "SELECT count(*) FROM analytics.transactions"
+            " WHERE concat(description, bank_counterparty, note) ILIKE %s",
+            [digits],
+        ) == [(0,)], digits
 
 
 async def test_no_view_shows_another_members_private_accounts(
