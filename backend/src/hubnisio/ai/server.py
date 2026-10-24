@@ -554,7 +554,8 @@ class Tools:
 
         The views (bare names work): me, accounts, visible_accounts, transactions,
         monthly_category_spend, categories, merchants, budgets, budget_limits,
-        recurring_payments, balances. Each has a comment saying what it holds, e.g.
+        recurring_payments, balances, daily_movements, account_connections, fx_rates.
+        Each has a comment saying what it holds, e.g.
         `SELECT obj_description('analytics.transactions'::regclass)`; their columns are in
         information_schema.columns. Prefer monthly_category_spend for monthly totals: it
         counts as the app does."""

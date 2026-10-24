@@ -1,6 +1,7 @@
 """AI access (ADR-0006): a member's Postgres login reads the `analytics` views and nothing else,
 never sees another member's private accounts, and gets the app's own figures."""
 
+import re
 import uuid
 from collections import defaultdict
 from collections.abc import Sequence
@@ -17,6 +18,7 @@ from psycopg import errors, sql
 from psycopg.abc import QueryNoTemplate as Query
 from sqlalchemy import select
 
+from hubnisio.ai.server import Tools
 from hubnisio.cli import ai_login
 from hubnisio.core.db import get_sessionmaker
 from hubnisio.core.models import AiCall, AiLogin
@@ -52,6 +54,12 @@ ANALYTICS_VIEWS = {
     "transactions",
     "visible_accounts",
 }
+
+
+def test_query_sql_names_every_view() -> None:
+    """The AI learns which views exist from query_sql's description."""
+    described = set(re.findall(r"\w+", (Tools.query_sql.__doc__ or "").split("The views")[1]))
+    assert described >= ANALYTICS_VIEWS
 
 
 def rows(login: Login, query: Query, params: Sequence[Any] = ()) -> list[tuple[Any, ...]]:
