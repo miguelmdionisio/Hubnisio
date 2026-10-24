@@ -3,7 +3,8 @@
 Every sync whose fetch completed is replayed in order over the existing rows. A transaction
 that still has the same identity keeps its row, its ID and so its user layer (category, notes,
 transfer link). Booked rows the replay no longer produces are removed; pending rows are
-replaced, as on every sync.
+replaced, as on every sync. Balances, an investment account's fills and its snapshots have no
+user layer: they're deleted and rebuilt (ADR-0008).
 """
 
 import uuid
@@ -16,6 +17,8 @@ from hubnisio.finance.ingest.apply import APPLY_FAILED, apply_payloads
 from hubnisio.finance.models import (
     BalanceSnapshot,
     Connection,
+    Fill,
+    PortfolioSnapshot,
     ProviderPayload,
     SyncRun,
     SyncStatus,
@@ -29,11 +32,13 @@ class RenormalizeResult:
     syncs: int
     transactions: int
     removed: int  # booked rows the replay no longer produces
+    fills: int = 0
 
 
 async def renormalize_account(session: AsyncSession, account_id: uuid.UUID) -> RenormalizeResult:
     """Run inside a transaction: on any error, the account is left as it was."""
-    await session.execute(delete(BalanceSnapshot).where(BalanceSnapshot.account_id == account_id))
+    for model in (BalanceSnapshot, PortfolioSnapshot, Fill):  # holdings go with their snapshot
+        await session.execute(delete(model).where(model.account_id == account_id))
     before = set(
         await session.scalars(
             select(Transaction.id).where(
@@ -79,4 +84,9 @@ async def renormalize_account(session: AsyncSession, account_id: uuid.UUID) -> R
     count = await session.scalar(
         select(func.count()).select_from(Transaction).where(Transaction.account_id == account_id)
     )
-    return RenormalizeResult(syncs=len(runs), transactions=count or 0, removed=len(orphans))
+    fills = await session.scalar(
+        select(func.count()).select_from(Fill).where(Fill.account_id == account_id)
+    )
+    return RenormalizeResult(
+        syncs=len(runs), transactions=count or 0, removed=len(orphans), fills=fills or 0
+    )

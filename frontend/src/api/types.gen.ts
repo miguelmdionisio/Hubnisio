@@ -673,6 +673,128 @@ export type Health = {
 };
 
 /**
+ * Holding
+ */
+export type Holding = {
+    /**
+     * Ticker
+     */
+    ticker: string;
+    /**
+     * Isin
+     */
+    isin: string | null;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Type
+     */
+    type: string | null;
+    /**
+     * Instrument Currency
+     */
+    instrument_currency: string | null;
+    /**
+     * Quantity
+     */
+    quantity: string;
+    /**
+     * Average Price
+     */
+    average_price: string | null;
+    /**
+     * Current Price
+     */
+    current_price: string | null;
+    /**
+     * Value
+     */
+    value: string | null;
+    /**
+     * Cost
+     */
+    cost: string | null;
+    /**
+     * Result
+     */
+    result: string | null;
+    /**
+     * Weight
+     */
+    weight: string | null;
+};
+
+/**
+ * InvestmentAccount
+ */
+export type InvestmentAccount = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Currency
+     */
+    currency: string;
+    /**
+     * As Of
+     */
+    as_of: string | null;
+    /**
+     * Value
+     */
+    value: string | null;
+    /**
+     * Cash
+     */
+    cash: string | null;
+    /**
+     * Cost
+     */
+    cost: string | null;
+    /**
+     * Result
+     */
+    result: string | null;
+    /**
+     * Realised Result
+     */
+    realised_result: string | null;
+    /**
+     * Holdings
+     */
+    holdings: Array<Holding>;
+    /**
+     * Dividends
+     */
+    dividends: Array<string>;
+    /**
+     * Interest
+     */
+    interest: Array<string>;
+};
+
+/**
+ * InvestmentsOut
+ */
+export type InvestmentsOut = {
+    /**
+     * Months
+     */
+    months: Array<string>;
+    /**
+     * Accounts
+     */
+    accounts: Array<InvestmentAccount>;
+};
+
+/**
  * NetWorthAccount
  */
 export type NetWorthAccount = {
@@ -2412,6 +2534,40 @@ export type GetNetWorthResponses = {
 };
 
 export type GetNetWorthResponse = GetNetWorthResponses[keyof GetNetWorthResponses];
+
+export type GetInvestmentsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Months
+         */
+        months?: number;
+        /**
+         * Until
+         */
+        until?: string | null;
+    };
+    url: '/api/finance/investments';
+};
+
+export type GetInvestmentsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetInvestmentsError = GetInvestmentsErrors[keyof GetInvestmentsErrors];
+
+export type GetInvestmentsResponses = {
+    /**
+     * Successful Response
+     */
+    200: InvestmentsOut;
+};
+
+export type GetInvestmentsResponse = GetInvestmentsResponses[keyof GetInvestmentsResponses];
 
 export type ListBudgetsData = {
     body?: never;

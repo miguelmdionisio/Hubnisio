@@ -1665,6 +1665,69 @@
         }
       }
     },
+    "/api/finance/investments": {
+      "get": {
+        "tags": [
+          "finance"
+        ],
+        "summary": "Get Investments",
+        "description": "Each investment account as of its latest sync, with its dividends and interest per\nmonth. The months end with `until`'s (default: this month).",
+        "operationId": "getInvestments",
+        "parameters": [
+          {
+            "name": "months",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 36,
+              "minimum": 1,
+              "default": 12,
+              "title": "Months"
+            }
+          },
+          {
+            "name": "until",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Until"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvestmentsOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/finance/budgets": {
       "get": {
         "tags": [
@@ -3259,6 +3322,283 @@
           "database"
         ],
         "title": "Health"
+      },
+      "Holding": {
+        "properties": {
+          "ticker": {
+            "type": "string",
+            "title": "Ticker"
+          },
+          "isin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Isin"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Type"
+          },
+          "instrument_currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Instrument Currency"
+          },
+          "quantity": {
+            "type": "string",
+            "title": "Quantity"
+          },
+          "average_price": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Average Price"
+          },
+          "current_price": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Price"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "cost": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result"
+          },
+          "weight": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weight"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ticker",
+          "isin",
+          "name",
+          "type",
+          "instrument_currency",
+          "quantity",
+          "average_price",
+          "current_price",
+          "value",
+          "cost",
+          "result",
+          "weight"
+        ],
+        "title": "Holding"
+      },
+      "InvestmentAccount": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency"
+          },
+          "as_of": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "As Of"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "cash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cash"
+          },
+          "cost": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result"
+          },
+          "realised_result": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Realised Result"
+          },
+          "holdings": {
+            "items": {
+              "$ref": "#/components/schemas/Holding"
+            },
+            "type": "array",
+            "title": "Holdings"
+          },
+          "dividends": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Dividends"
+          },
+          "interest": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Interest"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "currency",
+          "as_of",
+          "value",
+          "cash",
+          "cost",
+          "result",
+          "realised_result",
+          "holdings",
+          "dividends",
+          "interest"
+        ],
+        "title": "InvestmentAccount"
+      },
+      "InvestmentsOut": {
+        "properties": {
+          "months": {
+            "items": {
+              "type": "string",
+              "format": "date"
+            },
+            "type": "array",
+            "title": "Months"
+          },
+          "accounts": {
+            "items": {
+              "$ref": "#/components/schemas/InvestmentAccount"
+            },
+            "type": "array",
+            "title": "Accounts"
+          }
+        },
+        "type": "object",
+        "required": [
+          "months",
+          "accounts"
+        ],
+        "title": "InvestmentsOut"
       },
       "NetWorthAccount": {
         "properties": {

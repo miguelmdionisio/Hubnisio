@@ -82,7 +82,7 @@ To turn it off, set `HUBNISIO_AI_ENABLED=false` and run `docker compose up -d` a
 
 The hub reads a Trading 212 Invest account through Trading 212's own API, with a read-only key ([ADR-0008](docs/adr/0008-investments.md)). The key stays in a file: the database records only the file's name.
 
-1. In the Trading 212 app, go to Settings → API (Beta) and generate a key on the live account. Tick only **Account data**, **History** and **Portfolio**: no orders and no pies, so the key can't trade. If your public IP address doesn't change, limit the key to it. Copy the key and the secret; the secret is shown only once.
+1. In the Trading 212 app, go to Settings → API (Beta) and generate a key on the live account. Tick only **Account data**, **History**, **Portfolio** and **Metadata**: no orders and no pies, so the key can't trade. Metadata gives the holdings' types (ETF, stock); without it the hub syncs anyway and leaves them blank. If your public IP address doesn't change, limit the key to it. Copy the key and the secret; the secret is shown only once.
 2. Save both in a file in `secrets/trading212/`, named after the account, for example `secrets/trading212/invest`. It holds two lines; blank lines and lines starting with `#` are ignored:
    ```
    key=<API key>
@@ -94,7 +94,7 @@ The hub reads a Trading 212 Invest account through Trading 212's own API, with a
    docker compose exec api python -m hubnisio.cli t212-link --email you@example.com --key-file invest
    ```
 
-The account then shows on the Accounts page with its value (cash plus holdings at market value), and on Bank connections with "Sync now"; the scheduled syncs include it. It starts outside net worth, until the hub can rebuild its value over time. Deposits and withdrawals pair with the bank's side as transfers, and dividends, interest and fees get their categories from rules. If Trading 212 later rejects the key (deleted, or your IP address changed), the connection shows "Needs linking again": fix the key or save a new one, then run the same command again. The account keeps its history. Each member links their own key.
+The account then shows on the Accounts page with its value (cash plus holdings at market value), and on Bank connections with "Sync now"; the scheduled syncs include it. The Investments page shows its cash, cost and result, each holding, and the dividends and interest it paid per month. It starts outside net worth, until the hub can rebuild its value over time. Deposits and withdrawals pair with the bank's side as transfers, and dividends, interest and fees get their categories from rules. If Trading 212 later rejects the key (deleted, or your IP address changed), the connection shows "Needs linking again": fix the key or save a new one, then run the same command again. The account keeps its history. Each member links their own key.
 
 ## Work on it without Docker
 

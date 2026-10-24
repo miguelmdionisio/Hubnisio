@@ -151,8 +151,11 @@ class EnableBankingClient:
         account_uid: str,
         since: date | None,
         psu_headers: Mapping[str, str] | None = None,
+        *,
+        trades_since: date | None = None,
     ) -> AsyncIterator[Fetched[Any]]:
-        """Balances, then transactions from `since`; `None` means the longest history."""
+        """Balances, then transactions from `since`; `None` means the longest history. A bank
+        has no trades: `trades_since` is ignored."""
         yield await self.get_balances(account_uid, psu_headers)
         if since is None:
             pages = self.iter_transactions(account_uid, strategy="longest", psu_headers=psu_headers)

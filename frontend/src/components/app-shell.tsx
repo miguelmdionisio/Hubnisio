@@ -9,6 +9,7 @@ import {
   Repeat,
   Store,
   Tags,
+  TrendingUp,
   Wallet,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
@@ -20,6 +21,7 @@ import { useView, VIEW_LABELS, VIEW_NOTES, type View, ViewProvider } from '@/lib
 type Path =
   | '/'
   | '/finance/accounts'
+  | '/finance/investments'
   | '/finance/transactions'
   | '/finance/categories'
   | '/finance/budgets'
@@ -108,6 +110,9 @@ function Shell() {
           <NavSection title="Finance">
             <NavLink to="/finance/accounts" icon={Wallet}>
               Accounts
+            </NavLink>
+            <NavLink to="/finance/investments" icon={TrendingUp}>
+              Investments
             </NavLink>
             <NavLink to="/finance/transactions" icon={ArrowLeftRight}>
               Transactions

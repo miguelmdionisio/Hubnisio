@@ -5,6 +5,8 @@ import {
   formatMoney,
   formatMonth,
   formatMonthName,
+  formatPercent,
+  formatQuantity,
   formatRelative,
   formatShortMonth,
   parseDate,
@@ -14,6 +16,14 @@ import { isMonth, shiftMonth } from './months';
 test('formats money in the given locale', () => {
   expect(formatMoney('-42.1700', 'EUR', 'en-GB')).toBe('-€42.17');
   expect(formatMoney(2100, 'EUR', 'pt-PT')).toMatch(/^2100,00\s€$/);
+});
+
+test('formats share quantities and percentages', () => {
+  expect(formatQuantity('12.3456789000', 'en-GB')).toBe('12.345679');
+  expect(formatQuantity('1200.0000000000', 'en-GB')).toBe('1,200');
+  expect(formatPercent('0.6667', false, 'en-GB')).toBe('66.7%');
+  expect(formatPercent(0.091, true, 'en-GB')).toBe('+9.1%');
+  expect(formatPercent(-0.2, true, 'en-GB')).toBe('-20%');
 });
 
 test('keeps calendar dates on their day in any timezone', () => {

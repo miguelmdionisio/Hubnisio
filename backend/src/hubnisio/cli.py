@@ -66,7 +66,8 @@ async def bootstrap(email: str, name: str, household_name: str) -> int:
 
 
 async def renormalize(account_id: uuid.UUID | None) -> int:
-    """Rebuild transactions and balances from stored payloads, one account per transaction."""
+    """Rebuild transactions, balances, fills and holdings from stored payloads, one account per
+    transaction."""
     sessionmaker = get_sessionmaker()
     if account_id is None:
         async with sessionmaker() as session:
@@ -76,9 +77,10 @@ async def renormalize(account_id: uuid.UUID | None) -> int:
     for current in account_ids:
         async with sessionmaker() as session, session.begin():
             result = await renormalize_account(session, current)
+        fills = f", {result.fills} fills" if result.fills else ""
         print(
             f"Account {current}: replayed {result.syncs} syncs, {result.transactions} "
-            f"transactions, {result.removed} removed."
+            f"transactions, {result.removed} removed{fills}."
         )
     return 0
 
@@ -373,7 +375,7 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     renormalize_parser = commands.add_parser(
-        "renormalize", help="rebuild transactions and balances from stored provider payloads"
+        "renormalize", help="rebuild bank facts (and fills and holdings) from stored payloads"
     )
     renormalize_parser.add_argument(
         "--account", type=uuid.UUID, help="one account ID (default: every account)"

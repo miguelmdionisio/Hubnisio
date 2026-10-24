@@ -57,11 +57,21 @@ What the API offers (Public API v0, beta, read 2026-10-24 at docs.trading212.com
 - **Fills:** bank facts, written only by the sync, one row per order fill: instrument, side, fill type, quantity, price, FX rate, net value, realised result, and taxes and fees. Identity is Trading 212's fill id.
 - **Holding snapshots:** what `positions` returns on each sync. The latest is the anchor for quantities, as a bank balance is for cash.
 - **Raw first:** every response goes to `provider_payloads` before it's applied, and normalization can be re-run from it ([ADR-0003](0003-financial-data-sources.md)).
+- *(As built in T2)* The details:
+  - **Fetch order:** the summary and positions first, so the two agree; then cash movements, dividends and orders; then the instrument list. Payload kinds `positions`, `orders` and `instruments`. Positions and the instrument list are bare JSON arrays, stored as `{"items": […]}`.
+  - **The instrument list** (every instrument Trading 212 offers, 1 per 50 s) is the one response stored trimmed: only the instruments that fetch's positions and orders name. It needs the key's **Metadata** permission; without it the sync goes on and types stay empty.
+  - **Paging orders:** an order is dated by its fill, else (never filled) by its creation. A later sync stops after the first page reaching back past two weeks before the account's latest fill; with no fill stored yet (an account synced before T2), it reads every order. A limit order created long before it fills can sit deeper than that; T3's check against the summary would show it.
+  - **Instruments** (`finance.instruments`): Trading 212's ticker (unique), ISIN, name, currency (its prices'; GBX is pence) and type. Every sync upserts the ones it meets; a value a response lacks never clears a stored one.
+  - **Fills** (`finance.fills`): identity is the account and Trading 212's fill id. Side, fill type, order type, where the order came from (`AUTOINVEST`, `WEB`, …), when it filled, quantity and price (in the instrument's currency), and from its wallet impact the account's currency, FX rate, net value, realised result, and taxes as JSON `[{name, amount, currency, charged_at}]`, amounts as decimal strings. An order without a fill (cancelled, rejected, still working) is ignored; one without a side takes it from the quantity's sign. **To confirm at the first live sync:** the signs of quantities, net values and taxes on buys and sells, and which way the FX rate goes. T3's rebuild needs them.
+  - **Snapshots:** a sync's positions become one `finance.portfolio_snapshots` row, with the same sync's summary figures (cash available, in pies and reserved; the investments' value, cost, realised and unrealised result; the total value), and one `finance.holding_snapshots` row per position (quantity, in pies, average and current price, value, cost, unrealised result, FX impact, opened at). A sync from before T2, without positions, has none. The latest snapshot is the anchor, an empty one too (everything sold).
+  - **Renormalize** deletes an account's fills and snapshots and rebuilds them from the stored payloads, as it does balances: nothing in the user layer points at them. Instruments are upserted again.
+  - **API:** `GET /api/finance/investments?months=12` gives each listed investment account the principal may see: value, cash (available, in pies and reserved), cost and result from the latest snapshot (the summary's unrealised result, else the investments' value less cost), the realised result, the holdings (biggest first; weight is the share of the holdings' value, cash left out), and dividends and interest per month from the bank codes, in the account's currency. `insights/investments.py` loads the inputs and a pure `compute_investments` shapes them, for T4's MCP tool. The Investments page shows it, under Finance.
+  - **Analytics:** no view changed. Fills aren't transactions, and the holdings views are T4's.
 
 ### The key and the sync
 
 - **The key is a file,** `secrets/trading212/<name>`, holding the key and secret. Compose bind-mounts the folder, so the stack starts without it. A connection records the file's name, never the key. `cli t212-link` reads the file, checks it against the account summary, and creates the connection and account for a member. One file per Trading 212 account.
-- **The key's permissions:** account data, history and portfolio only. No orders, no pies.
+- **The key's permissions:** account data, history and portfolio only. No orders, no pies. *(T2)* Plus metadata, optional, for the instruments' types.
 - **Syncing:** no PSD2 limit applies. The existing schedule and "Sync now" serve it.
   - The first sync pages through the whole history, which Trading 212 keeps from the account's opening.
   - Later syncs stop paging at two weeks before the latest item already stored.
@@ -160,6 +170,6 @@ Each slice is one fresh session. It ends committed and pushed once its checks pa
 
 ## Action Items
 
-1. [ ] The user creates a read-only API key (account data, history, portfolio) in the Trading 212 app. If their public IP is stable, they restrict the key to it. They save the key at `secrets/trading212/<name>` in the format T1 documents (README, "Linking Trading 212").
+1. [ ] The user creates a read-only API key (account data, history, portfolio, metadata) in the Trading 212 app. If their public IP is stable, they restrict the key to it. They save the key at `secrets/trading212/<name>` in the format T1 documents (README, "Linking Trading 212").
 2. [ ] Approve the live-data writes in the session that does them: the first link and sync, and the Dividends category and bank-code rules in the existing household (seeding covers only new ones).
 3. [ ] After T3: switch on "Include in net worth" for the Trading 212 account.

@@ -5,6 +5,8 @@ import type {
   CashFlow,
   CategoryGroupOut,
   CounterpartyOut,
+  Holding,
+  InvestmentAccount,
   NetWorthOut,
   OverallBudgetOut,
   RecurringOut,
@@ -271,6 +273,46 @@ export function upcomingPayment(
     amount,
     currency: 'EUR',
     amount_eur: amount,
+    ...overrides,
+  };
+}
+
+export function holding(ticker: string, name: string, overrides: Partial<Holding> = {}): Holding {
+  return {
+    ticker,
+    isin: null,
+    name,
+    type: 'ETF',
+    instrument_currency: 'USD',
+    quantity: '1.0000000000',
+    average_price: '100.0000000000',
+    current_price: '110.0000000000',
+    value: '100.00',
+    cost: '90.00',
+    result: '10.00',
+    weight: '1.0000',
+    ...overrides,
+  };
+}
+
+/** An investment account with no holdings and nothing paid, for `months` months. */
+export function investmentAccount(
+  months: number,
+  overrides: Partial<InvestmentAccount> = {},
+): InvestmentAccount {
+  return {
+    id: 'inv1',
+    name: 'Trading 212 EUR',
+    currency: 'EUR',
+    as_of: new Date().toISOString(),
+    value: '0.00',
+    cash: '0.00',
+    cost: '0.00',
+    result: '0.00',
+    realised_result: null,
+    holdings: [],
+    dividends: Array(months).fill('0.00'),
+    interest: Array(months).fill('0.00'),
     ...overrides,
   };
 }

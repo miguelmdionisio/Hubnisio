@@ -1,7 +1,8 @@
 """Finance tables (ADR-0007): provider connections, accounts, raw payloads, bank facts, and
 the user layer.
 
-Only the sync writes `transactions` and `balance_snapshots`. Everything people, rules or the
+Only the sync writes `transactions` and `balance_snapshots`, and an investment account's
+`fills` and snapshots (ADR-0008). Everything people, rules or the
 AI decide about a transaction (category, counterparty, notes, tags, transfer links) lives in
 the user-layer tables at the end of this module, so a sync never overwrites it.
 """
@@ -13,6 +14,7 @@ from decimal import Decimal
 from typing import Any
 
 from sqlalchemy import (
+    BigInteger,
     Boolean,
     CheckConstraint,
     Date,
@@ -304,7 +306,8 @@ class ProviderPayload(Base):
         ForeignKey("finance.accounts.id", ondelete="CASCADE")
     )
     sync_run_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("finance.sync_runs.id"))
-    kind: Mapped[str] = mapped_column(String(32))  # session, balances, transactions
+    # session, balances, transactions; summary, positions, orders, … for Trading 212
+    kind: Mapped[str] = mapped_column(String(32))
     request: Mapped[dict[str, Any]] = mapped_column(JSONB)
     response: Mapped[dict[str, Any]] = mapped_column(JSONB)
     fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -419,6 +422,141 @@ class FxRate(Base):
     rate: Mapped[Decimal] = mapped_column(Numeric(20, 10))  # units of quote_currency per 1 EUR
     source: Mapped[FxSource] = mapped_column(_enum(FxSource, "fx_source"))
     fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+# Investments (ADR-0008): bank facts too, written only by the sync.
+
+Quantity = Numeric(24, 10)  # shares, fractional ones included; and prices per share
+
+
+class Instrument(Base):
+    """Public reference data, so global like `fx_rates`: a tradable instrument as Trading 212
+    names it. The sync fills it from positions and orders, and the type from the instrument
+    list when the key may read it."""
+
+    __tablename__ = "instruments"
+    __table_args__ = {"schema": SCHEMA}  # noqa: RUF012
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid7)
+    ticker: Mapped[str] = mapped_column(String(40), unique=True)  # e.g. AAPL_US_EQ
+    isin: Mapped[str | None] = mapped_column(String(12))
+    name: Mapped[str | None] = mapped_column(Text)
+    currency: Mapped[str | None] = mapped_column(String(3))  # its prices'; GBX is pence
+    type: Mapped[str | None] = mapped_column(String(32))  # STOCK, ETF, …
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Fill(Base):
+    """One execution of an order: a trade, or a corporate action such as a split. Trades
+    aren't transactions: a buy moves cash into a holding inside the account. Amounts are in
+    `currency`, the account's; prices in the instrument's. Signs are as Trading 212 sends."""
+
+    __tablename__ = "fills"
+    __table_args__ = (
+        UniqueConstraint("account_id", "fill_id", name="uq_fills_account_id_fill_id"),
+        Index("ix_fills_account_id_filled_at", "account_id", "filled_at"),
+        {"schema": SCHEMA},
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid7)
+    household_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("core.households.id", ondelete="CASCADE")
+    )
+    account_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("finance.accounts.id", ondelete="CASCADE")
+    )
+    instrument_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("finance.instruments.id"), index=True
+    )
+    fill_id: Mapped[int] = mapped_column(BigInteger)  # Trading 212's: the identity
+    order_id: Mapped[int | None] = mapped_column(BigInteger)
+    side: Mapped[str] = mapped_column(String(4))  # BUY, SELL
+    fill_type: Mapped[str] = mapped_column(String(32))  # TRADE, STOCK_SPLIT, SPIN_OFF, …
+    order_type: Mapped[str | None] = mapped_column(String(16))  # MARKET, LIMIT, …
+    initiated_from: Mapped[str | None] = mapped_column(String(32))  # WEB, AUTOINVEST, …
+    filled_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    quantity: Mapped[Decimal] = mapped_column(Quantity)
+    price: Mapped[Decimal] = mapped_column(Quantity)
+    currency: Mapped[str | None] = mapped_column(String(3))
+    fx_rate: Mapped[Decimal | None] = mapped_column(Numeric(20, 10))
+    net_value: Mapped[Decimal | None] = mapped_column(Money)
+    realised_result: Mapped[Decimal | None] = mapped_column(Money)
+    # Commission, currency conversion fee, stamp duty, …: [{name, amount, currency, charged_at}],
+    # amounts as decimal strings.
+    taxes: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, server_default=text("'[]'"))
+    # The latest payload that reported this fill.
+    payload_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("finance.provider_payloads.id"))
+    first_seen_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    last_seen_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class PortfolioSnapshot(Base):
+    """An investment account at one sync: the summary's cash and totals, and the positions
+    (`holding_snapshots`) read with it. The latest is the anchor for quantities and cash, as a
+    bank balance is for a bank account. Amounts are in `currency`, the account's."""
+
+    __tablename__ = "portfolio_snapshots"
+    __table_args__ = (
+        Index("ix_portfolio_snapshots_account_id_fetched_at", "account_id", "fetched_at"),
+        {"schema": SCHEMA},
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid7)
+    household_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("core.households.id", ondelete="CASCADE")
+    )
+    account_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("finance.accounts.id", ondelete="CASCADE")
+    )
+    sync_run_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("finance.sync_runs.id", ondelete="SET NULL")
+    )
+    currency: Mapped[str] = mapped_column(String(3))
+    total_value: Mapped[Decimal] = mapped_column(Money)  # cash plus holdings at market value
+    cash: Mapped[Decimal] = mapped_column(Money)  # available to trade
+    cash_in_pies: Mapped[Decimal] = mapped_column(Money)
+    cash_reserved: Mapped[Decimal] = mapped_column(Money)  # for orders not yet filled
+    investments_value: Mapped[Decimal | None] = mapped_column(Money)
+    investments_cost: Mapped[Decimal | None] = mapped_column(Money)
+    realised_result: Mapped[Decimal | None] = mapped_column(Money)
+    unrealised_result: Mapped[Decimal | None] = mapped_column(Money)
+    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))  # the positions'
+
+
+class HoldingSnapshot(Base):
+    """One position in a portfolio snapshot. Prices are per share in the instrument's
+    currency; value, cost and results in `currency`, the account's."""
+
+    __tablename__ = "holding_snapshots"
+    __table_args__ = {"schema": SCHEMA}  # noqa: RUF012
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid7)
+    household_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("core.households.id", ondelete="CASCADE")
+    )
+    account_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("finance.accounts.id", ondelete="CASCADE")
+    )
+    portfolio_snapshot_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("finance.portfolio_snapshots.id", ondelete="CASCADE"), index=True
+    )
+    instrument_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("finance.instruments.id"), index=True
+    )
+    quantity: Mapped[Decimal] = mapped_column(Quantity)
+    quantity_in_pies: Mapped[Decimal | None] = mapped_column(Quantity)
+    average_price: Mapped[Decimal | None] = mapped_column(Quantity)
+    current_price: Mapped[Decimal | None] = mapped_column(Quantity)
+    currency: Mapped[str | None] = mapped_column(String(3))
+    value: Mapped[Decimal | None] = mapped_column(Money)
+    cost: Mapped[Decimal | None] = mapped_column(Money)
+    unrealised_result: Mapped[Decimal | None] = mapped_column(Money)
+    fx_impact: Mapped[Decimal | None] = mapped_column(Money)  # the result's part due to FX
+    opened_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 # User layer: written by people, rules, matching and (later) the AI; never by the sync.

@@ -339,6 +339,45 @@ class NetWorthOut(BaseModel):
     unconverted: int  # account-days left out: no exchange rate
 
 
+# Investments (ADR-0008): amounts in the account's currency, rounded to cents; prices per share
+# in the instrument's currency.
+
+
+class Holding(BaseModel):
+    ticker: str  # Trading 212's, e.g. AAPL_US_EQ
+    isin: str | None
+    name: str  # the ticker when Trading 212 gives no name
+    type: str | None  # STOCK, ETF, …; None when the key can't read the instrument list
+    instrument_currency: str | None  # of its prices; GBX is pence
+    quantity: Decimal
+    average_price: Decimal | None
+    current_price: Decimal | None
+    value: Decimal | None
+    cost: Decimal | None
+    result: Decimal | None  # value less cost
+    weight: Decimal | None  # its share of the holdings' value, 0 to 1
+
+
+class InvestmentAccount(BaseModel):
+    id: uuid.UUID
+    name: str
+    currency: str
+    as_of: datetime | None  # when the holdings were read; None: not yet
+    value: Decimal | None  # cash plus holdings at market value
+    cash: Decimal | None  # available, in pies and reserved for orders
+    cost: Decimal | None  # what the holdings cost
+    result: Decimal | None  # the holdings' value less their cost
+    realised_result: Decimal | None  # on what's been sold
+    holdings: list[Holding]  # biggest first
+    dividends: list[Decimal]  # one per month
+    interest: list[Decimal]  # on cash and from share lending, one per month
+
+
+class InvestmentsOut(BaseModel):
+    months: list[date]  # the first day of each month, oldest first
+    accounts: list[InvestmentAccount]
+
+
 # Budgets: amounts in euros.
 
 

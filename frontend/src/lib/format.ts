@@ -23,6 +23,20 @@ export function formatCompactMoney(
   }).format(Number(amount));
 }
 
+/** A number of shares, fractional ones included: "12.3456". */
+export function formatQuantity(quantity: string | number, locale = LOCALE): string {
+  return new Intl.NumberFormat(locale, { maximumFractionDigits: 6 }).format(Number(quantity));
+}
+
+/** A share of a whole, from 0 to 1: "12.3%". `signed` shows "+" on a gain. */
+export function formatPercent(share: string | number, signed = false, locale = LOCALE): string {
+  return new Intl.NumberFormat(locale, {
+    style: 'percent',
+    maximumFractionDigits: 1,
+    signDisplay: signed ? 'exceptZero' : 'auto',
+  }).format(Number(share));
+}
+
 /** A calendar date ("2026-10-14") as a local date, so no timezone can shift it a day. */
 export function parseDate(isoDate: string): Date {
   const [year = 1970, month = 1, day = 1] = isoDate.split('-').map(Number);

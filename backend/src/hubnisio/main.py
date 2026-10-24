@@ -11,6 +11,7 @@ from hubnisio.core.settings import get_settings
 from hubnisio.finance.api import router as finance_router
 from hubnisio.finance.budgets_api import router as budgets_router
 from hubnisio.finance.insights_api import router as insights_router
+from hubnisio.finance.investments_api import router as investments_router
 from hubnisio.finance.organize_api import router as organize_router
 from hubnisio.finance.recurring_api import router as recurring_router
 from hubnisio.finance.transactions_api import router as transactions_router
@@ -31,5 +32,6 @@ app.include_router(finance_router, prefix="/api")
 app.include_router(transactions_router, prefix="/api")
 app.include_router(organize_router, prefix="/api")
 app.include_router(insights_router, prefix="/api")
+app.include_router(investments_router, prefix="/api")
 app.include_router(budgets_router, prefix="/api")
 app.include_router(recurring_router, prefix="/api")

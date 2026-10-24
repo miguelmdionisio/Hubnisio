@@ -131,13 +131,107 @@ async def test_a_repeated_page_path_is_an_error() -> None:
                 pass
 
 
-async def test_fetch_gives_the_summary_then_both_histories() -> None:
-    api = FakeApi(ok(SUMMARY), page([], None), page([], None))
+def position(ticker: str) -> dict[str, Any]:
+    return {"instrument": {"ticker": ticker}, "quantity": 1}
+
+
+def order(
+    ticker: str, filled_at: str | None, created_at: str = "2026-01-01T10:00:00Z"
+) -> dict[str, Any]:
+    fill = {"id": 1, "filledAt": filled_at, "quantity": 1, "price": 1} if filled_at else None
+    return {"order": {"createdAt": created_at, "instrument": {"ticker": ticker}}, "fill": fill}
+
+
+async def test_fetch_gives_the_summary_and_positions_then_the_histories_then_instruments() -> None:
+    listed = [
+        {"ticker": ticker, "type": "ETF"} for ticker in ("VWRL_EQ", "AAPL_US_EQ", "TSLA_US_EQ")
+    ]
+    api = FakeApi(
+        ok(SUMMARY),
+        httpx.Response(200, json=[position("VWRL_EQ")]),
+        page([], None),
+        page([], None),
+        page([order("AAPL_US_EQ", "2026-10-01T10:00:00Z")], None),
+        httpx.Response(200, json=listed),
+    )
     async with client(api) as t212:
         provider: Provider = t212
-        kinds = [item.kind async for item in provider.fetch("4242", None)]
+        fetched = [item async for item in provider.fetch("4242", None)]
 
-    assert kinds == ["summary", "transactions", "dividends"]
+    kinds = [item.kind for item in fetched]
+    assert kinds == ["summary", "positions", "transactions", "dividends", "orders", "instruments"]
+    paths = [request.url.path.removeprefix("/api/v0/equity/") for request in api.requests]
+    assert paths == [
+        "account/summary",
+        "positions",
+        "history/transactions",
+        "history/dividends",
+        "history/orders",
+        "metadata/instruments",
+    ]
+    positions, instruments = fetched[1], fetched[-1]
+    assert positions.raw == {"items": [position("VWRL_EQ")]}  # a bare array, wrapped
+    # Only the instruments the positions and orders name are kept.
+    assert instruments.raw == {"items": listed[:2]}
+
+
+async def test_without_positions_or_orders_the_instrument_list_isnt_asked_for() -> None:
+    api = FakeApi(ok(SUMMARY), httpx.Response(200, json=[]), *(page([], None) for _ in range(3)))
+    async with client(api) as t212:
+        kinds = [item.kind async for item in t212.fetch("4242", None)]
+
+    assert kinds == ["summary", "positions", "transactions", "dividends", "orders"]
+    assert api.responses == []
+
+
+async def test_a_key_without_the_metadata_permission_still_syncs() -> None:
+    api = FakeApi(
+        ok(SUMMARY),
+        httpx.Response(200, json=[position("VWRL_EQ")]),
+        *(page([], None) for _ in range(3)),
+        httpx.Response(403),
+    )
+    async with client(api) as t212:
+        kinds = [item.kind async for item in t212.fetch("4242", None)]
+
+    assert kinds[-1] == "orders"  # no instruments: their types stay unknown
+
+
+async def test_orders_page_back_to_their_own_cutoff_dated_by_their_fill() -> None:
+    path = "/api/v0/equity/history/orders"
+    api = FakeApi(
+        ok(SUMMARY),
+        httpx.Response(200, json=[]),
+        page([{"dateTime": "2026-10-20T10:00:00Z"}], None),
+        page([], None),
+        # Created long ago but filled after the cutoff, then a cancelled order created after it.
+        page(
+            [
+                order("A_EQ", "2026-10-10T10:00:00Z", created_at="2026-08-01T10:00:00Z"),
+                order("A_EQ", None, created_at="2026-10-02T10:00:00Z"),
+            ],
+            f"{path}?cursor=1",
+        ),
+        page([order("A_EQ", "2026-09-30T10:00:00Z")], f"{path}?cursor=2"),
+        httpx.Response(200, json=[]),
+    )
+    async with client(api) as t212:
+        fetched = [
+            item
+            async for item in t212.fetch("4242", date(2026, 10, 15), trades_since=date(2026, 10, 1))
+        ]
+
+    assert [item.kind for item in fetched].count("orders") == 2  # not a third page
+    assert api.responses == []
+
+
+async def test_positions_that_arent_a_list_are_unexpected() -> None:
+    api = FakeApi(ok(SUMMARY), ok({"items": []}))
+    with pytest.raises(Trading212Error) as caught:
+        async with client(api) as t212:
+            async for _ in t212.fetch("4242", None):
+                pass
+    assert caught.value.code == "UNEXPECTED_RESPONSE"
 
 
 async def test_fetch_refuses_a_key_for_another_account() -> None:

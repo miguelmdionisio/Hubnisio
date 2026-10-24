@@ -4,7 +4,8 @@ For each account the connection reaches: fetch balances and transactions through
 connection's provider, store every raw response, then apply them. The first sync asks for the
 longest history the provider offers (a bank's full history is often only available for about an
 hour after linking); later syncs re-fetch from two weeks before the latest booked transaction,
-so late-booked items are picked up.
+so late-booked items are picked up. A broker's trades go back the same way from the latest
+fill, or to the start when there's none yet.
 
 Each account's sync is recorded in `finance.sync_runs`. Raw payloads are committed before
 they're applied, so a parser bug never loses data (see ingest/apply.py's APPLY_FAILED).
@@ -31,6 +32,7 @@ from hubnisio.finance.models import (
     Account,
     Connection,
     ConnectionStatus,
+    Fill,
     ProviderAccount,
     ProviderName,
     ProviderPayload,
@@ -181,7 +183,10 @@ async def _sync_account(
 ) -> AccountResult:
     sessionmaker = get_sessionmaker()
     async with sessionmaker() as session, session.begin():
-        since = None if trigger is SyncTrigger.INITIAL else await _since(session, account_id)
+        since = trades_since = None
+        if trigger is not SyncTrigger.INITIAL:
+            since = await _since(session, account_id)
+            trades_since = await _trades_since(session, account_id)
         run = SyncRun(
             household_id=household_id,
             connection_id=connection_id,
@@ -200,7 +205,9 @@ async def _sync_account(
     strategy = run.strategy
     try:
         try:
-            async for item in client.fetch(account_uid, since, psu_headers):
+            async for item in client.fetch(
+                account_uid, since, psu_headers, trades_since=trades_since
+            ):
                 fetched.append((item, datetime.now(UTC)))
         except WrongPeriod:
             if since is None:
@@ -304,6 +311,14 @@ async def _since(session: AsyncSession, account_id: uuid.UUID) -> date | None:
         )
     )
     return latest - OVERLAP if latest is not None else None
+
+
+async def _trades_since(session: AsyncSession, account_id: uuid.UUID) -> date | None:
+    """Two weeks before the latest fill's day; None (every trade) if none."""
+    latest = await session.scalar(
+        select(func.max(Fill.filled_at)).where(Fill.account_id == account_id)
+    )
+    return latest.astimezone(UTC).date() - OVERLAP if latest is not None else None
 
 
 async def _expire_connection(connection_id: uuid.UUID) -> None:

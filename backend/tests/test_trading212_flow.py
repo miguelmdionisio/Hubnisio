@@ -1,5 +1,5 @@
 """Linking Trading 212 with `cli t212-link`, syncing it and reading it through the API, against a
-fake Trading 212 (ADR-0008, slice T1). Synthetic data only."""
+fake Trading 212 (ADR-0008, slices T1 and T2). Synthetic data only."""
 
 import base64
 import json
@@ -8,6 +8,7 @@ import uuid
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
@@ -16,21 +17,28 @@ import pytest
 from analytics_data import email_of
 from households import Home, add, api, make_home
 from procrastinate.testing import InMemoryConnector
-from sqlalchemy import select
+from sqlalchemy import func, select, update
 
 from hubnisio.cli import t212_link
 from hubnisio.core.auth import Principal
 from hubnisio.core.db import get_sessionmaker
 from hubnisio.core.settings import get_settings
 from hubnisio.finance import sync
+from hubnisio.finance.ingest.renormalize import renormalize_account
 from hubnisio.finance.models import (
     Account,
     AccountOwner,
+    AccountVisibility,
     Connection,
     ConnectionStatus,
+    Fill,
+    HoldingSnapshot,
+    Instrument,
+    PortfolioSnapshot,
     ProviderName,
     ProviderPayload,
     SyncRun,
+    Transaction,
 )
 from hubnisio.finance.providers.trading212.client import Trading212Client
 from hubnisio.jobs import app as job_app
@@ -39,6 +47,13 @@ pytestmark = pytest.mark.anyio
 
 TODAY = datetime.now(UTC).date()
 SUMMARY_PATH = "/api/v0/equity/account/summary"
+POSITIONS_PATH = "/api/v0/equity/positions"
+INSTRUMENTS_PATH = "/api/v0/equity/metadata/instruments"
+# Synthetic instruments: tickers no real one has.
+INSTRUMENTS = {
+    "XWLD_EQ": {"ticker": "XWLD_EQ", "isin": "XS0000000001", "name": "Test World ETF"},
+    "XACM_US_EQ": {"ticker": "XACM_US_EQ", "isin": "XS0000000002", "name": "Acme Test Inc"},
+}
 
 
 def moment(days_ago: int) -> str:
@@ -68,6 +83,53 @@ def dividend(amount: float, days_ago: int, reference: str) -> dict[str, Any]:
     }
 
 
+def filled(
+    fill_id: int, ticker: str, days_ago: int, quantity: float = 1, side: str = "BUY"
+) -> dict[str, Any]:
+    """An order with its fill, at 100 a share in USD."""
+    return {
+        "order": {
+            "id": fill_id + 1000,
+            "createdAt": moment(days_ago),
+            "status": "FILLED",
+            "side": side,
+            "type": "MARKET",
+            "initiatedFrom": "AUTOINVEST",
+            "ticker": ticker,
+            "instrument": {**INSTRUMENTS[ticker], "currency": "USD"},
+        },
+        "fill": {
+            "id": fill_id,
+            "filledAt": moment(days_ago),
+            "quantity": quantity,
+            "price": 100,
+            "type": "TRADE",
+            "walletImpact": {
+                "currency": "EUR",
+                "fxRate": 1.25,
+                "netValue": quantity * 80,
+                "realisedProfitLoss": 0,
+                "taxes": [{"name": "CURRENCY_CONVERSION_FEE", "quantity": 0.12, "currency": "EUR"}],
+            },
+        },
+    }
+
+
+def held(ticker: str, quantity: float, value: float, cost: float) -> dict[str, Any]:
+    return {
+        "instrument": {**INSTRUMENTS[ticker], "currency": "USD"},
+        "quantity": quantity,
+        "averagePricePaid": 100,
+        "currentPrice": 110,
+        "walletImpact": {
+            "currency": "EUR",
+            "currentValue": value,
+            "totalCost": cost,
+            "unrealizedProfitLoss": value - cost,
+        },
+    }
+
+
 @dataclass
 class FakeTrading212:
     """Trading 212 as the hub sees it: answers by path and records every request. History
@@ -76,6 +138,16 @@ class FakeTrading212:
     account_id: int = 4242
     transactions: list[dict[str, Any]] = field(default_factory=list)
     dividends: list[dict[str, Any]] = field(default_factory=list)
+    orders: list[dict[str, Any]] = field(default_factory=list)
+    positions: list[dict[str, Any]] = field(default_factory=list)
+    # The instrument list: every instrument offered, held or not.
+    instruments: list[dict[str, Any]] = field(
+        default_factory=lambda: [
+            {"ticker": "XWLD_EQ", "currencyCode": "USD", "type": "ETF"},
+            {"ticker": "XACM_US_EQ", "currencyCode": "USD", "type": "STOCK"},
+            {"ticker": "XOTH_EQ", "currencyCode": "EUR", "type": "ETF"},
+        ]
+    )
     errors: dict[str, httpx.Response] = field(default_factory=dict)  # path -> one-off error
     limited: set[str] = field(default_factory=set)  # paths that always answer 429
     requests: list[httpx.Request] = field(default_factory=list)
@@ -96,11 +168,19 @@ class FakeTrading212:
                 "investments": {"currentValue": 1200, "totalCost": 1100},
             }
             return httpx.Response(200, json=body)
-        match = re.fullmatch(r"/api/v0/equity/history/(transactions|dividends)", path)
+        if path == POSITIONS_PATH:
+            return httpx.Response(200, json=self.positions)
+        if path == INSTRUMENTS_PATH:
+            return httpx.Response(200, json=self.instruments)
+        match = re.fullmatch(r"/api/v0/equity/history/(transactions|dividends|orders)", path)
         if match is None:
             return httpx.Response(404)
         endpoint = match.group(1)
-        items = self.transactions if endpoint == "transactions" else self.dividends
+        items = {
+            "transactions": self.transactions,
+            "dividends": self.dividends,
+            "orders": self.orders,
+        }[endpoint]
         start = int(request.url.params.get("cursor", "0"))
         following = (
             f"/api/v0/equity/history/{endpoint}?limit=50&cursor={start + 2}"
@@ -238,7 +318,15 @@ async def test_link_then_sync_brings_in_value_cash_and_dividends(setup: Setup) -
                 .order_by(ProviderPayload.fetched_at, ProviderPayload.id)
             )
         )
-    assert kinds == ["summary", "transactions", "transactions", "transactions", "dividends"]
+    assert kinds == [
+        "summary",
+        "positions",
+        "transactions",
+        "transactions",
+        "transactions",
+        "dividends",
+        "orders",
+    ]  # no instrument list: nothing is held or traded
 
     async with api(home.owner) as client:
         accounts = (await client.get("/api/finance/accounts")).json()
@@ -387,3 +475,205 @@ async def test_t212_link_refuses_what_it_cant_check(
         )
     assert linked is None
     assert setup.jobs.jobs == {}
+
+
+async def investments_of(principal: Principal, **params: Any) -> dict[str, Any]:
+    async with api(principal) as client:
+        response = await client.get("/api/finance/investments", params=params)
+    assert response.status_code == 200
+    return response.json()
+
+
+async def test_a_sync_brings_in_fills_and_holdings_for_the_investments_page(setup: Setup) -> None:
+    home, t212 = setup.home, setup.t212
+    t212.positions = [held("XACM_US_EQ", 4, 400, 400), held("XWLD_EQ", 7, 800, 700)]
+    t212.orders = [
+        filled(3, "XACM_US_EQ", 5, 4),
+        {**filled(9, "XWLD_EQ", 6), "fill": None},  # cancelled
+        filled(2, "XWLD_EQ", 40, 3),
+        filled(1, "XWLD_EQ", 70, 4),
+    ]
+    this_month = TODAY.replace(day=1)
+    last_month = (this_month - timedelta(days=1)).replace(day=1)
+    t212.transactions = [
+        movement("INTEREST_ON_FREE_CASH", 0.42, (TODAY - this_month).days, "t3"),
+        movement("LENDING_INTEREST", 0.1, (TODAY - last_month).days, "t2"),
+        movement("DEPOSIT", 1100, 80, "t1"),
+    ]
+    t212.dividends = [dividend(3.21, (TODAY - this_month).days, "d1")]
+    assert await setup.link(home.owner) == 0
+    connection = await connection_of(home.owner)
+    account = await account_of(home.owner)
+
+    await setup.sync(connection.id, sync.SyncTrigger.INITIAL)
+
+    async with get_sessionmaker()() as session:
+        fills = list(
+            await session.scalars(
+                select(Fill).where(Fill.account_id == account.id).order_by(Fill.fill_id)
+            )
+        )
+        transactions = await session.scalar(
+            select(func.count())
+            .select_from(Transaction)
+            .where(Transaction.account_id == account.id)
+        )
+        instruments = {
+            instrument.ticker: instrument
+            for instrument in await session.scalars(
+                select(Instrument).where(
+                    Instrument.ticker.in_(["XWLD_EQ", "XACM_US_EQ", "XOTH_EQ"])
+                )
+            )
+        }
+        stored = (
+            await session.scalars(
+                select(ProviderPayload).where(
+                    ProviderPayload.account_id == account.id, ProviderPayload.kind == "instruments"
+                )
+            )
+        ).one()
+    assert [fill.fill_id for fill in fills] == [1, 2, 3]
+    first = fills[0]
+    assert (first.side, first.fill_type, first.quantity, first.price) == ("BUY", "TRADE", 4, 100)
+    assert (first.currency, first.net_value, first.fx_rate) == ("EUR", 320, Decimal("1.25"))
+    assert first.taxes == [
+        {"name": "CURRENCY_CONVERSION_FEE", "amount": "0.12", "currency": "EUR", "charged_at": None}
+    ]
+    assert transactions == 4  # trades aren't transactions: cash movements and the dividend only
+    assert set(instruments) == {"XWLD_EQ", "XACM_US_EQ"}  # only what's held or traded
+    assert (instruments["XWLD_EQ"].type, instruments["XWLD_EQ"].name) == ("ETF", "Test World ETF")
+    assert (instruments["XACM_US_EQ"].type, instruments["XACM_US_EQ"].isin) == (
+        "STOCK",
+        "XS0000000002",
+    )
+    assert [item["ticker"] for item in stored.response["items"]] == ["XWLD_EQ", "XACM_US_EQ"]
+
+    body = await investments_of(home.owner)
+
+    assert body["months"][-1] == this_month.isoformat()
+    assert len(body["months"]) == 12
+    (shown,) = body["accounts"]
+    assert (shown["id"], shown["name"], shown["currency"]) == (
+        str(account.id),
+        "Trading 212 EUR",
+        "EUR",
+    )
+    assert shown["as_of"] is not None
+    assert (shown["value"], shown["cash"], shown["cost"]) == ("1234.56", "34.56", "1100.00")
+    assert shown["result"] == "100.00"  # the summary gives no result: value less cost
+    assert [holding["ticker"] for holding in shown["holdings"]] == ["XWLD_EQ", "XACM_US_EQ"]
+    world, acme = shown["holdings"]
+    assert (world["name"], world["type"], world["instrument_currency"]) == (
+        "Test World ETF",
+        "ETF",
+        "USD",
+    )
+    assert (world["value"], world["cost"], world["result"]) == ("800.00", "700.00", "100.00")
+    assert (world["weight"], acme["weight"]) == ("0.6667", "0.3333")
+    assert Decimal(world["quantity"]) == 7
+    assert Decimal(world["current_price"]) == 110
+    assert shown["dividends"][-1] == "3.21"
+    assert shown["interest"][-2:] == ["0.10", "0.42"]
+    assert set(shown["dividends"][:-1]) == {"0.00"}
+
+
+async def test_another_members_private_investment_account_never_shows(setup: Setup) -> None:
+    home = setup.home
+    setup.t212.positions = [held("XWLD_EQ", 1, 110, 100)]
+    assert await setup.link(home.owner) == 0
+    await setup.sync((await connection_of(home.owner)).id, sync.SyncTrigger.INITIAL)
+    account = await account_of(home.owner)
+
+    assert len((await investments_of(home.member))["accounts"]) == 1  # shared, by default
+    async with get_sessionmaker()() as session, session.begin():
+        await session.execute(
+            update(Account)
+            .where(Account.id == account.id)
+            .values(visibility=AccountVisibility.PRIVATE)
+        )
+
+    assert (await investments_of(home.member))["accounts"] == []
+    (mine,) = (await investments_of(home.owner))["accounts"]
+    assert [holding["ticker"] for holding in mine["holdings"]] == ["XWLD_EQ"]
+
+
+async def test_orders_page_back_two_weeks_from_the_latest_fill(setup: Setup) -> None:
+    setup.t212.transactions = [movement("DEPOSIT", 500, 1, "t1")]
+    assert await setup.link(setup.home.owner) == 0
+    connection = await connection_of(setup.home.owner)
+    await setup.sync(connection.id, sync.SyncTrigger.INITIAL)
+    assert len(setup.t212.calls("orders")) == 1
+
+    # Trades the hub hasn't seen, on an account it already has cash movements for: with no
+    # fill stored yet, every order is read, however old.
+    setup.t212.orders = [
+        filled(fill_id, "XWLD_EQ", days) for fill_id, days in enumerate((1, 3, 20, 30, 40, 200))
+    ]
+    await setup.sync(connection.id)
+    assert len(setup.t212.calls("orders")) == 1 + 3
+
+    await setup.sync(connection.id)
+    # From 15 days ago (the latest fill, minus two weeks): the second page reaches back past it.
+    assert len(setup.t212.calls("orders")) == 1 + 3 + 2
+    async with get_sessionmaker()() as session:
+        count = await session.scalar(
+            select(func.count())
+            .select_from(Fill)
+            .where(Fill.account_id == (await account_of(setup.home.owner)).id)
+        )
+    assert count == 6
+
+
+async def test_the_latest_sync_is_the_anchor_and_renormalize_rebuilds_it(setup: Setup) -> None:
+    home, t212 = setup.home, setup.t212
+    t212.positions = [held("XWLD_EQ", 2, 220, 200)]
+    t212.orders = [filled(1, "XWLD_EQ", 10, 2)]
+    assert await setup.link(home.owner) == 0
+    connection = await connection_of(home.owner)
+    account = await account_of(home.owner)
+    await setup.sync(connection.id, sync.SyncTrigger.INITIAL)
+
+    # Everything sold since: the latest sync has no positions, and that's what shows.
+    t212.positions = []
+    t212.orders = [filled(2, "XWLD_EQ", 1, 2, side="SELL"), *t212.orders]
+    await setup.sync(connection.id)
+
+    (shown,) = (await investments_of(home.owner))["accounts"]
+    assert shown["holdings"] == []
+
+    async with get_sessionmaker()() as session, session.begin():
+        result = await renormalize_account(session, account.id)
+    assert result.fills == 2
+    async with get_sessionmaker()() as session:
+        snapshots = await session.scalar(
+            select(func.count())
+            .select_from(PortfolioSnapshot)
+            .where(PortfolioSnapshot.account_id == account.id)
+        )
+        holdings = await session.scalar(
+            select(func.count())
+            .select_from(HoldingSnapshot)
+            .where(HoldingSnapshot.account_id == account.id)
+        )
+        sides = list(
+            await session.scalars(
+                select(Fill.side).where(Fill.account_id == account.id).order_by(Fill.fill_id)
+            )
+        )
+    assert (snapshots, holdings, sides) == (2, 1, ["BUY", "SELL"])
+    assert (await investments_of(home.owner))["accounts"][0]["holdings"] == []
+
+
+async def test_an_account_not_synced_since_holdings_came_shows_no_figures(setup: Setup) -> None:
+    assert await setup.link(setup.home.owner) == 0  # linked, but its first sync hasn't run
+
+    (shown,) = (await investments_of(setup.home.owner, months=3))["accounts"]
+
+    assert (shown["as_of"], shown["value"], shown["cash"], shown["holdings"]) == (
+        None,
+        None,
+        None,
+        [],
+    )
+    assert shown["dividends"] == ["0.00"] * 3

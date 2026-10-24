@@ -11,6 +11,7 @@ import { BudgetsPage, validateBudgetSearch } from './routes/finance/budgets';
 import { CallbackPage, validateCallbackSearch } from './routes/finance/callback';
 import { CategoriesPage } from './routes/finance/categories';
 import { ConnectionsPage } from './routes/finance/connections';
+import { InvestmentsPage } from './routes/finance/investments';
 import { MerchantsPage } from './routes/finance/merchants';
 import { RecurringPage, validateRecurringSearch } from './routes/finance/recurring';
 import { RulesPage } from './routes/finance/rules';
@@ -33,6 +34,11 @@ const routeTree = rootRoute.addChildren([
     getParentRoute: () => rootRoute,
     path: '/finance/accounts',
     component: AccountsPage,
+  }),
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/finance/investments',
+    component: InvestmentsPage,
   }),
   createRoute({
     getParentRoute: () => rootRoute,
