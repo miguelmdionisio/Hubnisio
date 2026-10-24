@@ -27,7 +27,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from hubnisio.core.db import get_sessionmaker
 from hubnisio.core.settings import get_settings
 from hubnisio.finance.categorize.run import after_sync
-from hubnisio.finance.ingest.apply import APPLY_FAILED, apply_payloads
+from hubnisio.finance.ingest.apply import APPLY_FAILED, NORMALIZERS, apply_payloads
 from hubnisio.finance.models import (
     Account,
     Connection,
@@ -186,7 +186,8 @@ async def _sync_account(
         since = trades_since = None
         if trigger is not SyncTrigger.INITIAL:
             since = await _since(session, account_id)
-            trades_since = await _trades_since(session, account_id)
+            if NORMALIZERS[provider].fills:  # only a broker has trades
+                trades_since = await _trades_since(session, account_id)
         run = SyncRun(
             household_id=household_id,
             connection_id=connection_id,

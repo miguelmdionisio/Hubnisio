@@ -15,7 +15,7 @@ A private, self-hosted personal hub, one app per domain; finance first. Decision
 - **Deferred:** M5 server (Tailscale, Caddy, passkey login replacing the dev user, Postgres roles, backups) waits until the user has an always-on machine. Don't start it, and don't build anything that needs one, until they say so.
 - **Next:** M6 Trading 212, planned in [ADR-0008](docs/adr/0008-investments.md) (accepted 2026-10-24): T1 (provider and cash) and T2 (trades and holdings) are done; then T3 (prices and net worth over time), T4 (returns and AI).
 - **Waiting on the user:**
-  - applying migrations 0015 and 0016 to the live database (`docker compose run --rm migrate`), then `docker compose up -d` for the Trading 212 keys mount and `docker compose restart worker`. Until then the running API (which reloads code) fails on accounts, connections and investments;
+  - applying migration 0016 to the live database (`docker compose run --rm migrate`), then `docker compose restart worker`. Until then the Investments page fails (the API reloads code) and a Trading 212 sync can't store its holdings; bank syncs don't touch the new tables;
   - creating a read-only Trading 212 API key (account data, history, portfolio, metadata) at `secrets/trading212/<name>` (ADR-0008, action item 1; format in the README);
   - in the existing household, before the first Trading 212 sync: the Income › Dividends category and the four `T212_*` rules (ADR-0008, "As built in T1"), which seeding gives only new households. Then `t212-link`, and checking the signs of the first sync's withdrawals and fees, and of its fills' quantities, net values and taxes (ADR-0008, "As built in T2");
   - reviewing the 175 AI category suggestions;
