@@ -15,9 +15,7 @@ A private, self-hosted personal hub, one app per domain; finance first. Decision
 - **Deferred:** M5 server (Tailscale, Caddy, passkey login replacing the dev user, Postgres roles, backups) waits until the user has an always-on machine. Don't start it, and don't build anything that needs one, until they say so.
 - **Next:** M6 Trading 212, planned in [ADR-0008](docs/adr/0008-investments.md) (accepted 2026-10-24): T1 (provider and cash) and T2 (trades and holdings) are done; then T3 (prices and net worth over time), T4 (returns and AI).
 - **Waiting on the user:**
-  - applying migration 0016 to the live database (`docker compose run --rm migrate`), then `docker compose restart worker`. Until then the Investments page fails (the API reloads code) and a Trading 212 sync can't store its holdings; bank syncs don't touch the new tables;
-  - creating a read-only Trading 212 API key (account data, history, portfolio, metadata) at `secrets/trading212/<name>` (ADR-0008, action item 1; format in the README);
-  - in the existing household, before the first Trading 212 sync: the Income › Dividends category and the four `T212_*` rules (ADR-0008, "As built in T1"), which seeding gives only new households. Then `t212-link`, and checking the signs of the first sync's withdrawals and fees, and of its fills' quantities, net values and taxes (ADR-0008, "As built in T2");
+  - creating a read-only Trading 212 API key (account data, history, portfolio, metadata) and saving it as `secrets/trading212/invest` (ADR-0008, action item 1; format in the README). Then a session runs `t212-link` and checks the signs of the first sync's withdrawals and fees, and of its fills' quantities, net values and taxes (ADR-0008, "As built in T2"). The live database is at 0016, and the household has the Dividends category and the four `T212_*` rules;
   - reviewing the 175 AI category suggestions;
   - hiding or deleting their unused Revolut accounts on the Accounts page;
   - deciding on a BPI `pagserv` → Utilities rule and an Uber rule (Uber Eats is a separate merchant).
@@ -36,7 +34,7 @@ A private, self-hosted personal hub, one app per domain; finance first. Decision
 - **How work runs:**
   - Plan a milestone with the user. Then build one slice per fresh session; each slice session starts the next itself.
   - Within an approved plan, each finished slice is committed and pushed to `main` once its checks pass. Outside a plan, ask before pushing.
-  - Writes to the live data need the user's approval in the session doing them: skip them, list them at the end, and keep going.
+  - Live steps are approved standing (the user, 2026-10-24): once a slice is pushed and CI is green, apply its migrations to the live database, restart the worker, run its backfills and seed what existing households lack. Check each, report counts only, and list what's left for the user. Ask first before anything that deletes or overwrites real data outside those steps. Never open key files.
 
 ## Layout and rules of the code
 
