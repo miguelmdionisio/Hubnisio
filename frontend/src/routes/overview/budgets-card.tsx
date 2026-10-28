@@ -38,7 +38,7 @@ function BudgetItem({
   );
 }
 
-export function BudgetsCard() {
+export function BudgetsCard({ className }: { className?: string }) {
   const month = currentMonth();
   const { view } = useView();
   const budgets = useQuery(listBudgetsOptions({ query: { month: monthStart(month), view } }));
@@ -48,6 +48,7 @@ export function BudgetsCard() {
       description={formatMonth(month)}
       query={budgets}
       skeleton="h-72"
+      className={className}
       action={
         <Link to="/finance/budgets" className={cardLink}>
           All budgets
@@ -64,12 +65,15 @@ export function BudgetsCard() {
             to see how much is left.
           </Note>
         ) : (
-          <ul className="space-y-3">
+          <ul className="grid gap-x-8 gap-y-3 sm:grid-cols-2">
             {data.overall && (
               <BudgetItem
                 name="All spending"
                 budget={data.overall}
-                className={cn('font-medium', data.budgets.length > 0 && 'border-b pb-3')}
+                className={cn(
+                  'font-medium sm:col-span-2',
+                  data.budgets.length > 0 && 'border-b pb-3',
+                )}
               />
             )}
             {data.budgets.map((budget) => (

@@ -3,8 +3,7 @@ import { Link } from '@tanstack/react-router';
 import { listUpcomingPaymentsOptions } from '@/api/@tanstack/react-query.gen';
 import { formatDate, formatMoney } from '@/lib/format';
 import { cardLink, Note, Panel } from './panel';
-
-const DAYS = 30;
+import { UPCOMING_DAYS as DAYS } from './tiles';
 
 export function UpcomingCard() {
   const upcoming = useQuery(listUpcomingPaymentsOptions({ query: { days: DAYS } }));
@@ -25,7 +24,8 @@ export function UpcomingCard() {
         if (payments.length === 0) {
           return (
             <Note>
-              Nothing is due. Payments show up here once you've confirmed recurring payments.{' '}
+              No confirmed payment is due in the next {DAYS} days. Payments show up here once you've
+              confirmed recurring payments.{' '}
               <Link to="/finance/recurring" className="underline underline-offset-4">
                 Review recurring payments
               </Link>

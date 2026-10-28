@@ -57,7 +57,7 @@ export function Panel<T>({
     <Card size="sm" className={className}>
       <CardHeader>
         <CardTitle>
-          <h2>{title}</h2>
+          <h3>{title}</h3>
         </CardTitle>
         {description && <CardDescription>{description}</CardDescription>}
         {action && <CardAction>{action}</CardAction>}

@@ -1,5 +1,6 @@
-import { cleanup, fireEvent, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, expect, test, vi } from 'vitest';
+import type { ConnectionOut } from '@/api/types.gen';
 import { formatMoney } from '@/lib/format';
 import { currentMonth, monthStart, shiftMonth } from '@/lib/months';
 import {
@@ -82,7 +83,10 @@ function oneMonthOfSpending(until: string | null) {
 
 function api(overrides: Record<string, (request: Request) => unknown> = {}) {
   return mockApi({
-    'GET /api/health': () => ({ status: 'ok', database: 'ok' }),
+    'GET /api/finance/connections': () => [
+      connection({ id: 'c-bpi', institution_name: 'Banco BPI', minutesAgo: 120 }),
+      connection({ id: 'c-revolut', institution_name: 'Revolut', minutesAgo: 30 }),
+    ],
     // 120 more than 30 days before the last day.
     'GET /api/finance/insights/net-worth': () =>
       netWorth([
@@ -129,19 +133,67 @@ function api(overrides: Record<string, (request: Request) => unknown> = {}) {
   });
 }
 
+function connection({
+  minutesAgo = 5,
+  ...overrides
+}: Partial<ConnectionOut> & { minutesAgo?: number }): ConnectionOut {
+  return {
+    id: 'c1',
+    provider: 'enable_banking',
+    institution_name: 'Banco BPI',
+    institution_country: 'PT',
+    status: 'active',
+    valid_until: '2027-04-20T12:00:00Z',
+    days_left: 170,
+    key_file: null,
+    last_synced_at: new Date(Date.now() - minutesAgo * 60_000).toISOString(),
+    syncing: false,
+    last_error: null,
+    account_ids: ['a1'],
+    ...overrides,
+  };
+}
+
+/** The queries inside the overview's weekly review, below the daily glance. */
+async function review() {
+  return within(await screen.findByRole('region', { name: 'Weekly review' }));
+}
+
 /** The queries inside one card of the overview, found by its heading. */
 async function card(title: string) {
   const heading = await screen.findByRole('heading', { name: title });
   return within(heading.closest('[data-slot="card"]') as HTMLElement);
 }
 
-test('shows the API and database status, small, at the bottom', async () => {
+test('says when each bank last synced, next to the title', async () => {
   api();
 
   renderAt('/');
 
-  expect(await screen.findByText('API ok, database ok.')).toBeDefined();
+  expect(await screen.findByText('Banco BPI synced 2 hours ago')).toBeDefined();
+  expect(screen.getByText('Revolut synced 30 minutes ago')).toBeDefined();
+  expect(screen.queryByRole('link', { name: 'Check bank connections' })).toBeNull();
   expect(screen.getByRole('heading', { name: 'Overview' })).toBeDefined();
+});
+
+test('flags a bank that needs a look, and links to the connections', async () => {
+  api({
+    'GET /api/finance/connections': () => [
+      connection({ id: 'c-bpi', institution_name: 'Banco BPI', minutesAgo: 3 * 24 * 60 }),
+      connection({ id: 'c-revolut', institution_name: 'Revolut', status: 'expired' }),
+      connection({ id: 'c-t212', institution_name: 'Trading 212', last_error: 'HTTP_500' }),
+    ],
+  });
+
+  renderAt('/');
+
+  const stale = await screen.findByText('Banco BPI synced 3 days ago');
+  expect(stale.className).toContain('text-destructive');
+  expect(screen.getByText('Revolut needs reconnecting')).toBeDefined();
+  expect(screen.getByText('Trading 212 failed its last sync')).toBeDefined();
+  expect(screen.getByRole('link', { name: 'Check bank connections' }).getAttribute('href')).toBe(
+    '/finance/connections',
+  );
 });
 
 test('says so when the API is unreachable', async () => {
@@ -154,9 +206,10 @@ test('says so when the API is unreachable', async () => {
 
   renderAt('/');
 
-  expect(await screen.findByText('The API is unreachable.')).toBeDefined();
-  // Each card says what it couldn't load.
-  expect((await screen.findAllByText("Can't reach the hub's API.")).length).toBeGreaterThan(5);
+  // Each card, and the sync line, says what it couldn't load.
+  await waitFor(() =>
+    expect(screen.getAllByText("Can't reach the hub's API.").length).toBeGreaterThan(5),
+  );
 });
 
 test('shows net worth with its change over 30 days', async () => {
@@ -205,14 +258,15 @@ test('says how many holding-days net worth left out for want of a price', async 
   ).toBeDefined();
 });
 
-test('shows what was spent of what is budgeted this month', async () => {
+test('shows what is left of what is budgeted this month, and how fast it is going', async () => {
   api();
 
   renderAt('/');
 
   const tile = await card('This month');
-  expect(await tile.findByText('€550.00')).toBeDefined();
-  expect(tile.getByText('of €670.00 budgeted')).toBeDefined();
+  expect((await tile.findByText('€120.00')).textContent).toBe('€120.00 left');
+  expect(tile.getByText('€550.00 spent of €670.00 budgeted')).toBeDefined();
+  expect(tile.getByText(/^82% spent, \d+% of the month gone$/)).toBeDefined();
   expect(tile.queryByRole('link', { name: 'Set budgets' })).toBeNull();
 });
 
@@ -243,16 +297,18 @@ const overall = overallBudget({
   remaining: '300.00',
 });
 
-test('shows what was spent of the overall budget this month, when there is one', async () => {
+test('shows what is left of the overall budget this month, when there is one', async () => {
   api({ 'GET /api/finance/budgets': () => ({ ...budgets, overall }) });
 
   renderAt('/');
 
   const tile = await card('This month');
-  const figure = await tile.findByText('€1,800.00');
+  const figure = await tile.findByText('€300.00');
+  expect(figure.textContent).toBe('€300.00 left');
   expect(figure.className).not.toContain('text-destructive');
-  expect(tile.getByText('of €2,100.00 available')).toBeDefined();
-  expect(tile.queryByText('€550.00')).toBeNull(); // not the category budgets' total
+  expect(tile.getByText('€1,800.00 spent of €2,100.00 available')).toBeDefined();
+  expect(tile.getByText(/^86% spent/)).toBeDefined();
+  expect(tile.queryByText(/€550\.00/)).toBeNull(); // not the category budgets' total
 });
 
 test('marks the overall budget when it is over', async () => {
@@ -261,7 +317,7 @@ test('marks the overall budget when it is over', async () => {
 
   renderAt('/');
 
-  expect((await (await card('This month')).findByText('€1,800.00')).className).toContain(
+  expect((await (await card('This month')).findByText('Over by €300.00')).className).toContain(
     'text-destructive',
   );
   const bar = (await card('Budgets this month')).getByRole('progressbar', {
@@ -292,16 +348,16 @@ test('lists the overall budget alone when no category has a budget', async () =>
   expect(await budgetsCard.findByText('€1,800.00 of €2,100.00')).toBeDefined();
   expect(budgetsCard.queryByText(/No budgets yet/)).toBeNull();
   const tile = await card('This month');
-  expect(await tile.findByText('of €2,100.00 available')).toBeDefined();
+  expect(await tile.findByText('€1,800.00 spent of €2,100.00 available')).toBeDefined();
   expect(tile.queryByRole('link', { name: 'Set budgets' })).toBeNull();
 });
 
-test('counts what still needs a category this month, and links to it', async () => {
+test('counts what still needs a category this month in the weekly review, and links to it', async () => {
   const calls = api();
 
   renderAt('/');
 
-  const tile = await card('To categorize');
+  const tile = await review();
   expect(await tile.findByText('3')).toBeDefined();
   expect(tile.getByRole('link', { name: 'Review' }).getAttribute('href')).toBe(
     `/finance/transactions?category=uncategorized&from=${month}-01`,
@@ -325,7 +381,7 @@ test('links to the categories an AI suggested, whatever their month, for review'
 
   renderAt('/');
 
-  const tile = await card('To categorize');
+  const tile = await review();
   const link = await tile.findByRole('link', { name: '2 suggested by AI to review' });
   expect(link.getAttribute('href')).toBe('/finance/transactions?category=suggested');
   expect(tile.getByText('Everything this month has a category.')).toBeDefined();
@@ -334,14 +390,14 @@ test('links to the categories an AI suggested, whatever their month, for review'
   expect(request?.search.has('date_from')).toBe(false);
 });
 
-test('says 200+ when there are more than a page of them', async () => {
+test('says over 200 when there are more than a page of them', async () => {
   api({
     'GET /api/finance/transactions': () => ({ items: [transaction('t1')], next_cursor: 'more' }),
   });
 
   renderAt('/');
 
-  expect(await (await card('To categorize')).findByText('200+')).toBeDefined();
+  expect(await (await review()).findByText('Over 200')).toBeDefined();
 });
 
 test('lists each budget against what is available, marking one that is over', async () => {
@@ -393,6 +449,26 @@ test('lists the expense payments due, with a total', async () => {
   expect(upcoming.getByText(formatMoney('-5.00', 'USD'))).toBeDefined();
   expect(upcoming.getByText('-€42.99')).toBeDefined();
   expect(upcoming.getByText(/leaves out 1 in another currency/)).toBeDefined();
+});
+
+test('shows the next payment due at a glance', async () => {
+  api();
+
+  renderAt('/');
+
+  const tile = await card('Next payment');
+  expect(await tile.findByText('-€12.99')).toBeDefined();
+  expect(tile.getByText('Netflix, 25 Oct 2026')).toBeDefined();
+});
+
+test('says when no confirmed payment is due', async () => {
+  api({ 'GET /api/finance/recurring/upcoming': () => [] });
+
+  renderAt('/');
+
+  expect(
+    await (await card('Next payment')).findByText('No confirmed payment in the next 30 days.'),
+  ).toBeDefined();
 });
 
 test('explains where upcoming payments come from when there are none', async () => {
