@@ -37,8 +37,8 @@ export function HomePage() {
         </div>
         <div className="grid gap-4 lg:grid-cols-2">
           <SpendingCard />
-          <SpendingDonutCard />
           <CashFlowCard />
+          <SpendingDonutCard />
           <NetWorthCard />
         </div>
       </section>

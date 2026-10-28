@@ -43,11 +43,13 @@ export function UpcomingCard() {
                   key={`${payment.series_id}-${payment.on}`}
                   className="flex items-baseline justify-between gap-3 py-1.5"
                 >
-                  <span className="min-w-0">
-                    <span className="mr-2 text-xs text-muted-foreground tabular-nums">
+                  <span className="flex min-w-0 items-baseline gap-2">
+                    <span className="shrink-0 text-xs whitespace-nowrap text-muted-foreground tabular-nums">
                       {formatDate(payment.on)}
                     </span>
-                    <span className="truncate">{payment.name}</span>
+                    <span className="truncate" title={payment.name}>
+                      {payment.name}
+                    </span>
                   </span>
                   <span className="shrink-0 tabular-nums">
                     {payment.amount_eur !== null

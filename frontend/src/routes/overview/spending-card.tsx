@@ -12,7 +12,7 @@ import {
 import { formatCompactMoney, formatMoney, formatMonth } from '@/lib/format';
 import { useView } from '@/lib/view';
 import { spendingChart } from './chart-data';
-import { Note, Panel } from './panel';
+import { ChartTable, Note, Panel } from './panel';
 
 export function SpendingCard() {
   const { view } = useView();
@@ -67,6 +67,7 @@ export function SpendingCard() {
                 ))}
               </BarChart>
             </ChartContainer>
+            <ChartTable caption="Spending by category, per month" rows={rows} series={series} />
             {data.unconverted > 0 && (
               <Note className="mt-2">
                 {data.unconverted} {data.unconverted === 1 ? 'transaction is' : 'transactions are'}{' '}

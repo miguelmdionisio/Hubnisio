@@ -422,17 +422,26 @@ test('charts spending by category and income against spending', async () => {
 
   renderAt('/');
 
+  // The legend names the series (the groups, then what has no category); a table repeats the
+  // chart for screen readers.
+  const legend = { ignore: 'script, style, table *' };
   const spendingCard = await card('Spending by category');
-  // The legend names the series: the groups, then what has no category.
-  expect(await spendingCard.findByText('Food')).toBeDefined();
-  expect(spendingCard.getByText('Housing')).toBeDefined();
-  expect(spendingCard.getByText('Uncategorized')).toBeDefined();
+  expect(await spendingCard.findByText('Food', legend)).toBeDefined();
+  expect(spendingCard.getByText('Housing', legend)).toBeDefined();
+  expect(spendingCard.getByText('Uncategorized', legend)).toBeDefined();
   expect(spendingCard.getByText(/2 transactions are left out/)).toBeDefined();
+  const spendingTable = spendingCard.getByRole('table', {
+    name: 'Spending by category, per month',
+  });
+  expect(within(spendingTable).getByRole('columnheader', { name: 'Food' })).toBeDefined();
 
   const flowCard = await card('Income vs spending');
-  expect(await flowCard.findByText('Income')).toBeDefined();
-  expect(flowCard.getByText('Spending')).toBeDefined();
-  expect(flowCard.getByText('Net')).toBeDefined();
+  expect(await flowCard.findByText('Income', legend)).toBeDefined();
+  expect(flowCard.getByText('Spending', legend)).toBeDefined();
+  expect(flowCard.getByText('Net', legend)).toBeDefined();
+  const flowTable = flowCard.getByRole('table', { name: 'Income, spending and net, per month' });
+  expect(within(flowTable).getAllByRole('row')).toHaveLength(4); // a header, then 3 months
+  expect(within(flowTable).getByRole('cell', { name: '€1,234.50' })).toBeDefined();
 });
 
 test('lists the expense payments due, with a total', async () => {
