@@ -61,6 +61,8 @@ export function SpendingCard() {
                     dataKey={item.key}
                     stackId="spending"
                     fill={`var(--color-${item.key})`}
+                    stroke="var(--card)"
+                    strokeWidth={2}
                   />
                 ))}
               </BarChart>

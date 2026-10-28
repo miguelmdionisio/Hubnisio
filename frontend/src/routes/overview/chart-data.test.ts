@@ -11,7 +11,7 @@ import {
 
 const months = ['2026-08-01', '2026-10-01'];
 
-test('stacks the six biggest groups, then Other, then Uncategorized', () => {
+test('stacks the five biggest groups, then Other, then Uncategorized', () => {
   // Eight groups, ranked by their total over the months.
   const groups = [
     spendingGroup('g1', 'Fun', ['10.00', '10.00']),
@@ -32,18 +32,17 @@ test('stacks the six biggest groups, then Other, then Uncategorized', () => {
     'Car',
     'Health',
     'Gifts',
-    'Fun',
     'Other',
     'Uncategorized',
   ]);
   expect(series[0]?.color).toBe('var(--chart-1)');
-  expect(series[5]?.color).toBe('var(--chart-6)');
-  expect(series[6]?.color).toBe('var(--chart-other)');
+  expect(series[4]?.color).toBe('var(--chart-5)');
+  expect(series[5]?.color).toBe('var(--chart-other)');
   expect(rows).toHaveLength(2);
   expect(rows[0]).toMatchObject({ label: 'Aug', group0: 500, group1: 300, uncategorized: 12.5 });
-  // Pets + Tech: 5 + 7, then 5 + 3.
-  expect(rows[0]?.other).toBe(12);
-  expect(rows[1]?.other).toBe(8);
+  // Fun + Pets + Tech: 10 + 5 + 7, then 10 + 5 + 3.
+  expect(rows[0]?.other).toBe(22);
+  expect(rows[1]?.other).toBe(18);
 });
 
 test('keeps a group that nets below zero negative, and ranks groups by size either way', () => {

@@ -9,6 +9,8 @@ export type Series = { key: string; label: string; color: string };
 const sum = (amounts: string[]) => amounts.reduce((total, amount) => total + Number(amount), 0);
 
 const TOP_GROUPS = 6; // as many as there are `--chart-N` colours
+/** Fewer in a stacked bar: past five segments, a month's stack can't be read. */
+const STACKED_GROUPS = 5;
 
 /**
  * Stacked monthly bars: the biggest spending groups over the whole period, "Other" for the
@@ -18,7 +20,7 @@ const TOP_GROUPS = 6; // as many as there are `--chart-N` colours
  */
 export function spendingChart(
   spending: Spending,
-  topGroups = TOP_GROUPS,
+  topGroups = STACKED_GROUPS,
 ): { rows: Row[]; series: Series[] } {
   // By size, whichever way: a group of repayments is as big as one of spending.
   const ranked = spending.groups
@@ -236,12 +238,12 @@ export function netWorthChange(
 }
 
 /** A few evenly spread dates to label a time axis with. */
-export function axisTicks(points: NetWorthPoint[], count = 5): string[] {
+export function axisTicks(points: { on: string }[], count = 5): string[] {
   if (points.length === 0) return [];
   const steps = Math.min(count, points.length) - 1;
   const ticks = Array.from({ length: steps + 1 }, (_, step) => {
     const index = steps === 0 ? 0 : Math.round((step * (points.length - 1)) / steps);
-    return (points[index] as NetWorthPoint).on;
+    return (points[index] as { on: string }).on;
   });
   return [...new Set(ticks)];
 }
