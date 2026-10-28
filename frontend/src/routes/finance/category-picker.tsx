@@ -51,6 +51,9 @@ export function CategoryPicker({
   className,
   noneLabel = 'Automatic (rules and merchant)',
   kind,
+  open: openProp,
+  onOpenChange,
+  label,
 }: {
   value: string | null;
   onChange: (categoryId: string | null) => void;
@@ -59,8 +62,16 @@ export function CategoryPicker({
   className?: string;
   noneLabel?: string | null;
   kind?: CategoryGroupOut['kind'];
+  open?: boolean; // to open it from outside, as a keyboard shortcut does
+  onOpenChange?: (open: boolean) => void;
+  label?: string; // the trigger's accessible name, when its text alone is ambiguous
 }) {
-  const [open, setOpen] = useState(false);
+  const [openState, setOpenState] = useState(false);
+  const open = openProp ?? openState;
+  const setOpen = (next: boolean) => {
+    setOpenState(next);
+    onOpenChange?.(next);
+  };
   const categories = useCategories();
   const groups = activeGroups(categories.data).filter((group) => !kind || group.kind === kind);
   const choose = (categoryId: string | null) => {
@@ -75,6 +86,7 @@ export function CategoryPicker({
           variant="ghost"
           size="sm"
           disabled={disabled}
+          aria-label={label}
           className={cn('h-7 max-w-52 justify-between gap-1 px-2 font-normal', className)}
         >
           <span className="truncate">{children}</span>

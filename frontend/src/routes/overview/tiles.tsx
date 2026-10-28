@@ -177,7 +177,7 @@ export function ToCategorize() {
               uncategorized this month.{' '}
               <Link
                 to="/finance/transactions"
-                search={{ category: 'uncategorized', from }}
+                search={{ view: 'review' }}
                 className="underline underline-offset-4"
               >
                 Review
@@ -190,7 +190,7 @@ export function ToCategorize() {
         <p>
           <Link
             to="/finance/transactions"
-            search={{ category: 'suggested' }}
+            search={{ view: 'review' }}
             className="underline underline-offset-4"
           >
             {suggested.data?.next_cursor ? `Over ${UNCATEGORIZED_LIMIT}` : suggestedCount} suggested

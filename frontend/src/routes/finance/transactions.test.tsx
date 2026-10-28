@@ -2,7 +2,11 @@ import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/re
 import { afterEach, expect, test, vi } from 'vitest';
 import type { TransactionCategory } from '@/api/types.gen';
 import { account, categories, transaction } from '@/test/fixtures';
-import { mockApi, renderAt } from '@/test/render';
+import { type ApiCall, mockApi, renderAt } from '@/test/render';
+
+/** The table's own request for a page, not the review queue's (which asks for 200 at a time). */
+const tablePage = (call: ApiCall) =>
+  call.path === '/api/finance/transactions' && call.search.get('limit') === '50';
 
 afterEach(() => {
   cleanup();
@@ -114,9 +118,7 @@ test('search goes into the URL and the query', async () => {
 
   await waitFor(() => expect(router.state.location.search).toEqual({ q: 'padaria' }));
   await waitFor(() => expect(calls.some((call) => call.search.get('q') === 'padaria')).toBe(true));
-  expect(calls.find((call) => call.path === '/api/finance/transactions')?.search.get('q')).toBe(
-    'cafe',
-  );
+  expect(calls.find(tablePage)?.search.get('q')).toBe('cafe');
 });
 
 test('limits the list to the dates in the URL, and clears them', async () => {
@@ -125,7 +127,7 @@ test('limits the list to the dates in the URL, and clears them', async () => {
 
   const clear = await screen.findByRole('button', { name: /Clear dates/ });
   expect(clear.textContent).toBe('Clear dates (1 Oct 2026 to 31 Oct 2026)');
-  const first = calls.find((call) => call.path === '/api/finance/transactions');
+  const first = calls.find(tablePage);
   expect(first?.search.get('date_from')).toBe('2026-10-01');
   expect(first?.search.get('date_to')).toBe('2026-10-31');
 
@@ -144,7 +146,7 @@ test('ignores dates that are not real', async () => {
 
   await screen.findByText('Supermercado Exemplo');
   expect(router.state.location.search).toEqual({});
-  const first = calls.find((call) => call.path === '/api/finance/transactions');
+  const first = calls.find(tablePage);
   expect(first?.search.has('date_from')).toBe(false);
   expect(first?.search.has('date_to')).toBe(false);
 });
@@ -170,7 +172,7 @@ test('lists the categories an AI suggested, marked as such', async () => {
   const row = (await screen.findByText('Mercado')).closest('tr') as HTMLElement;
   expect(within(row).getByTitle('suggested by AI').textContent).toBe('GroceriesAI');
   expect(screen.getByRole('combobox', { name: 'Category' }).textContent).toBe('Suggested by AI');
-  const request = calls.find((call) => call.path === '/api/finance/transactions');
+  const request = calls.find(tablePage);
   expect(request?.search.get('source')).toBe('ai');
   expect(request?.search.has('category_id')).toBe(false);
   expect(request?.search.has('uncategorized')).toBe(false);

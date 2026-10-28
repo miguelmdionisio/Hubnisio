@@ -360,7 +360,7 @@ test('counts what still needs a category this month in the weekly review, and li
   const tile = await review();
   expect(await tile.findByText('3')).toBeDefined();
   expect(tile.getByRole('link', { name: 'Review' }).getAttribute('href')).toBe(
-    `/finance/transactions?category=uncategorized&from=${month}-01`,
+    '/finance/transactions?view=review',
   );
   const request = calls.find(
     (call) => call.path === '/api/finance/transactions' && !call.search.has('source'),
@@ -383,7 +383,7 @@ test('links to the categories an AI suggested, whatever their month, for review'
 
   const tile = await review();
   const link = await tile.findByRole('link', { name: '2 suggested by AI to review' });
-  expect(link.getAttribute('href')).toBe('/finance/transactions?category=suggested');
+  expect(link.getAttribute('href')).toBe('/finance/transactions?view=review');
   expect(tile.getByText('Everything this month has a category.')).toBeDefined();
   const request = calls.find((call) => call.search.get('source') === 'ai');
   expect(request?.path).toBe('/api/finance/transactions');

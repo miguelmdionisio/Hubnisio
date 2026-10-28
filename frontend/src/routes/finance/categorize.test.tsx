@@ -1,7 +1,11 @@
 import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, expect, test, vi } from 'vitest';
 import { account, categories, transaction } from '@/test/fixtures';
-import { mockApi, renderAt } from '@/test/render';
+import { type ApiCall, mockApi, renderAt } from '@/test/render';
+
+/** The table's own request for a page, not the review queue's (which asks for 200 at a time). */
+const tablePage = (call: ApiCall) =>
+  call.path === '/api/finance/transactions' && call.search.get('limit') === '50';
 
 afterEach(() => {
   cleanup();
@@ -125,7 +129,7 @@ test('kind and category filters come from the URL', async () => {
   renderAt('/finance/transactions?kind=expense&category=uncategorized');
 
   await screen.findByText('Continente');
-  const query = calls.find((call) => call.path === '/api/finance/transactions')?.search;
+  const query = calls.find(tablePage)?.search;
   expect(query?.get('kind')).toBe('expense');
   expect(query?.get('uncategorized')).toBe('true');
   expect(query?.get('category_id')).toBeNull();
