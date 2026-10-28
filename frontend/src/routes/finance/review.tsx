@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
-import { ArrowLeftRight, Check, CircleCheck, Keyboard, SkipForward, Split } from 'lucide-react';
+import { Check, CircleCheck, Keyboard, SkipForward, Split } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { listTransactionsQueryKey } from '@/api/@tanstack/react-query.gen';
@@ -63,38 +63,42 @@ export function useReviewQueue() {
   });
 }
 
-type Decision = { kind: 'category'; categoryId: string; name: string } | { kind: 'transfer' };
+/** The category chosen for a group. A rare transfer is marked from the transaction's sheet. */
+type Decision = { categoryId: string; name: string };
 
 function describe(decision: Decision, group: ReviewGroup): string {
   const count = group.transactions.length;
-  const what = decision.kind === 'category' ? decision.name : 'Transfer';
-  return count === 1 ? `${what}: ${group.title}` : `${what} for ${count} from ${group.title}`;
+  return count === 1
+    ? `${decision.name}: ${group.title}`
+    : `${decision.name} for ${count} from ${group.title}`;
 }
 
 /** Decide a whole group at once; undo puts its transactions back in the queue. */
 function useDecide() {
   const queryClient = useQueryClient();
-  const send = (ids: string[], body: { category_id?: string | null; kind?: 'transfer' | null }) =>
+  const send = (ids: string[], categoryId: string | null) =>
     Promise.all(
       ids.map((id) =>
-        updateTransaction({ path: { transaction_id: id }, body, throwOnError: true }),
+        updateTransaction({
+          path: { transaction_id: id },
+          body: { category_id: categoryId },
+          throwOnError: true,
+        }),
       ),
     );
   const decide = useMutation({
     mutationFn: ({ group, decision }: { group: ReviewGroup; decision: Decision }) =>
       send(
         group.transactions.map((transaction) => transaction.id),
-        decision.kind === 'category'
-          ? { category_id: decision.categoryId }
-          : { kind: 'transfer', category_id: null },
+        decision.categoryId,
       ),
     onSettled: () => invalidateUserLayer(queryClient),
   });
   const undo = useMutation({
-    mutationFn: ({ group, decision }: { group: ReviewGroup; decision: Decision }) =>
+    mutationFn: (group: ReviewGroup) =>
       send(
         group.transactions.map((transaction) => transaction.id),
-        decision.kind === 'category' ? { category_id: null } : { kind: null },
+        null,
       ),
     onSettled: () => invalidateUserLayer(queryClient),
   });
@@ -125,9 +129,7 @@ export function ReviewQueue() {
   const [openId, setOpenId] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
   const [position, setPosition] = useState(0);
-  const last = useRef<{ group: ReviewGroup; decision: Decision; hadSuggestion: boolean } | null>(
-    null,
-  );
+  const last = useRef<{ group: ReviewGroup; hadSuggestion: boolean } | null>(null);
   const cardRef = useRef<HTMLElement>(null);
 
   const items = queue.data?.items ?? [];
@@ -174,9 +176,9 @@ export function ReviewQueue() {
           const hadSuggestion = group.transactions.some(
             (transaction) => transaction.category?.source === 'ai',
           );
-          last.current = { group, decision, hadSuggestion };
+          last.current = { group, hadSuggestion };
           toast.success(describe(decision, group), {
-            action: { label: 'Undo', onClick: () => revert(group, decision, hadSuggestion) },
+            action: { label: 'Undo', onClick: () => revert(group, hadSuggestion) },
           });
         },
         onError: (error) => {
@@ -187,28 +189,25 @@ export function ReviewQueue() {
     );
   };
 
-  const revert = (group: ReviewGroup, decision: Decision, hadSuggestion: boolean) =>
-    undo.mutate(
-      { group, decision },
-      {
-        onSuccess: () => {
-          hide(group, false);
-          setDecided((count) => Math.max(count - 1, 0));
-          toast(
-            'Back in the queue.',
-            hadSuggestion && decision.kind === 'category'
-              ? { description: "The AI's suggestion is gone: it's uncategorized now." }
-              : undefined,
-          );
-        },
-        onError: (error) => toast.error(errorMessage(error)),
+  const revert = (group: ReviewGroup, hadSuggestion: boolean) =>
+    undo.mutate(group, {
+      onSuccess: () => {
+        hide(group, false);
+        setDecided((count) => Math.max(count - 1, 0));
+        toast(
+          'Back in the queue.',
+          hadSuggestion
+            ? { description: "The AI's suggestion is gone: it's uncategorized now." }
+            : undefined,
+        );
       },
-    );
+      onError: (error) => toast.error(errorMessage(error)),
+    });
 
   const approve = (group: ReviewGroup) => {
     const { suggestion } = group;
     if (suggestion && suggestion !== 'mixed') {
-      apply(group, { kind: 'category', categoryId: suggestion.id, name: suggestion.name });
+      apply(group, { categoryId: suggestion.id, name: suggestion.name });
     }
   };
   const skip = (group: ReviewGroup) =>
@@ -225,7 +224,6 @@ export function ReviewQueue() {
       k: () => setPosition(Math.max(index - 1, 0)),
       a: () => approve(focused),
       c: () => setPickerOpen(true),
-      t: () => apply(focused, { kind: 'transfer' }),
       s: () => skip(focused),
       x: () => {
         const [first] = focused.transactions;
@@ -235,7 +233,7 @@ export function ReviewQueue() {
       u: () => {
         const undoable = last.current;
         last.current = null;
-        if (undoable) revert(undoable.group, undoable.decision, undoable.hadSuggestion);
+        if (undoable) revert(undoable.group, undoable.hadSuggestion);
       },
     };
     const action = actions[event.key === 'Enter' ? 'enter' : event.key];
@@ -296,8 +294,7 @@ export function ReviewQueue() {
         pickerOpen={pickerOpen}
         onPickerOpenChange={setPickerOpen}
         onApprove={() => approve(focused)}
-        onChoose={(categoryId, name) => apply(focused, { kind: 'category', categoryId, name })}
-        onTransfer={() => apply(focused, { kind: 'transfer' })}
+        onChoose={(categoryId, name) => apply(focused, { categoryId, name })}
         onSkip={() => skip(focused)}
         onOpen={setOpenId}
         onSplit={splitOut}
@@ -351,7 +348,6 @@ function ReviewCard({
   onPickerOpenChange,
   onApprove,
   onChoose,
-  onTransfer,
   onSkip,
   onOpen,
   onSplit,
@@ -366,7 +362,6 @@ function ReviewCard({
   onPickerOpenChange: (open: boolean) => void;
   onApprove: () => void;
   onChoose: (categoryId: string, name: string) => void;
-  onTransfer: () => void;
   onSkip: () => void;
   onOpen: (transactionId: string) => void;
   onSplit: (transaction: TransactionOut) => void;
@@ -488,20 +483,12 @@ function ReviewCard({
             'h-11 max-w-none justify-center font-medium md:h-9',
             suggested
               ? 'border border-input bg-background'
-              : 'col-span-2 bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground',
+              : 'bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground',
           )}
         >
           {suggested ? 'Other category' : 'Choose category'}
         </CategoryPicker>
-        <Button variant="outline" className="h-11 md:h-9" disabled={busy} onClick={onTransfer}>
-          <ArrowLeftRight aria-hidden />
-          Transfer
-        </Button>
-        <Button
-          variant="ghost"
-          className={cn('h-11 md:h-9', suggested && 'col-span-2 md:col-span-1')}
-          onClick={onSkip}
-        >
+        <Button variant="ghost" className="h-11 md:h-9" onClick={onSkip}>
           <SkipForward aria-hidden />
           Skip
         </Button>
@@ -530,7 +517,6 @@ function QueueEmpty({ afterWork }: { afterWork: boolean }) {
 const KEYS: [string, string][] = [
   ['a', 'Approve the suggestion'],
   ['c', 'Choose a category'],
-  ['t', 'Transfer between own accounts'],
   ['s', 'Skip for now'],
   ['x', 'Split out the newest'],
   ['Enter', 'Open the newest'],

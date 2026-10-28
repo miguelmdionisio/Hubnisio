@@ -22,7 +22,7 @@ const groceries: TransactionCategory = {
 };
 const merchant = (id: string, name: string) => ({ id, name, source: null });
 
-// This month: three from one shop (all suggested Groceries) and a lone transfer-looking one;
+// This month: three from one shop (all suggested Groceries) and a lone one with no merchant;
 // last month: one more from the shop.
 const shop = merchant('m-shop', 'Mercado Exemplo');
 const open = [
@@ -125,22 +125,17 @@ test('approves a whole group at once, then moves on, and can undo it', async () 
   );
 });
 
-test('marks a transfer by key, and skips with s', async () => {
+test('skips with s, deciding nothing, and offers no transfer button', async () => {
   const calls = api();
 
   renderAt('/finance/transactions?view=review');
 
-  await screen.findByRole('region', { name: 'Mercado Exemplo' });
+  const card = await screen.findByRole('region', { name: 'Mercado Exemplo' });
+  expect(within(card).queryByRole('button', { name: /Transfer/ })).toBeNull();
   fireEvent.keyDown(window, { key: 's' });
-  expect(await screen.findByRole('region', { name: 'TRF P2P 123' })).toBeDefined();
-  fireEvent.keyDown(window, { key: 't' });
 
-  await waitFor(() =>
-    expect(calls.find((call) => call.method === 'PATCH')).toMatchObject({
-      path: '/api/finance/transactions/t4',
-      body: { kind: 'transfer', category_id: null },
-    }),
-  );
+  expect(await screen.findByRole('region', { name: 'TRF P2P 123' })).toBeDefined();
+  expect(calls.some((call) => call.method === 'PATCH')).toBe(false);
 });
 
 test('says when there is nothing to review', async () => {
