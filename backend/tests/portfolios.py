@@ -38,6 +38,7 @@ class Trade:
     side: str = "BUY"
     fill_type: str = "TRADE"
     hour: int = 12  # UTC
+    tax: str | None = None  # a currency conversion fee in euros, negative as Trading 212 sends it
 
 
 async def new_instrument(
@@ -71,7 +72,7 @@ async def investment_account(
     total_value: str,
     holdings: dict[uuid.UUID, tuple[str, str]] | None = None,  # quantity, current price
     trades: list[Trade] | None = None,
-    movements: dict[date, str] | None = None,
+    movements: dict[date, str | tuple[str, str]] | None = None,  # an amount, or with a bank code
     visibility: AccountVisibility = AccountVisibility.SHARED,
     include_in_net_worth: bool = True,
     name: str = "Trading 212 EUR",
@@ -126,12 +127,23 @@ async def investment_account(
                 price=Decimal(trade.price),
                 currency="EUR",
                 net_value=Decimal(trade.net_value),
+                taxes=[
+                    {
+                        "name": "CURRENCY_CONVERSION_FEE",
+                        "amount": trade.tax,
+                        "currency": "EUR",
+                        "charged_at": None,
+                    }
+                ]
+                if trade.tax
+                else [],
                 payload_id=home.payload_id,
             )
             for trade in trades or []
         )
-    for on, amount in (movements or {}).items():
-        await add(home, amount, 0, on=on, account=account.id)
+    for on, movement in (movements or {}).items():
+        amount, code = movement if isinstance(movement, tuple) else (movement, None)
+        await add(home, amount, 0, on=on, account=account.id, bank_code=code)
     return account.id
 
 

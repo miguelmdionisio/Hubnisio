@@ -1,11 +1,28 @@
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, type UseQueryResult, useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
-import type { ReactNode } from 'react';
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
-import { getInvestmentsOptions } from '@/api/@tanstack/react-query.gen';
-import type { Holding, InvestmentAccount, InvestmentCheck } from '@/api/types.gen';
+import { type ReactNode, useState } from 'react';
+import { Area, Bar, BarChart, CartesianGrid, ComposedChart, Line, XAxis, YAxis } from 'recharts';
+import {
+  getInvestmentReturnsOptions,
+  getInvestmentsOptions,
+} from '@/api/@tanstack/react-query.gen';
+import type {
+  Holding,
+  InvestmentAccount,
+  InvestmentCheck,
+  InvestmentReturns,
+  InvestmentReturnsOut,
+  ReturnGap,
+} from '@/api/types.gen';
 import { PageHeader } from '@/components/app-shell';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import {
   type ChartConfig,
   ChartContainer,
@@ -22,6 +39,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   formatCompactMoney,
   formatDate,
@@ -33,6 +51,7 @@ import {
   formatRelative,
 } from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { axisTicks } from '../overview/chart-data';
 import { Note, QueryView } from '../overview/panel';
 
 const MONTHS = 12;
@@ -42,9 +61,39 @@ const incomeConfig = {
   interest: { label: 'Interest', color: 'var(--chart-4)' },
 } satisfies ChartConfig;
 
-/** Investment accounts as of their latest sync (ADR-0008): figures, holdings, and income. */
+const valueConfig = {
+  value: { label: 'Value', color: 'var(--chart-1)' },
+  net_deposits: { label: 'Net deposits', color: 'var(--chart-3)' },
+} satisfies ChartConfig;
+
+type Period = 'all' | 'year' | '12m';
+
+const PERIODS: { value: Period; label: string }[] = [
+  { value: 'all', label: 'All time' },
+  { value: 'year', label: 'This year' },
+  { value: '12m', label: '12 months' },
+];
+
+/** The period's first day; none for all time, which starts at the account's first movement. */
+function periodStart(period: Period, today = new Date()): string | undefined {
+  if (period === 'all') return undefined;
+  const start =
+    period === 'year'
+      ? new Date(today.getFullYear(), 0, 1)
+      : new Date(today.getFullYear() - 1, today.getMonth(), today.getDate() + 1);
+  const month = String(start.getMonth() + 1).padStart(2, '0');
+  return `${start.getFullYear()}-${month}-${String(start.getDate()).padStart(2, '0')}`;
+}
+
+/** Investment accounts as of their latest sync (ADR-0008): figures, holdings, income, and
+ * returns over a period. */
 export function InvestmentsPage() {
   const investments = useQuery(getInvestmentsOptions({ query: { months: MONTHS } }));
+  const [period, setPeriod] = useState<Period>('all');
+  const returns = useQuery({
+    ...getInvestmentReturnsOptions({ query: { date_from: periodStart(period) } }),
+    placeholderData: keepPreviousData,
+  });
   return (
     <>
       <PageHeader
@@ -66,7 +115,19 @@ export function InvestmentsPage() {
           ) : (
             <div className="space-y-10">
               {data.accounts.map((account) => (
-                <AccountSection key={account.id} account={account} months={data.months} />
+                <AccountSection
+                  key={account.id}
+                  account={account}
+                  months={data.months}
+                  returns={
+                    <ReturnsCard
+                      id={account.id}
+                      query={returns}
+                      period={period}
+                      onPeriod={setPeriod}
+                    />
+                  }
+                />
               ))}
             </div>
           )
@@ -76,7 +137,15 @@ export function InvestmentsPage() {
   );
 }
 
-function AccountSection({ account, months }: { account: InvestmentAccount; months: string[] }) {
+function AccountSection({
+  account,
+  months,
+  returns,
+}: {
+  account: InvestmentAccount;
+  months: string[];
+  returns: ReactNode;
+}) {
   const money = (amount: string) => formatMoney(amount, account.currency);
   return (
     <section aria-labelledby={`account-${account.id}`} className="space-y-4">
@@ -133,6 +202,7 @@ function AccountSection({ account, months }: { account: InvestmentAccount; month
         </div>
       )}
       {account.holdings.length > 0 && <Holdings holdings={account.holdings} money={money} />}
+      {account.as_of !== null && returns}
       {account.check && account.value !== null && (
         <CheckCard check={account.check} value={account.value} money={money} />
       )}
@@ -292,6 +362,256 @@ function CheckCard({
         )}
       </CardContent>
     </Card>
+  );
+}
+
+const GAPS: Record<ReturnGap, string> = {
+  no_money: 'Nothing was invested in this period.',
+  no_value: "No exchange rate for the account's currency at the period's start or end.",
+  no_solution: "No single rate fits this period's money in and out.",
+};
+
+/** The account's result over a period, broken down; both returns; and its value against what
+ * went in (ADR-0008, "Returns"). */
+function ReturnsCard({
+  id,
+  query,
+  period,
+  onPeriod,
+}: {
+  id: string;
+  query: UseQueryResult<InvestmentReturnsOut, unknown>;
+  period: Period;
+  onPeriod: (period: Period) => void;
+}) {
+  const shown = query.data?.accounts.find((account) => account.id === id);
+  return (
+    <Card size="sm">
+      <CardHeader>
+        <CardTitle>
+          <h3>Returns</h3>
+        </CardTitle>
+        <CardDescription>
+          {shown?.date_from && shown.date_to
+            ? `${formatDate(shown.date_from)} to ${formatDate(shown.date_to)}`
+            : 'Over the period'}
+        </CardDescription>
+        <CardAction>
+          <Tabs value={period} onValueChange={(value) => onPeriod(value as Period)}>
+            <TabsList>
+              {PERIODS.map((option) => (
+                <TabsTrigger key={option.value} value={option.value}>
+                  {option.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
+        </CardAction>
+      </CardHeader>
+      <CardContent>
+        <QueryView query={query} skeleton="h-72">
+          {() =>
+            shown?.date_from ? (
+              <Returns returns={shown} />
+            ) : (
+              <Note>Returns show once the account's history is read.</Note>
+            )
+          }
+        </QueryView>
+      </CardContent>
+    </Card>
+  );
+}
+
+function Returns({ returns }: { returns: InvestmentReturns }) {
+  const money = (amount: string) => formatMoney(amount, returns.currency);
+  const { breakdown, start_value: start, end_value: end } = returns;
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <ReturnFigure
+          title="Time-weighted return"
+          rate={returns.time_weighted}
+          annual={returns.time_weighted_annual}
+          gap={returns.time_weighted_gap}
+          explanation="How the investments did, whatever the timing of deposits and withdrawals."
+        />
+        <ReturnFigure
+          title="Money-weighted return"
+          rate={returns.money_weighted}
+          annual={returns.money_weighted_annual}
+          gap={returns.money_weighted_gap}
+          explanation="What your money earned, given when it went in and came out."
+        />
+      </div>
+      {breakdown && start !== null && end !== null && (
+        <dl className="grid max-w-md grid-cols-[1fr_auto] gap-x-6 gap-y-1 text-sm">
+          <BreakdownLine label="Value at the start">{money(start)}</BreakdownLine>
+          <BreakdownLine label="Net deposits">{signed(returns.net_deposits, money)}</BreakdownLine>
+          <BreakdownLine label="Result" strong tone={breakdown.total}>
+            {signed(breakdown.total, money)}
+          </BreakdownLine>
+          <Part label="Price movements, realised" amount={breakdown.realised} money={money} />
+          <Part label="Price movements, unrealised" amount={breakdown.unrealised} money={money} />
+          <Part label="Dividends" amount={breakdown.dividends} money={money} />
+          <Part label="Interest" amount={breakdown.interest} money={money} />
+          <Part label="Fees and taxes" amount={breakdown.fees} money={money} />
+          {Number(breakdown.other) !== 0 && (
+            <Part label="Other cash movements" amount={breakdown.other} money={money} />
+          )}
+          <BreakdownLine label="Value at the end" strong>
+            {money(end)}
+          </BreakdownLine>
+        </dl>
+      )}
+      <ValueChart returns={returns} />
+      {returns.unpriced > 0 && (
+        <Note>
+          {returns.unpriced === 1
+            ? '1 holding-day has no price and is left out of the value'
+            : `${returns.unpriced} holding-days have no price and are left out of the value`}
+          , so these figures are off by what they were worth.
+        </Note>
+      )}
+      {returns.unconverted > 0 && (
+        <Note>
+          {returns.unconverted === 1
+            ? "1 day has no exchange rate for the account's currency and is left out."
+            : `${returns.unconverted} days have no exchange rate for the account's currency and are left out.`}
+        </Note>
+      )}
+    </div>
+  );
+}
+
+function ReturnFigure({
+  title,
+  rate,
+  annual,
+  gap,
+  explanation,
+}: {
+  title: string;
+  rate: string | null;
+  annual: string | null;
+  gap: ReturnGap | null;
+  explanation: string;
+}) {
+  return (
+    <div className="space-y-1">
+      <h4 className="text-sm text-muted-foreground">{title}</h4>
+      <p className={cn('text-2xl font-semibold tabular-nums', toneClass(rate))}>
+        {rate === null ? '—' : formatPercent(rate, true)}
+        {annual !== null && annual !== rate && (
+          <span className="ml-2 text-sm font-normal">{formatPercent(annual, true)} a year</span>
+        )}
+      </p>
+      <Note>{explanation}</Note>
+      {rate === null && gap && <Note>{GAPS[gap]}</Note>}
+    </div>
+  );
+}
+
+/** A line of the breakdown. */
+function BreakdownLine({
+  label,
+  strong,
+  tone,
+  children,
+}: {
+  label: string;
+  strong?: boolean;
+  tone?: string;
+  children: ReactNode;
+}) {
+  return (
+    <>
+      <dt className={strong ? 'font-medium' : 'text-muted-foreground'}>{label}</dt>
+      <dd className={cn('text-right tabular-nums', strong && 'font-semibold', toneClass(tone))}>
+        {children}
+      </dd>
+    </>
+  );
+}
+
+/** A part of the result, indented under it. */
+function Part({
+  label,
+  amount,
+  money,
+}: {
+  label: string;
+  amount: string;
+  money: (amount: string) => string;
+}) {
+  return (
+    <>
+      <dt className="pl-4 text-muted-foreground">{label}</dt>
+      <dd className="text-right text-muted-foreground tabular-nums">{signed(amount, money)}</dd>
+    </>
+  );
+}
+
+/** The value each day against the net deposits since the account opened: the gap between
+ * them is what the money earned. */
+function ValueChart({ returns }: { returns: InvestmentReturns }) {
+  if (returns.points.length < 2) return null;
+  const points = returns.points.map((point) => ({
+    on: point.on,
+    value: point.value === null ? null : Number(point.value),
+    net_deposits: Number(point.net_deposits),
+  }));
+  return (
+    <figure className="space-y-2">
+      <figcaption className="text-sm font-medium">Value against net deposits</figcaption>
+      <ChartContainer config={valueConfig} className="aspect-auto h-64 w-full">
+        <ComposedChart data={points}>
+          <CartesianGrid vertical={false} />
+          <XAxis
+            dataKey="on"
+            ticks={axisTicks(returns.points)}
+            interval={0}
+            tickLine={false}
+            axisLine={false}
+            tickMargin={8}
+            tickFormatter={(value) => formatDate(String(value))}
+          />
+          <YAxis
+            width={52}
+            domain={['auto', 'auto']}
+            tickLine={false}
+            axisLine={false}
+            tickFormatter={(value) => formatCompactMoney(value, returns.currency)}
+          />
+          <ChartTooltip
+            content={
+              <ChartTooltipContent
+                valueFormatter={(value) => formatMoney(Number(value), returns.currency)}
+                labelFormatter={(_, payload) => formatDate(String(payload[0]?.payload.on))}
+              />
+            }
+          />
+          <ChartLegend content={<ChartLegendContent />} />
+          <Area
+            dataKey="value"
+            type="monotone"
+            stroke="var(--color-value)"
+            fill="var(--color-value)"
+            fillOpacity={0.15}
+            strokeWidth={2}
+            dot={false}
+          />
+          <Line
+            dataKey="net_deposits"
+            type="stepAfter"
+            stroke="var(--color-net_deposits)"
+            strokeWidth={2}
+            strokeDasharray="4 3"
+            dot={false}
+          />
+        </ComposedChart>
+      </ChartContainer>
+    </figure>
   );
 }
 

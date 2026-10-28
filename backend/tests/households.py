@@ -125,6 +125,7 @@ async def add(
     counterparty: str | None = None,
     currency: str = "EUR",
     status: TransactionStatus = TransactionStatus.BOOKED,
+    bank_code: str | None = None,
 ) -> uuid.UUID:
     """A transaction on `day` of October 2026, or on `on`."""
     occurred_on = on or date(2026, 10, day)
@@ -142,6 +143,7 @@ async def add(
             booking_date=occurred_on,
             description=description,
             counterparty_name=counterparty,
+            bank_transaction_code={"code": bank_code} if bank_code else None,
             payload_id=home.payload_id,
         )
         session.add(transaction)

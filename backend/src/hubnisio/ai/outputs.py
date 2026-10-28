@@ -145,6 +145,16 @@ class NetWorthHistory(BaseModel):
     unpriced: int  # holding-days of investment accounts left out: no price or exchange rate
 
 
+class Investments(BaseModel):
+    """In each account's currency."""
+
+    months: list[date]  # of dividends and interest, oldest first
+    every: Every
+    accounts: list[schemas.InvestmentAccount]  # as the Investments page shows them
+    # Over the period; points each day, Sunday or month end, and the period's last day.
+    returns: list[schemas.InvestmentReturns]
+
+
 class UncategorizedGroup(BaseModel):
     merchant_id: uuid.UUID | None  # set when the transactions have a merchant
     name: str  # the merchant, else the description without digits

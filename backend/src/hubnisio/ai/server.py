@@ -31,7 +31,10 @@ from hubnisio.ai import outputs, views
 from hubnisio.ai.views import Connection
 from hubnisio.finance import schemas
 from hubnisio.finance.budgets import compute_budgets, first_month
+from hubnisio.finance.fx.convert import RateTable
+from hubnisio.finance.insights.investments import compute_investments
 from hubnisio.finance.insights.net_worth import compute_net_worth, series_start
+from hubnisio.finance.insights.returns import compute_returns, tables_needed
 from hubnisio.finance.insights.spending import (
     cash_flow,
     cents,
@@ -40,6 +43,7 @@ from hubnisio.finance.insights.spending import (
     spending_by_group,
 )
 from hubnisio.finance.models import Cadence, RecurringStatus, Review, TransactionKind
+from hubnisio.finance.prices.table import PriceTable
 from hubnisio.finance.recurring.detect import description_key, status_on
 from hubnisio.finance.scoping import View
 
@@ -48,12 +52,13 @@ QUERY_TIMEOUT = "5s"
 
 INSTRUCTIONS = """\
 Hubnisio is the user's personal finance hub: their bank accounts, with categories, merchants, \
-budgets and recurring payments. These tools read it as the user, so they see only what the \
-user may see in the app. They change nothing but category suggestions (suggest_categories), \
-which the user reviews in the app.
+budgets and recurring payments, and their investments. These tools read it as the user, so they \
+see only what the user may see in the app. They change nothing but category suggestions \
+(suggest_categories), which the user reviews in the app.
 
 - Amounts are signed: negative is money out. Fields named "spent" are positive when spent.
-- Totals are in euros, at the exchange rate on each transaction's day.
+- Totals are in euros, at the exchange rate on each transaction's day. Investment figures are \
+in the investment account's currency.
 - Spending counts booked transactions that aren't transfers between the household's own \
 accounts. Money in with an expense category (a refund, or someone paying the user back) lowers \
 that category's spending.
@@ -439,6 +444,75 @@ class Tools:
         arguments = {"date_from": date_from, "every": every, "view": view}
         return await self._call("net_worth_history", arguments, read)
 
+    async def investments(
+        self,
+        date_from: Annotated[
+            date | None,
+            Field(description="The returns' first day (default: each account's first movement)."),
+        ] = None,
+        date_to: Annotated[
+            date | None, Field(description="The returns' last day (default: today).")
+        ] = None,
+        months: Months = 12,
+        every: Annotated[
+            outputs.Every,
+            Field(
+                description="The value against net deposits: day, week (each Sunday) or month "
+                "(each month's last day)."
+            ),
+        ] = "month",
+    ) -> outputs.Investments:
+        """Investment accounts (Trading 212), as the Investments page shows them. Each one's
+        value, cash, cost and result at its latest sync; its holdings with their weights; its
+        dividends and interest per month, the last `months` months; and the check of the value
+        rebuilt from trades and daily prices, which net worth uses, against the broker's.
+
+        Then its returns over the period (date_from to date_to): the result, the change in
+        value less net deposits, broken down into price movements (realised on what was sold,
+        unrealised on what's held at the end), dividends, interest, and fees and taxes; the
+        time-weighted return (how the investments did, whatever the timing of money in and
+        out) and the money-weighted return (the XIRR: what the money earned, given when it
+        came in), over the period and, for a year or more, a year's equivalent; and the value
+        against net deposits since the account opened. Returns are fractions: 0.05 is 5%. A
+        gap says why a return is missing. unpriced counts the holding-days left out for want
+        of a price."""
+        if date_from is not None and date_to is not None and date_from > date_to:
+            raise ToolError("date_to is before date_from.")
+
+        async def read(db: Connection) -> tuple[outputs.Investments, int]:
+            today = date.today()
+            window = months_until(today, months)
+            accounts = await views.investment_inputs(db, window)
+            portfolios = [a.portfolio for a in accounts if a.portfolio is not None]
+            prices, rates = PriceTable({}, {}), RateTable({})
+            if days := [portfolio.on for portfolio in portfolios]:
+                instruments = {i for portfolio in portfolios for i in portfolio.instrument_ids}
+                prices = await views.price_table(db, instruments, min(days), max(days))
+                wanted = {portfolio.currency for portfolio in portfolios} | prices.currencies
+                rates = await views.rate_table(db, wanted, min(days), max(days))
+            overview = compute_investments(accounts, window, prices, rates)
+
+            inputs = await views.returns_inputs(db, accounts)
+            prices, rates = PriceTable({}, {}), RateTable({})
+            if (needed := tables_needed(inputs, today, date_from, date_to)) is not None:
+                instruments, wanted, first, last = needed
+                prices = await views.price_table(db, instruments, first, last)
+                rates = await views.rate_table(db, wanted | prices.currencies, first, last)
+            returns = compute_returns(inputs, prices, rates, today, date_from, date_to).accounts
+            for account in returns:
+                account.points = [
+                    point
+                    for point in account.points
+                    if point.on == account.date_to or _ends_period(point.on, every)
+                ]
+            result = outputs.Investments(
+                months=window, every=every, accounts=overview.accounts, returns=returns
+            )
+            return result, len(result.accounts)
+
+        arguments = {"date_from": date_from, "date_to": date_to, "months": months, "every": every}
+        return await self._call("investments", arguments, read)
+
     async def uncategorized_overview(
         self,
         date_from: date | None = None,
@@ -647,6 +721,7 @@ def build_server(dsn: str) -> MCPServer:
         tools.recurring_payments,
         tools.balances,
         tools.net_worth_history,
+        tools.investments,
         tools.uncategorized_overview,
         tools.query_sql,
     ):

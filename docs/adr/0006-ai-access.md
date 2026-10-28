@@ -49,6 +49,7 @@
   - Each call opens its own connection as the member's login. Its reads run in a `READ ONLY` transaction; then the call is recorded in a read-write one. A call that fails is recorded too, without a row count.
   - `query_sql` runs `SELECT * FROM (<query>) q LIMIT 501` with one bind parameter, so psycopg sends it as a single prepared statement and nothing can be chained after it. Postgres accepts only a query in that place, and no data-modifying `WITH` below the top level. It returns at most 500 rows, with `statement_timeout` set to 5 s for its transaction.
   - *(Slice A4)* `finance/insights/net_worth.py` is split into a loader and a pure `compute_net_worth`. `balances` and `net_worth_history` load the same inputs from the views and call it, so they give the Net worth page's figures and convert other currencies at each day's rate; until A4, `balances` converted only balances in euros. `net_worth_history` takes `date_from`, `view` and `every`: `day`, `week` (the default: each Sunday) or `month` (each month's last day), always ending with today, to keep a long series short.
+  - *(M6, slice T4)* `investments` gives the Investments page's figures for each investment account (holdings, dividends and interest by month, the check against the broker) and its returns over a period, from `compute_investments` and `compute_returns` ([ADR-0008](0008-investments.md), "Returns"). It needed no new view: T3's and `transactions.bank_code` hold every input.
 
 ### LLM-assisted categorization
 

@@ -22,10 +22,11 @@ inputs from the `analytics` views and give the same figures (ADR-0006).
 
 import uuid
 from collections import defaultdict
-from collections.abc import Collection, Iterable
+from collections.abc import Collection, Iterable, Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
+from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import distinct_on
@@ -54,6 +55,8 @@ class FillMove:
     filled_at: datetime
     quantity: Decimal  # positive when bought, negative when sold
     cash: Decimal  # positive when received, negative when paid
+    # Its taxes and fees as (amount, currency), as sent; the cash includes them.
+    taxes: tuple[tuple[Decimal, str | None], ...] = ()
 
     @classmethod
     def of(
@@ -63,10 +66,16 @@ class FillMove:
         side: str,
         quantity: Decimal,
         net_value: Decimal | None,
+        taxes: Iterable[Mapping[str, Any]] = (),
     ) -> FillMove:
+        """`taxes` as stored: [{name, amount, currency, charged_at}], amounts as strings."""
         sign = 1 if side == BUY else -1
         return cls(
-            instrument_id, filled_at, sign * abs(quantity), -sign * abs(net_value or Decimal(0))
+            instrument_id,
+            filled_at,
+            sign * abs(quantity),
+            -sign * abs(net_value or Decimal(0)),
+            tuple((Decimal(str(tax["amount"])), tax.get("currency")) for tax in taxes),
         )
 
     @property
@@ -147,6 +156,15 @@ class Rebuild:
             out.append(self._value(day, cash, quantities.items(), prices, rates))
             day += timedelta(days=1)
         return out
+
+    def quantities(self, day: date) -> dict[uuid.UUID, Decimal]:
+        """Each holding's quantity at the end of the day, those it holds none of left out."""
+        quantities = defaultdict(Decimal, self.opening_quantities)
+        for on, moves in self._quantities.items():
+            if on <= day:
+                for instrument_id, quantity in moves.items():
+                    quantities[instrument_id] += quantity
+        return {instrument_id: q for instrument_id, q in quantities.items() if q != 0}
 
     def _value(
         self,
@@ -256,12 +274,20 @@ async def load_portfolios(
             Fill.side,
             Fill.quantity,
             Fill.net_value,
+            Fill.taxes,
         )
         .where(Fill.account_id.in_(ids))
         .order_by(Fill.filled_at, Fill.id)
     ):
         portfolios[row.account_id].fills.append(
-            FillMove.of(row.instrument_id, row.filled_at, row.side, row.quantity, row.net_value)
+            FillMove.of(
+                row.instrument_id,
+                row.filled_at,
+                row.side,
+                row.quantity,
+                row.net_value,
+                row.taxes,
+            )
         )
     for account_id, on, total in await session.execute(
         select(Transaction.account_id, Transaction.occurred_on, func.sum(Transaction.amount))

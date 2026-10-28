@@ -814,6 +814,96 @@ export type InvestmentCheck = {
 };
 
 /**
+ * InvestmentReturns
+ *
+ * An investment account's returns over a period (ADR-0008, "Returns"). Returns are
+ * fractions: 0.05 is 5%.
+ */
+export type InvestmentReturns = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Currency
+     */
+    currency: string;
+    /**
+     * Date From
+     */
+    date_from: string | null;
+    /**
+     * Date To
+     */
+    date_to: string | null;
+    /**
+     * Start Value
+     */
+    start_value: string | null;
+    /**
+     * End Value
+     */
+    end_value: string | null;
+    /**
+     * Deposits
+     */
+    deposits: string;
+    /**
+     * Withdrawals
+     */
+    withdrawals: string;
+    /**
+     * Net Deposits
+     */
+    net_deposits: string;
+    breakdown: ReturnsBreakdown | null;
+    /**
+     * Time Weighted
+     */
+    time_weighted: string | null;
+    /**
+     * Time Weighted Annual
+     */
+    time_weighted_annual: string | null;
+    time_weighted_gap: ReturnGap | null;
+    /**
+     * Money Weighted
+     */
+    money_weighted: string | null;
+    /**
+     * Money Weighted Annual
+     */
+    money_weighted_annual: string | null;
+    money_weighted_gap: ReturnGap | null;
+    /**
+     * Unpriced
+     */
+    unpriced: number;
+    /**
+     * Unconverted
+     */
+    unconverted: number;
+    /**
+     * Points
+     */
+    points: Array<ValuePoint>;
+};
+
+/**
+ * InvestmentReturnsOut
+ */
+export type InvestmentReturnsOut = {
+    /**
+     * Accounts
+     */
+    accounts: Array<InvestmentReturns>;
+};
+
+/**
  * InvestmentsOut
  */
 export type InvestmentsOut = {
@@ -1032,6 +1122,49 @@ export type RecurringUpdate = {
      * Cancelled
      */
     cancelled?: boolean | null;
+};
+
+/**
+ * ReturnGap
+ *
+ * Why a return is missing.
+ */
+export type ReturnGap = 'no_money' | 'no_value' | 'no_solution';
+
+/**
+ * ReturnsBreakdown
+ *
+ * The period's result, the change in value less net deposits, in parts that add up to it.
+ */
+export type ReturnsBreakdown = {
+    /**
+     * Unrealised
+     */
+    unrealised: string;
+    /**
+     * Realised
+     */
+    realised: string;
+    /**
+     * Dividends
+     */
+    dividends: string;
+    /**
+     * Interest
+     */
+    interest: string;
+    /**
+     * Fees
+     */
+    fees: string;
+    /**
+     * Other
+     */
+    other: string;
+    /**
+     * Total
+     */
+    total: string;
 };
 
 /**
@@ -1615,6 +1748,24 @@ export type ValidationError = {
     ctx?: {
         [key: string]: unknown;
     };
+};
+
+/**
+ * ValuePoint
+ */
+export type ValuePoint = {
+    /**
+     * On
+     */
+    on: string;
+    /**
+     * Value
+     */
+    value: string | null;
+    /**
+     * Net Deposits
+     */
+    net_deposits: string;
 };
 
 export type GetHealthData = {
@@ -2623,6 +2774,40 @@ export type GetInvestmentsResponses = {
 };
 
 export type GetInvestmentsResponse = GetInvestmentsResponses[keyof GetInvestmentsResponses];
+
+export type GetInvestmentReturnsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Date From
+         */
+        date_from?: string | null;
+        /**
+         * Date To
+         */
+        date_to?: string | null;
+    };
+    url: '/api/finance/investments/returns';
+};
+
+export type GetInvestmentReturnsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetInvestmentReturnsError = GetInvestmentReturnsErrors[keyof GetInvestmentReturnsErrors];
+
+export type GetInvestmentReturnsResponses = {
+    /**
+     * Successful Response
+     */
+    200: InvestmentReturnsOut;
+};
+
+export type GetInvestmentReturnsResponse = GetInvestmentReturnsResponses[keyof GetInvestmentReturnsResponses];
 
 export type ListBudgetsData = {
     body?: never;

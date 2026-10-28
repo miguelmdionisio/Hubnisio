@@ -7,6 +7,7 @@ import type {
   CounterpartyOut,
   Holding,
   InvestmentAccount,
+  InvestmentReturns,
   NetWorthOut,
   OverallBudgetOut,
   RecurringOut,
@@ -315,6 +316,45 @@ export function investmentAccount(
     dividends: Array(months).fill('0.00'),
     interest: Array(months).fill('0.00'),
     check: null,
+    ...overrides,
+  };
+}
+
+/** Returns over a year and a bit: 1000 in, 900 now and 200 out, so 100 earned. */
+export function investmentReturns(overrides: Partial<InvestmentReturns> = {}): InvestmentReturns {
+  return {
+    id: 'inv1',
+    name: 'Trading 212 EUR',
+    currency: 'EUR',
+    date_from: '2025-09-01',
+    date_to: '2026-10-20',
+    start_value: '0.00',
+    end_value: '900.00',
+    deposits: '1000.00',
+    withdrawals: '-200.00',
+    net_deposits: '800.00',
+    breakdown: {
+      unrealised: '40.00',
+      realised: '55.25',
+      dividends: '1.50',
+      interest: '6.00',
+      fees: '-2.75',
+      other: '0.00',
+      total: '100.00',
+    },
+    time_weighted: '0.1234',
+    time_weighted_annual: '0.1100',
+    time_weighted_gap: null,
+    money_weighted: '0.1150',
+    money_weighted_annual: '0.1020',
+    money_weighted_gap: null,
+    unpriced: 0,
+    unconverted: 0,
+    points: [
+      { on: '2025-09-01', value: '1000.00', net_deposits: '1000.00' },
+      { on: '2026-03-01', value: '1080.00', net_deposits: '1000.00' },
+      { on: '2026-10-20', value: '900.00', net_deposits: '800.00' },
+    ],
     ...overrides,
   };
 }

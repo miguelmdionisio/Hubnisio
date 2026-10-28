@@ -1,7 +1,7 @@
-import { cleanup, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, expect, test, vi } from 'vitest';
-import { holding, investmentAccount } from '@/test/fixtures';
-import { mockApi, renderAt } from '@/test/render';
+import { holding, investmentAccount, investmentReturns } from '@/test/fixtures';
+import { type ApiCall, mockApi, renderAt } from '@/test/render';
 
 afterEach(() => {
   cleanup();
@@ -144,4 +144,87 @@ test('says what the rebuild leaves out and what the history misses', async () =>
   expect(
     screen.getByText(/Trading 212 has €5\.00 less cash and 3 more shares of Test World ETF than/),
   ).toBeDefined();
+});
+
+const RETURNS = '/api/finance/investments/returns';
+
+function mockReturns(returns = investmentReturns()): ApiCall[] {
+  return mockApi({
+    'GET /api/finance/investments': () => ({ months: MONTHS, accounts: [investmentAccount(3)] }),
+    [`GET ${RETURNS}`]: () => ({ accounts: [returns] }),
+  });
+}
+
+test('shows the returns over the period, broken down, against net deposits', async () => {
+  const calls = mockReturns(investmentReturns({ date_from: '2025-08-01' }));
+
+  renderAt('/finance/investments');
+
+  expect(await screen.findByRole('heading', { name: 'Returns' })).toBeDefined();
+  expect(await screen.findByText('1 Aug 2025 to 20 Oct 2026')).toBeDefined();
+  expect(screen.getByText('+12.3%')).toBeDefined();
+  expect(screen.getByText('+11% a year')).toBeDefined();
+  expect(screen.getByText(/whatever the timing of deposits and withdrawals/)).toBeDefined();
+  expect(screen.getByText('+11.5%')).toBeDefined();
+  expect(screen.getByText('+10.2% a year')).toBeDefined();
+  expect(screen.getByText(/given when it went in and came out/)).toBeDefined();
+
+  const line = (label: string) =>
+    screen.getByText(label, { selector: 'dt' }).nextElementSibling?.textContent;
+  expect(line('Value at the start')).toBe('€0.00');
+  expect(line('Net deposits')).toBe('+€800.00');
+  expect(line('Result')).toBe('+€100.00');
+  expect(line('Price movements, realised')).toBe('+€55.25');
+  expect(line('Price movements, unrealised')).toBe('+€40.00');
+  expect(line('Fees and taxes')).toBe('-€2.75');
+  expect(line('Value at the end')).toBe('€900.00');
+  expect(screen.queryByText('Other cash movements')).toBeNull();
+  expect(screen.getByText('Value against net deposits')).toBeDefined();
+
+  const asked = calls.filter((call) => call.path === RETURNS);
+  expect(asked.length).toBeGreaterThan(0);
+  expect(asked.some((call) => call.search.has('date_from'))).toBe(false); // all time
+});
+
+test('switches the period', async () => {
+  const calls = mockReturns();
+  const today = new Date();
+  const dated = (date: Date) =>
+    [date.getFullYear(), date.getMonth() + 1, date.getDate()]
+      .map((part) => String(part).padStart(2, '0'))
+      .join('-');
+  const asked = () =>
+    calls.filter((call) => call.path === RETURNS).map((call) => call.search.get('date_from'));
+
+  renderAt('/finance/investments');
+  await screen.findByText('+12.3%');
+  // Radix tabs switch on mouse down, which jsdom's click doesn't send.
+  fireEvent.mouseDown(screen.getByRole('tab', { name: 'This year' }), { button: 0 });
+  await waitFor(() => expect(asked()).toContain(`${today.getFullYear()}-01-01`));
+  fireEvent.mouseDown(screen.getByRole('tab', { name: '12 months' }), { button: 0 });
+  const yearAgo = new Date(today.getFullYear() - 1, today.getMonth(), today.getDate() + 1);
+  await waitFor(() => expect(asked()).toContain(dated(yearAgo)));
+});
+
+test('says why a return is missing and what the value leaves out', async () => {
+  mockReturns(
+    investmentReturns({
+      time_weighted: null,
+      time_weighted_annual: null,
+      time_weighted_gap: 'no_money',
+      money_weighted: null,
+      money_weighted_annual: null,
+      money_weighted_gap: 'no_solution',
+      unpriced: 4,
+      breakdown: { ...investmentReturns().breakdown!, other: '3.00' },
+    }),
+  );
+
+  renderAt('/finance/investments');
+
+  expect(await screen.findByText('Nothing was invested in this period.')).toBeDefined();
+  expect(screen.getByText("No single rate fits this period's money in and out.")).toBeDefined();
+  expect(screen.getAllByText('—')).toHaveLength(2);
+  expect(screen.getByText(/^4 holding-days have no price and are left out/)).toBeDefined();
+  expect(screen.getByText('Other cash movements').nextElementSibling?.textContent).toBe('+€3.00');
 });

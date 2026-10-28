@@ -143,6 +143,23 @@ What the API offers (Public API v0, beta, read 2026-10-24 at docs.trading212.com
 - **Time-weighted return** from the daily values, chain-linked across the deposits and withdrawals: how the investments did, regardless of timing.
 - **Chart:** value against net deposits over time.
 - Pure functions over loaded inputs, so the API and the MCP server compute the same figures.
+- *(As built in T4)* The details (`insights/returns.py`):
+  - **The period** runs from `date_from` (default: the account's first movement, and never before it) to `date_to` (default and at the latest: today). Its start value is the rebuilt value at the end of the day before.
+  - **Net deposits** are the cash movements with bank code `T212_DEPOSIT`, `T212_WITHDRAW` or `T212_TRANSFER`, a deposit or a withdrawal by their sign: money from outside the account.
+  - **The breakdown** splits the result (the change in value less net deposits) into realised and unrealised price movements, dividends, interest, fees and taxes, and other (cash movements of any other type, normally nothing):
+    - price movements by average cost, as Trading 212 does, with what's held at the start costing its value that day;
+    - a fill that moved no cash (a corporate action) changes the quantity, not the cost, and the cost left on something no longer held counts as realised;
+    - fees and taxes are the fills' taxes, which their net values include, counted as charges whatever their sign (live ones come negative, the test fixtures' positive), plus `T212_FEE` movements;
+    - rounded to cents, the price movements take the rounding: unrealised while something's held at the end, else realised. So the parts add up to the total to the cent; `tests/test_returns.py` checks it over every sub-period of a scenario with prices to fractions of a cent.
+  - **The time-weighted return** chains each day's return: (value − previous value − net deposits) ÷ (previous value + the day's money in). Money in counts from the start of its day and money out at its end, so a full withdrawal leaves something to divide by. A day with nothing invested counts for nothing, and a day without a value passes its deposits to the next.
+  - **The money-weighted return** is the XIRR of the start value and the net deposits (money in negative) against the end value, by bisection between −99.9999% and a billion times over a year, so it can't diverge; over the period, from the first money in. Either return has a year's equivalent only for a period of a year or more (365 days); the page shows it when it differs from the period's.
+  - **When a return is missing**, `*_gap` says why: `no_money` (nothing invested in the period), `no_value` (no exchange rate for the account's currency at its start or end) or `no_solution` (no rate fits the cash flows; money-weighted only).
+  - **Unpriced holding-days** in the period are counted and shown under the figures. A holding left out of the end value counts its cost against the result, as net worth leaves it out.
+  - **Value against net deposits:** each day's value, and the net deposits since the account opened, whatever the period.
+  - **API:** `GET /api/finance/investments/returns?date_from=&date_to=` (`getInvestmentReturns`), apart from `GET /investments` so a change of period refetches only the returns; 422 when the period ends before it starts. Each listed investment account the principal may see; one without a snapshot has no period (`date_from` null).
+  - **The Investments page** has a Returns card per account, between the holdings and the check: All time (the default), This year or 12 months; both returns with a line on what each means; the breakdown from the start value through net deposits and the result's parts to the end value; and the chart (Recharts: value as an area, net deposits as a dashed step line).
+  - **AI:** no view changed and no migration: T3's views and `analytics.transactions.bank_code` hold every input, and `analytics.fills.taxes` the fees. `ai/views.py` loads `InvestmentInputs` and `ReturnsInputs` from them (`tests/test_analytics.py` checks they equal the app's loaders), and the `investments` MCP tool returns the Investments page's figures and the returns over a period, with the value against net deposits thinned to `every` (`month` by default). `tests/test_ai.py` checks it against the API.
+  - *Checked on live data (2026-10-28):* all time (9 Sep 2025 to 28 Oct 2026, 415 days), net deposits of €6,841.75 grew to €8,465.19, all cash since everything is sold. The result, €1,623.44, is €1,479.08 realised, €172.33 interest and €0.05 dividends, less €28.02 of fees (€19.27 currency conversion on trades, €8.75 charged on their own). Time-weighted +23.9% (+20.7% a year), money-weighted +22.2% (+19.3% a year), no unpriced holding-days. The `investments` tool, run over stdio as Claude Code runs it, gives the same figures.
 
 ### Not in M6
 
@@ -151,7 +168,7 @@ What the API offers (Public API v0, beta, read 2026-10-24 at docs.trading212.com
 
 ## Plan: four slices
 
-Each slice is one fresh session. It ends committed and pushed once its checks pass, then starts the next.
+Each slice is one fresh session. It ends committed and pushed once its checks pass, then starts the next. *(All four done by 2026-10-28.)*
 
 1. **T1. Provider and cash.**
    - Migration: the `trading212` provider, the investment-account flag, and the connection's key-file name.
@@ -170,7 +187,7 @@ Each slice is one fresh session. It ends committed and pushed once its checks pa
    - The check against the summary.
 4. **T4. Returns and AI.**
    - The breakdown, money- and time-weighted returns, and the value against net deposits chart on the Investments page.
-   - `analytics` views for holdings, fills and investment values; an `investments` MCP tool, checked against the API.
+   - `analytics` views for holdings, fills and investment values; an `investments` MCP tool, checked against the API. *(T3's views were enough: see "Returns", as built in T4.)*
    - This ADR and CLAUDE.md as built.
 
 ## Options Considered

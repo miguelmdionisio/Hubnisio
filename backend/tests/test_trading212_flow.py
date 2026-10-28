@@ -507,6 +507,13 @@ async def investments_of(principal: Principal, **params: Any) -> dict[str, Any]:
     return response.json()
 
 
+async def returns_of(principal: Principal, **params: Any) -> dict[str, Any]:
+    async with api(principal) as client:
+        response = await client.get("/api/finance/investments/returns", params=params)
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
 async def test_a_sync_brings_in_fills_and_holdings_for_the_investments_page(setup: Setup) -> None:
     home, t212 = setup.home, setup.t212
     t212.positions = [held("XACM_US_EQ", 4, 400, 400), held("XWLD_EQ", 7, 800, 700)]
@@ -772,3 +779,76 @@ async def test_the_value_rebuilt_from_trades_is_checked_and_counts_in_net_worth(
         {"ticker": "XEUR_EQ", "name": "Test Euro ETF", "quantity": "7.0000000000"}
     ]
     assert (shown["check"]["rebuilt_value"], shown["check"]["difference"]) == ("1070.00", "0.00")
+
+
+async def test_returns_break_down_the_result_of_what_the_sync_brought_in(setup: Setup) -> None:
+    """Deposited 1000 and withdrew 100; bought 4 at 100, sold 1, bought 4 more, each with a
+    0.12 fee; 2.00 of interest, a 0.50 dividend and a 1.00 fee. Today: 7 at 110, 201.50 cash."""
+    home, t212 = setup.home, setup.t212
+    euros = {"currency": "EUR", "fx_rate": 1}
+    t212.positions = [held("XEUR_EQ", 7, 770, 700, currency="EUR")]
+    t212.orders = [
+        filled(3, "XEUR_EQ", 5, 4, **euros),
+        filled(2, "XEUR_EQ", 20, -1, side="SELL", **euros),
+        filled(1, "XEUR_EQ", 40, 4, **euros),
+    ]
+    t212.transactions = [
+        movement("DEPOSIT", 1000, 50, "t1"),
+        movement("WITHDRAW", -100, 10, "t2"),
+        movement("INTEREST_ON_FREE_CASH", 2, 3, "t3"),
+        movement("FEE", -1, 3, "t4"),
+    ]
+    t212.dividends = [dividend(0.5, 3, "d1")]
+    t212.cash, t212.total_value = 201.50, 971.50
+    t212.instruments = [{"ticker": "XEUR_EQ", "currencyCode": "EUR", "type": "ETF"}]
+    assert await setup.link(home.owner) == 0
+    await setup.sync((await connection_of(home.owner)).id, sync.SyncTrigger.INITIAL)
+    account = await account_of(home.owner)
+
+    (shown,) = (await returns_of(home.owner))["accounts"]
+
+    assert (shown["id"], shown["date_from"]) == (
+        str(account.id),
+        (TODAY - timedelta(days=50)).isoformat(),
+    )
+    assert (shown["start_value"], shown["end_value"]) == ("0.00", "971.50")
+    assert (shown["deposits"], shown["withdrawals"], shown["net_deposits"]) == (
+        "1000.00",
+        "-100.00",
+        "900.00",
+    )
+    # Cost 399.88 for 4, the fees apart; one sold for 100.12 against 99.97 of it. The 7 left
+    # cost 699.79 and are worth 770.
+    assert shown["breakdown"] == {
+        "unrealised": "70.21",
+        "realised": "0.15",
+        "dividends": "0.50",
+        "interest": "2.00",
+        "fees": "-1.36",
+        "other": "0.00",
+        "total": "71.50",
+    }
+    assert shown["time_weighted"] is not None and shown["money_weighted"] is not None
+    assert (shown["time_weighted_gap"], shown["money_weighted_gap"]) == (None, None)
+    # Only the fills' prices before today's, each good for 10 days: 9 days with 4 shares and
+    # 4 with 3 have none.
+    assert shown["unpriced"] == 13
+    assert shown["points"][-1]["value"] == "971.50"
+    assert shown["points"][-1]["net_deposits"] == "900.00"
+
+    async with api(home.owner) as client:
+        backwards = await client.get(
+            "/api/finance/investments/returns",
+            params={"date_from": TODAY.isoformat(), "date_to": "2020-01-01"},
+        )
+    assert backwards.status_code == 422
+
+    # Another member's private account never shows.
+    assert len((await returns_of(home.member))["accounts"]) == 1
+    async with get_sessionmaker()() as session, session.begin():
+        await session.execute(
+            update(Account)
+            .where(Account.id == account.id)
+            .values(visibility=AccountVisibility.PRIVATE)
+        )
+    assert (await returns_of(home.member))["accounts"] == []

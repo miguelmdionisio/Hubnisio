@@ -27,8 +27,15 @@ from hubnisio.core.models import AiCall, AiLogin
 from hubnisio.finance import schemas
 from hubnisio.finance.balances import BOOKED_FIRST, SPENDABLE_FIRST, latest_balances
 from hubnisio.finance.budgets import BudgetSpec, budgets_for_month, compute_budgets
+from hubnisio.finance.insights.investments import load_investments
 from hubnisio.finance.insights.portfolio import load_portfolios
-from hubnisio.finance.insights.spending import CategoryInfo, MonthlySums, monthly_sums
+from hubnisio.finance.insights.returns import load_returns
+from hubnisio.finance.insights.spending import (
+    CategoryInfo,
+    MonthlySums,
+    monthly_sums,
+    months_until,
+)
 from hubnisio.finance.kinds import kind_is
 from hubnisio.finance.models import (
     Account,
@@ -462,11 +469,14 @@ async def test_investment_views_show_only_what_the_member_may_see_and_agree_with
         home,
         home.owner,
         as_of=at,
-        cash="100",
-        total_value="210",
+        cash="101.50",
+        total_value="211.50",
         holdings={etf.id: ("1", "110")},
-        trades=[Trade(etf.id, today - timedelta(days=3), "1", "100", "100")],
-        movements={today - timedelta(days=10): "200.00"},
+        trades=[Trade(etf.id, today - timedelta(days=3), "1", "100", "100.25", tax="-0.25")],
+        movements={
+            today - timedelta(days=10): ("200.25", "T212_DEPOSIT"),
+            today - timedelta(days=2): ("1.50", "T212_DIVIDEND"),
+        },
     )
     hers = await investment_account(
         home,
@@ -513,6 +523,20 @@ async def test_investment_views_show_only_what_the_member_may_see_and_agree_with
     for n in range(6):
         day = first + timedelta(days=n)
         assert loaded_prices.price(etf.id, day) == app_prices.price(etf.id, day), day
+
+    # So do the inputs of the Investments page and of returns (insights/returns.py).
+    months = months_until(today, 2)
+    async with get_sessionmaker()() as session:
+        app_investments = await load_investments(session, home.owner, months)
+        app_returns = await load_returns(session, home.owner)
+    async with await psycopg.AsyncConnection.connect(owner.dsn) as connection:
+        loaded_investments = await views.investment_inputs(connection, months)
+        loaded_returns = await views.returns_inputs(connection, loaded_investments)
+    assert loaded_investments == app_investments
+    assert loaded_returns == app_returns
+    (inputs,) = loaded_returns
+    assert (inputs.portfolio and inputs.portfolio.fills[0].taxes) == ((Decimal("-0.25"), "EUR"),)
+    assert sorted(inputs.movements.values()) == [Decimal("1.50"), Decimal("200.25")]
 
     # A hidden account has no portfolio, as it has no balance; its history still shows.
     async with get_sessionmaker()() as session, session.begin():

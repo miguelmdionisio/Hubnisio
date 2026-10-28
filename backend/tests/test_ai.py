@@ -29,8 +29,10 @@ from hubnisio.core.models import AiCall
 from hubnisio.core.settings import get_settings
 from hubnisio.finance import schemas
 from hubnisio.finance.budgets import budgets_for_month
+from hubnisio.finance.insights.investments import investments
 from hubnisio.finance.insights.net_worth import net_worth
-from hubnisio.finance.insights.spending import household_categories
+from hubnisio.finance.insights.returns import investment_returns
+from hubnisio.finance.insights.spending import household_categories, months_until
 from hubnisio.finance.insights_api import get_cash_flow, get_spending
 from hubnisio.finance.models import (
     AccountVisibility,
@@ -57,6 +59,7 @@ TOOLS = {
     "balances",
     "budget_status",
     "cashflow",
+    "investments",
     "list_accounts",
     "list_categories",
     "net_worth_history",
@@ -156,11 +159,14 @@ async def broker_account(home: Home) -> uuid.UUID:
         total_value="750",
         holdings={etf.id: ("2", "110"), stock.id: ("3", "50")},
         trades=[
-            Trade(etf.id, ago(40), "3", "100", "300"),
+            Trade(etf.id, ago(40), "3", "100", "300", tax="-0.30"),
             Trade(etf.id, ago(25), "-1", "104", "104", side="SELL"),
             Trade(stock.id, ago(8), "3", "45", "27"),
         ],
-        movements={ago(60): "700.00", ago(9): "23.00"},
+        movements={
+            ago(60): ("700.00", "T212_DEPOSIT"),
+            ago(9): ("23.00", "T212_INTEREST_ON_FREE_CASH"),
+        },
     )
     await set_prices(etf.id, {ago(n): str(100 + n % 7) for n in range(40, 0, -6)})
     await set_prices(etf.id, {today: "110"})
@@ -289,6 +295,50 @@ async def test_net_worth_history_agrees_with_net_worth(
                     # Days without a rate for the owner's foreign account are left out.
                     if principal == home.owner:
                         assert daily.unconverted > 0, context
+
+
+@pytest.mark.usefixtures("data")
+async def test_investments_agree_with_the_investments_page(
+    home: Home, logins: dict[uuid.UUID, Login]
+) -> None:
+    broker = await broker_account(home)
+    today = date.today()
+    recent = today - timedelta(days=30)
+
+    async with get_sessionmaker()() as session:
+        for principal in principals(home):
+            overview = await investments(session, principal, months_until(today, 12))
+            async with connected(logins[principal.user_id]) as client:
+                for date_from in (None, recent):
+                    context = (principal, date_from)
+                    period = {"date_from": date_from.isoformat()} if date_from else {}
+                    tool = outputs.Investments.model_validate(
+                        await call(client, "investments", every="day", **period)
+                    )
+                    app = await investment_returns(session, principal, today, date_from)
+                    assert app.accounts, context
+                    assert (tool.months, tool.accounts) == (overview.months, overview.accounts)
+                    assert tool.returns == app.accounts, context
+
+                monthly = outputs.Investments.model_validate(await call(client, "investments"))
+                app = await investment_returns(session, principal, today)
+                assert monthly.every == "month"
+                assert [account.points for account in monthly.returns] == [
+                    [p for p in a.points if (p.on + timedelta(days=1)).day == 1 or p.on == today]
+                    for a in app.accounts
+                ]
+                assert "date_to is before" in await failure(
+                    client, "investments", date_from=today.isoformat(), date_to="2020-01-01"
+                )
+        everything = await investment_returns(session, home.owner, today)
+
+    # Deposited 700 sixty days ago; 23 of interest; a 0.30 fee on the first trade.
+    (shown,) = [account for account in everything.accounts if account.id == broker]
+    assert (shown.date_from, shown.net_deposits) == (today - timedelta(days=60), Decimal(700))
+    assert shown.breakdown is not None
+    assert (shown.breakdown.interest, shown.breakdown.fees) == (Decimal(23), Decimal("-0.30"))
+    assert shown.start_value is not None and shown.end_value is not None
+    assert shown.breakdown.total == shown.end_value - shown.start_value - shown.net_deposits
 
 
 @pytest.mark.usefixtures("data")

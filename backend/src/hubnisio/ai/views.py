@@ -4,7 +4,7 @@ already scoped to the member whose login runs the query."""
 
 import uuid
 from collections import defaultdict
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from datetime import date, timedelta
 from decimal import Decimal
 from typing import Any
@@ -18,9 +18,16 @@ from hubnisio.finance.fx.convert import (
     RateTable,
     rated_currency,
 )
+from hubnisio.finance.insights.investments import (
+    INCOME_CODES,
+    Holding,
+    InvestmentInputs,
+    Totals,
+)
 from hubnisio.finance.insights.net_worth import Anchor, IncludedAccount, NetWorthInputs
 from hubnisio.finance.insights.portfolio import FillMove, Portfolio
-from hubnisio.finance.insights.spending import CategoryInfo, MonthlySums, month_start
+from hubnisio.finance.insights.returns import ReturnsInputs, add_movement
+from hubnisio.finance.insights.spending import CategoryInfo, MonthlySums, add_months, month_start
 from hubnisio.finance.models import CategoryKind, Overspend, TransactionKind
 from hubnisio.finance.prices.table import MAX_PRICE_AGE_DAYS, InstrumentInfo, PriceTable
 from hubnisio.finance.scoping import View
@@ -136,13 +143,21 @@ async def portfolios(
     for account_id, instrument_id, quantity in await cursor.fetchall():
         found[account_id].holdings[instrument_id] = quantity
     cursor = await connection.execute(
-        "SELECT account_id, instrument_id, filled_at, side, quantity, net_value"
+        "SELECT account_id, instrument_id, filled_at, side, quantity, net_value, taxes"
         " FROM analytics.fills WHERE account_id = ANY(%s) ORDER BY filled_at, id",
         [ids],
     )
-    for account_id, instrument_id, filled_at, side, quantity, net_value in await cursor.fetchall():
+    for (
+        account_id,
+        instrument_id,
+        filled_at,
+        side,
+        quantity,
+        net_value,
+        taxes,
+    ) in await cursor.fetchall():
         found[account_id].fills.append(
-            FillMove.of(instrument_id, filled_at, side, quantity, net_value)
+            FillMove.of(instrument_id, filled_at, side, quantity, net_value, taxes)
         )
     cursor = await connection.execute(
         "SELECT account_id, occurred_on, amount FROM analytics.daily_movements"
@@ -152,6 +167,83 @@ async def portfolios(
     for account_id, on, amount in await cursor.fetchall():
         found[account_id].movements[on] = amount
     return found
+
+
+async def investment_inputs(
+    connection: Connection, months: Sequence[date]
+) -> list[InvestmentInputs]:
+    """What `load_investments` gives: the listed investment accounts, with their income over
+    `months`. Holdings may come in another order; `compute_investments` sorts them."""
+    cursor = await connection.execute(
+        "SELECT id, name, currency FROM analytics.accounts"
+        " WHERE is_investment AND NOT hidden ORDER BY institution, name"
+    )
+    accounts = {
+        id_: InvestmentInputs(id_, name, currency)
+        for id_, name, currency in await cursor.fetchall()
+    }
+    if not accounts:
+        return []
+    ids = list(accounts)
+    for account_id, portfolio in (await portfolios(connection, ids)).items():
+        accounts[account_id].portfolio = portfolio
+    cursor = await connection.execute(
+        "SELECT account_id, as_of, total_value, cash + cash_in_pies + cash_reserved,"
+        " investments_value, investments_cost, realised_result, unrealised_result"
+        " FROM analytics.portfolios WHERE account_id = ANY(%s)",
+        [ids],
+    )
+    for account_id, *totals in await cursor.fetchall():
+        accounts[account_id].totals = Totals(*totals)
+    cursor = await connection.execute(
+        "SELECT h.account_id, i.ticker, i.isin, i.name, i.type, i.currency, h.quantity,"
+        " h.average_price, h.current_price, h.value, h.cost, h.unrealised_result"
+        " FROM analytics.holdings h JOIN analytics.instruments i ON i.id = h.instrument_id"
+        " WHERE h.account_id = ANY(%s)",
+        [ids],
+    )
+    for account_id, *holding in await cursor.fetchall():
+        accounts[account_id].holdings.append(Holding(*holding))
+    if months:
+        cursor = await connection.execute(
+            "SELECT account_id, date_trunc('month', occurred_on)::date, bank_code, sum(amount)"
+            " FROM analytics.transactions"
+            " WHERE account_id = ANY(%s) AND status = 'booked' AND bank_code = ANY(%s)"
+            " AND occurred_on >= %s AND occurred_on < %s"
+            " GROUP BY 1, 2, 3",
+            [
+                ids,
+                list(INCOME_CODES),
+                month_start(months[0]),
+                add_months(month_start(months[-1]), 1),
+            ],
+        )
+        for account_id, on, code, total in await cursor.fetchall():
+            sums = accounts[account_id].income
+            key = (on, INCOME_CODES[code])
+            sums[key] = sums.get(key, Decimal(0)) + total
+    return list(accounts.values())
+
+
+async def returns_inputs(
+    connection: Connection, accounts: Sequence[InvestmentInputs]
+) -> list[ReturnsInputs]:
+    """What `load_returns` gives, for the accounts `investment_inputs` loaded."""
+    found = {
+        account.id: ReturnsInputs(account.id, account.name, account.currency, account.portfolio)
+        for account in accounts
+    }
+    if not found:
+        return []
+    cursor = await connection.execute(
+        "SELECT account_id, occurred_on, bank_code, amount > 0, sum(amount)"
+        " FROM analytics.transactions WHERE account_id = ANY(%s) AND status = 'booked'"
+        " GROUP BY 1, 2, 3, 4",
+        [list(found)],
+    )
+    for account_id, on, code, money_in, amount in await cursor.fetchall():
+        add_movement(found[account_id], on, code, money_in, amount)
+    return list(found.values())
 
 
 async def net_worth_accounts(connection: Connection, view: View) -> set[uuid.UUID]:

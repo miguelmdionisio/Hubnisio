@@ -3,6 +3,7 @@
 import uuid
 from datetime import date, datetime
 from decimal import Decimal
+from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
@@ -396,6 +397,64 @@ class InvestmentAccount(BaseModel):
 class InvestmentsOut(BaseModel):
     months: list[date]  # the first day of each month, oldest first
     accounts: list[InvestmentAccount]
+
+
+class ReturnsBreakdown(BaseModel):
+    """The period's result, the change in value less net deposits, in parts that add up to it."""
+
+    unrealised: Decimal  # price movements on what's held at the end
+    realised: Decimal  # price movements on what was sold in the period
+    dividends: Decimal
+    interest: Decimal  # on cash and from share lending
+    fees: Decimal  # fees and taxes, on trades and charged on their own; negative when paid
+    other: Decimal  # cash movements of any other type
+    total: Decimal
+
+
+class ValuePoint(BaseModel):
+    on: date
+    value: Decimal | None  # None: no exchange rate for the account's currency
+    net_deposits: Decimal  # deposits less withdrawals since the account opened
+
+
+class ReturnGap(StrEnum):
+    """Why a return is missing."""
+
+    NO_MONEY = "no_money"  # nothing was invested in the period
+    NO_VALUE = "no_value"  # no exchange rate for the account's currency at its start or end
+    NO_SOLUTION = "no_solution"  # no rate fits the period's cash flows (money-weighted only)
+
+
+class InvestmentReturns(BaseModel):
+    """An investment account's returns over a period (ADR-0008, "Returns"). Returns are
+    fractions: 0.05 is 5%."""
+
+    id: uuid.UUID
+    name: str
+    currency: str
+    # The period: never before the account's first movement, nor after today. None: no history
+    # yet (not synced since positions are read).
+    date_from: date | None
+    date_to: date | None
+    start_value: Decimal | None  # at the end of the day before date_from; None: no history
+    end_value: Decimal | None
+    deposits: Decimal  # money in from outside the account, in the period
+    withdrawals: Decimal  # money out, negative
+    net_deposits: Decimal
+    breakdown: ReturnsBreakdown | None  # None: no value at the start or the end
+    time_weighted: Decimal | None  # over the period
+    time_weighted_annual: Decimal | None  # a year's equivalent; None for a period under a year
+    time_weighted_gap: ReturnGap | None
+    money_weighted: Decimal | None  # over the period, from its first money in
+    money_weighted_annual: Decimal | None  # the XIRR; None for a period under a year
+    money_weighted_gap: ReturnGap | None
+    unpriced: int  # holding-days in the period left out: no price or exchange rate
+    unconverted: int  # days without an exchange rate for the account's currency
+    points: list[ValuePoint]  # daily, oldest first
+
+
+class InvestmentReturnsOut(BaseModel):
+    accounts: list[InvestmentReturns]
 
 
 # Budgets: amounts in euros.
