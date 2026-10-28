@@ -6,6 +6,9 @@
 *.key
 secrets/
 
+# Playwright CLI snapshots and screenshots: they hold real data
+.playwright-cli/
+
 # Python
 __pycache__/
 .venv/
