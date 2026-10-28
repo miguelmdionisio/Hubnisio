@@ -20,7 +20,7 @@ OCTOBER = {"months": 2, "until": "2026-10-01"}
 
 
 async def names(client: httpx.AsyncClient, **params: Any) -> list[str]:
-    """Sorted: accounts made in one transaction share their `created_at`."""
+    """Sorted, to compare as a set."""
     response = await client.get("/api/finance/accounts", params=params)
     assert response.status_code == 200, response.text
     return sorted(account["name"] for account in response.json())
@@ -168,3 +168,21 @@ async def test_only_an_owner_hides_or_deletes(home: Home) -> None:
             )
             assert (hide.status_code, delete.status_code) == (404, 404)
         assert await names(client) == ["Conta", "Poupança"]
+
+
+async def test_the_list_keeps_its_order_when_an_account_changes(home: Home) -> None:
+    """The fixture's accounts share their `created_at`, as accounts linked together do."""
+    async with api(home.owner) as client:
+
+        async def ids() -> list[str]:
+            return [account["id"] for account in (await client.get("/api/finance/accounts")).json()]
+
+        before = await ids()
+        for account in before * 2:
+            current = (await client.get("/api/finance/accounts")).json()
+            counted = next(a for a in current if a["id"] == account)["include_in_net_worth"]
+            response = await client.patch(
+                f"/api/finance/accounts/{account}", json={"include_in_net_worth": not counted}
+            )
+            assert response.status_code == 200, response.text
+            assert await ids() == before

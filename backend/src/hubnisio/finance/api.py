@@ -246,7 +246,9 @@ async def list_accounts(
         await session.scalars(
             select(Account)
             .where(Account.id.in_(scope))
-            .order_by(Account.institution_name, Account.created_at)
+            # Accounts linked together share `created_at`: the id keeps their order
+            # stable across updates, so the rows don't swap under the user's cursor.
+            .order_by(Account.institution_name, Account.created_at, Account.id)
         )
     )
     owned = set(
