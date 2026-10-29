@@ -13,6 +13,7 @@ import { CategoriesPage } from './routes/finance/categories';
 import { ConnectionsPage } from './routes/finance/connections';
 import { InvestmentsPage } from './routes/finance/investments';
 import { MerchantsPage } from './routes/finance/merchants';
+import { MorePage } from './routes/finance/more';
 import { RecurringPage, validateRecurringSearch } from './routes/finance/recurring';
 import { RulesPage } from './routes/finance/rules';
 import { TransactionsPage, validateTransactionSearch } from './routes/finance/transactions';
@@ -74,6 +75,7 @@ const routeTree = rootRoute.addChildren([
     path: '/finance/connections',
     component: ConnectionsPage,
   }),
+  createRoute({ getParentRoute: () => rootRoute, path: '/finance/more', component: MorePage }),
   // Where the bank sends the browser back after authorization (Enable Banking redirect URL).
   createRoute({
     getParentRoute: () => rootRoute,

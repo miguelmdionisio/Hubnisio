@@ -68,7 +68,9 @@ test('shows the value, the holdings with their weight, and what they paid', asyn
   expect(acme.getByText('-€5.00').className).toContain('text-destructive');
 
   expect(screen.getByText(/the last 3 months: €5\.23 in all/)).toBeDefined();
-  expect(calls[0]?.search.get('months')).toBe('12');
+  expect(calls.find((call) => call.path === '/api/finance/investments')?.search.get('months')).toBe(
+    '12',
+  );
 });
 
 test('says when there are no investment accounts', async () => {

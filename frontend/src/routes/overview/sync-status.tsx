@@ -1,13 +1,8 @@
 import { Link } from '@tanstack/react-router';
-import type { ConnectionOut } from '@/api/types.gen';
 import { Skeleton } from '@/components/ui/skeleton';
 import { errorMessage } from '@/lib/errors';
-import { formatRelative } from '@/lib/format';
 import { cn } from '@/lib/utils';
-import { useConnections } from '../finance/use-connections';
-
-/** Syncs run several times a day; a day and a bit without one means something is off. */
-const STALE_MS = 26 * 3_600_000;
+import { syncState, useConnections } from '../finance/use-connections';
 
 /** How fresh the figures below are: when each connection last synced, and which need a look. */
 export function SyncStatus() {
@@ -29,7 +24,7 @@ export function SyncStatus() {
   }
   const needsLook = linked.some((connection) => syncState(connection).attention);
   return (
-    <div className="text-xs text-muted-foreground sm:text-right">
+    <div className="text-xs text-muted-foreground">
       <ul>
         {linked.map((connection) => {
           const state = syncState(connection);
@@ -47,16 +42,4 @@ export function SyncStatus() {
       )}
     </div>
   );
-}
-
-function syncState(connection: ConnectionOut): { text: string; attention: boolean } {
-  if (connection.status !== 'active') return { text: 'needs reconnecting', attention: true };
-  if (connection.syncing) return { text: 'is syncing now', attention: false };
-  if (connection.last_error) return { text: 'failed its last sync', attention: true };
-  if (!connection.last_synced_at) return { text: "hasn't synced yet", attention: false };
-  const stale = Date.now() - Date.parse(connection.last_synced_at) > STALE_MS;
-  return {
-    text: `synced ${formatRelative(connection.last_synced_at)}`,
-    attention: stale,
-  };
 }

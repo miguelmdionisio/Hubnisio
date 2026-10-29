@@ -300,7 +300,9 @@ test('steps between months', async () => {
 
   renderAt('/finance/budgets?month=2026-01');
   expect(await screen.findByRole('heading', { name: 'January 2026' })).toBeDefined();
-  expect(calls[0]?.search.get('month')).toBe('2026-01-01');
+  expect(calls.find((call) => call.path === '/api/finance/budgets')?.search.get('month')).toBe(
+    '2026-01-01',
+  );
 
   fireEvent.click(screen.getByRole('button', { name: 'Previous month' }));
   expect(await screen.findByRole('heading', { name: 'December 2025' })).toBeDefined();

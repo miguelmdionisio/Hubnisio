@@ -1,9 +1,18 @@
 <!doctype html>
-<html lang="en">
+<html lang="en-GB" class="dark">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Hubnisio</title>
+    <script>
+      // Dark unless this browser chose otherwise (src/lib/theme.tsx), before the first paint.
+      try {
+        const theme = localStorage.getItem('hubnisio.theme');
+        if (theme === 'light' || (theme === 'system' && !matchMedia('(prefers-color-scheme: dark)').matches)) {
+          document.documentElement.classList.remove('dark');
+        }
+      } catch {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

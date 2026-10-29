@@ -6,7 +6,8 @@ import {
   listTransactionsInfiniteQueryKey,
   startConnectionMutation,
 } from '@/api/@tanstack/react-query.gen';
-import type { ProviderName } from '@/api/types.gen';
+import type { ConnectionOut, ProviderName } from '@/api/types.gen';
+import { formatRelative } from '@/lib/format';
 
 const POLL_MS = 3000;
 
@@ -78,4 +79,20 @@ export function describeSyncError(code: string, provider: ProviderName = 'enable
     default:
       return code;
   }
+}
+
+/** Syncs run several times a day; a day and a bit without one means something is off. */
+const STALE_MS = 26 * 3_600_000;
+
+/** Where a connection's sync stands, in words, and whether it needs a look. */
+export function syncState(connection: ConnectionOut): { text: string; attention: boolean } {
+  if (connection.status !== 'active') return { text: 'needs reconnecting', attention: true };
+  if (connection.syncing) return { text: 'is syncing now', attention: false };
+  if (connection.last_error) return { text: 'failed its last sync', attention: true };
+  if (!connection.last_synced_at) return { text: "hasn't synced yet", attention: false };
+  const stale = Date.now() - Date.parse(connection.last_synced_at) > STALE_MS;
+  return {
+    text: `synced ${formatRelative(connection.last_synced_at)}`,
+    attention: stale,
+  };
 }

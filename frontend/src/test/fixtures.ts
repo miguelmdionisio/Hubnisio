@@ -4,6 +4,7 @@ import type {
   BudgetsOut,
   CashFlow,
   CategoryGroupOut,
+  ConnectionOut,
   CounterpartyOut,
   Holding,
   InvestmentAccount,
@@ -355,6 +356,24 @@ export function investmentReturns(overrides: Partial<InvestmentReturns> = {}): I
       { on: '2026-03-01', value: '1080.00', net_deposits: '1000.00' },
       { on: '2026-10-20', value: '900.00', net_deposits: '800.00' },
     ],
+    ...overrides,
+  };
+}
+
+export function connection(overrides: Partial<ConnectionOut> = {}): ConnectionOut {
+  return {
+    id: 'c1',
+    provider: 'enable_banking',
+    institution_name: 'Banco BPI',
+    institution_country: 'PT',
+    status: 'active',
+    valid_until: '2027-04-20T12:00:00Z',
+    days_left: 170,
+    key_file: null,
+    last_synced_at: new Date(Date.now() - 5 * 60_000).toISOString(),
+    syncing: false,
+    last_error: null,
+    account_ids: ['a1', 'a2'],
     ...overrides,
   };
 }

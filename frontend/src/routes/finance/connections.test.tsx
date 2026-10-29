@@ -1,30 +1,12 @@
 import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, expect, test, vi } from 'vitest';
-import type { ConnectionOut } from '@/api/types.gen';
+import { connection } from '@/test/fixtures';
 import { mockApi, renderAt } from '@/test/render';
 
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
 });
-
-function connection(overrides: Partial<ConnectionOut>): ConnectionOut {
-  return {
-    id: 'c1',
-    provider: 'enable_banking',
-    institution_name: 'Banco BPI',
-    institution_country: 'PT',
-    status: 'active',
-    valid_until: '2027-04-20T12:00:00Z',
-    days_left: 170,
-    key_file: null,
-    last_synced_at: new Date(Date.now() - 5 * 60_000).toISOString(),
-    syncing: false,
-    last_error: null,
-    account_ids: ['a1', 'a2'],
-    ...overrides,
-  };
-}
 
 test('shows each connection and what needs attention', async () => {
   mockApi({

@@ -722,7 +722,6 @@ test('counts Mine by default; the toggle switches the cards to Household and is 
 
   const toggle = within(await screen.findByRole('group', { name: 'View' }));
   expect(toggle.getByRole('button', { name: 'Mine' }).getAttribute('aria-pressed')).toBe('true');
-  expect(await screen.findByText(/A shared pot counts as what you move into it/)).toBeDefined();
   await card('Net worth');
   expect(counted('personal')).toEqual(
     new Set(['insights/net-worth', 'insights/spending', 'insights/cash-flow', 'budgets']),
@@ -730,7 +729,9 @@ test('counts Mine by default; the toggle switches the cards to Household and is 
   expect(counted('household').size).toBe(0);
 
   fireEvent.click(toggle.getByRole('button', { name: 'Household' }));
-  expect(await screen.findByText('Every account in full, shared pots included.')).toBeDefined();
+  expect(toggle.getByRole('button', { name: 'Household' }).getAttribute('aria-pressed')).toBe(
+    'true',
+  );
   await vi.waitFor(() =>
     expect(counted('household')).toEqual(
       new Set(['insights/net-worth', 'insights/spending', 'insights/cash-flow', 'budgets']),

@@ -1,200 +1,208 @@
-import { Link, Outlet } from '@tanstack/react-router';
-import {
-  ArrowLeftRight,
-  House,
-  Landmark,
-  ListChecks,
-  type LucideIcon,
-  Menu,
-  PiggyBank,
-  Repeat,
-  Store,
-  Tags,
-  TrendingUp,
-  Wallet,
-} from 'lucide-react';
-import { type ReactNode, useState } from 'react';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { Link, Outlet, useNavigate, useRouterState } from '@tanstack/react-router';
+import { Check, ChevronDown, Ellipsis, Search } from 'lucide-react';
+import type { ReactNode } from 'react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Toaster } from '@/components/ui/sonner';
+import { ThemeProvider } from '@/lib/theme';
+import { cn } from '@/lib/utils';
 import { useView, VIEW_LABELS, VIEW_NOTES, type View, ViewProvider } from '@/lib/view';
-
-type Path =
-  | '/'
-  | '/finance/accounts'
-  | '/finance/investments'
-  | '/finance/transactions'
-  | '/finance/categories'
-  | '/finance/budgets'
-  | '/finance/recurring'
-  | '/finance/rules'
-  | '/finance/merchants'
-  | '/finance/connections';
-
-function NavLink({
-  to,
-  icon: Icon,
-  onNavigate,
-  children,
-}: {
-  to: Path;
-  icon: LucideIcon;
-  onNavigate?: () => void;
-  children: ReactNode;
-}) {
-  return (
-    <Link
-      to={to}
-      activeOptions={{ exact: to === '/' }}
-      onClick={onNavigate}
-      className="flex items-center gap-2 rounded-md px-2 py-2.5 text-sm text-sidebar-foreground hover:bg-sidebar-accent md:py-1.5"
-      activeProps={{ className: 'bg-sidebar-accent font-medium text-sidebar-accent-foreground' }}
-    >
-      <Icon className="size-4" aria-hidden />
-      {children}
-    </Link>
-  );
-}
-
-function NavSection({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <div>
-      <p className="px-2 pb-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-        {title}
-      </p>
-      <div className="space-y-0.5">{children}</div>
-    </div>
-  );
-}
-
-/** Mine or Household: which accounts the overview, charts and budgets count. */
-function ViewToggle() {
-  const { view, setView } = useView();
-  return (
-    <fieldset aria-label="View" className="mt-4 flex rounded-md border bg-background p-0.5">
-      {(['personal', 'household'] satisfies View[]).map((option) => (
-        <Button
-          key={option}
-          variant={view === option ? 'secondary' : 'ghost'}
-          size="sm"
-          className="h-7 flex-1"
-          aria-pressed={view === option}
-          title={VIEW_NOTES[option]}
-          onClick={() => setView(option)}
-        >
-          {VIEW_LABELS[option]}
-        </Button>
-      ))}
-    </fieldset>
-  );
-}
+import { DOMAINS, type Domain, FINANCE, navItems } from './domains';
+import { SearchProvider, useOpenSearch } from './search';
+import { Segmented } from './segmented';
+import { SyncFreshness } from './sync-freshness';
+import { ThemeSwitch } from './theme-switch';
 
 export function AppShell() {
   return (
-    <ViewProvider>
-      <Shell />
-    </ViewProvider>
+    <ThemeProvider>
+      <ViewProvider>
+        <SearchProvider>
+          <Shell />
+        </SearchProvider>
+      </ViewProvider>
+    </ThemeProvider>
   );
 }
 
-/** What the sidebar holds, and the menu on a phone: the view and the pages. */
-function Navigation({ onNavigate }: { onNavigate?: () => void }) {
-  return (
-    <>
-      <ViewToggle />
-      <nav className="mt-6 space-y-6" aria-label="Main">
-        <div className="space-y-0.5">
-          <NavLink to="/" icon={House} onNavigate={onNavigate}>
-            Home
-          </NavLink>
-        </div>
-        <NavSection title="Finance">
-          <NavLink to="/finance/accounts" icon={Wallet} onNavigate={onNavigate}>
-            Accounts
-          </NavLink>
-          <NavLink to="/finance/investments" icon={TrendingUp} onNavigate={onNavigate}>
-            Investments
-          </NavLink>
-          <NavLink to="/finance/transactions" icon={ArrowLeftRight} onNavigate={onNavigate}>
-            Transactions
-          </NavLink>
-          <NavLink to="/finance/categories" icon={Tags} onNavigate={onNavigate}>
-            Categories
-          </NavLink>
-          <NavLink to="/finance/budgets" icon={PiggyBank} onNavigate={onNavigate}>
-            Budgets
-          </NavLink>
-          <NavLink to="/finance/recurring" icon={Repeat} onNavigate={onNavigate}>
-            Recurring
-          </NavLink>
-          <NavLink to="/finance/rules" icon={ListChecks} onNavigate={onNavigate}>
-            Rules
-          </NavLink>
-          <NavLink to="/finance/merchants" icon={Store} onNavigate={onNavigate}>
-            Merchants
-          </NavLink>
-          <NavLink to="/finance/connections" icon={Landmark} onNavigate={onNavigate}>
-            Bank connections
-          </NavLink>
-        </NavSection>
-      </nav>
-    </>
-  );
-}
-
-/** On a phone, a bar with the menu in a sheet; from `md` up, the sidebar. */
-function MobileBar() {
-  const [open, setOpen] = useState(false);
-  return (
-    <header className="sticky top-0 z-40 flex items-center gap-2 border-b bg-background/95 px-2 py-2 backdrop-blur md:hidden">
-      <Sheet open={open} onOpenChange={setOpen}>
-        <SheetTrigger asChild>
-          <Button variant="ghost" size="icon" className="size-11" aria-label="Menu">
-            <Menu className="size-5" aria-hidden />
-          </Button>
-        </SheetTrigger>
-        <SheetContent side="left" className="w-72 overflow-y-auto bg-sidebar px-3 py-4">
-          <SheetTitle className="px-2 text-lg font-semibold">Hubnisio</SheetTitle>
-          <Navigation onNavigate={() => setOpen(false)} />
-        </SheetContent>
-      </Sheet>
-      <Link to="/" className="text-lg font-semibold">
-        Hubnisio
-      </Link>
-    </header>
-  );
-}
-
+/** Desktop: one sidebar (docs/design/navigation.md, B1). Below `md`: a tab bar at the bottom. */
 function Shell() {
   return (
-    <div className="min-h-screen bg-background text-foreground md:flex">
+    <div className="min-h-dvh bg-background text-foreground md:flex">
       <a
         href="#main"
-        className="sr-only z-50 rounded-md bg-background px-3 py-2 text-sm font-medium shadow focus:not-sr-only focus:fixed focus:top-2 focus:left-2"
+        className="sr-only z-50 rounded-lg bg-background px-3 py-2 text-sm font-medium shadow-pop focus:not-sr-only focus:fixed focus:top-2 focus:left-2"
       >
         Skip to content
       </a>
-      <MobileBar />
-      <aside className="sticky top-0 hidden h-screen w-56 shrink-0 overflow-y-auto border-r bg-sidebar px-3 py-4 md:block">
-        <Link to="/" className="block px-2 text-lg font-semibold">
-          Hubnisio
-        </Link>
-        <Navigation />
-      </aside>
+      <Sidebar domain={FINANCE} />
       <main
         id="main"
         tabIndex={-1}
-        className="min-w-0 flex-1 px-4 py-5 outline-none md:px-8 md:py-6"
+        className="min-w-0 flex-1 px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] outline-none md:px-7 md:pb-12"
       >
         <Outlet />
       </main>
+      <TabBar domain={FINANCE} />
       <Toaster />
     </div>
   );
 }
 
-/** `showsView`: the page counts the accounts of the chosen view, so it says which. */
+function Sidebar({ domain }: { domain: Domain }) {
+  const openSearch = useOpenSearch();
+  return (
+    <aside className="sticky top-0 hidden h-dvh w-[200px] shrink-0 flex-col overflow-y-auto border-r bg-sidebar px-2 py-3 text-[13.5px] text-sidebar-foreground md:flex">
+      <DomainSwitcher domain={domain} />
+      <nav aria-label={domain.name} className="flex flex-col gap-px">
+        {domain.groups.map((group) => (
+          <div key={group.label ?? ''} className="flex flex-col gap-px">
+            {group.label && (
+              <p className="px-[9px] pt-3.5 pb-1 text-[11.5px] font-semibold text-faint">
+                {group.label}
+              </p>
+            )}
+            {group.items.map((item) => (
+              <Link
+                key={item.to}
+                to={item.to}
+                activeOptions={{ exact: item.to === domain.home }}
+                className="flex items-center gap-2.5 rounded-lg px-[9px] py-[7px] transition-colors hover:text-sidebar-accent-foreground"
+                activeProps={{
+                  className:
+                    'bg-sidebar-accent font-semibold text-sidebar-accent-foreground [&>svg]:text-sidebar-primary',
+                }}
+              >
+                <item.icon className="size-4" aria-hidden />
+                {item.label}
+              </Link>
+            ))}
+          </div>
+        ))}
+      </nav>
+      <div className="mt-auto flex flex-col gap-1 pt-4">
+        <ThemeSwitch className="mx-[5px] self-start" />
+        <button
+          type="button"
+          onClick={openSearch}
+          className="flex items-center gap-2.5 rounded-lg px-[9px] py-[7px] text-left transition-colors hover:text-sidebar-accent-foreground"
+        >
+          <Search className="size-4" aria-hidden />
+          Search
+          <kbd className="ml-auto rounded border px-1 text-[10.5px] font-semibold">Ctrl K</kbd>
+        </button>
+      </div>
+    </aside>
+  );
+}
+
+function DomainMark({ domain }: { domain: Domain }) {
+  return (
+    <b
+      className="grid size-[22px] shrink-0 place-items-center rounded-full bg-sidebar-primary text-xs text-sidebar-primary-foreground"
+      aria-hidden
+    >
+      {domain.mark}
+    </b>
+  );
+}
+
+/** The hub's domains; only built ones are listed. Switching goes to that domain's first page. */
+function DomainSwitcher({ domain }: { domain: Domain }) {
+  const navigate = useNavigate();
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          aria-label={`Domain: ${domain.name}`}
+          className="mb-2.5 flex items-center gap-[9px] rounded-lg px-2 py-1.5 text-left font-semibold text-sidebar-accent-foreground hover:bg-sidebar-accent"
+        >
+          <DomainMark domain={domain} />
+          {domain.name}
+          <ChevronDown className="ml-auto size-4 text-faint" aria-hidden />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-52 p-1.5 shadow-pop">
+        {DOMAINS.map((option) => (
+          <button
+            key={option.name}
+            type="button"
+            onClick={() => navigate({ to: option.home })}
+            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm font-medium hover:bg-accent"
+          >
+            <DomainMark domain={option} />
+            {option.name}
+            {option.name === domain.name && (
+              <Check className="ml-auto size-4 text-primary" aria-hidden />
+            )}
+          </button>
+        ))}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+/** The phone's navigation: the domain's main pages, then More for the rest. */
+function TabBar({ domain }: { domain: Domain }) {
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const items = navItems(domain);
+  const tabs = domain.tabs.flatMap((to) => items.filter((item) => item.to === to));
+  const inTabs = tabs.some((tab) =>
+    tab.to === domain.home ? pathname === tab.to : pathname.startsWith(tab.to),
+  );
+  const tabClass =
+    'flex flex-col items-center gap-[3px] text-[10.5px] font-medium text-faint [&>svg]:size-[22px]';
+  return (
+    <nav
+      aria-label="Tabs"
+      className="fixed inset-x-0 bottom-0 z-30 grid border-t bg-background/92 px-1.5 pt-2 pb-[calc(0.625rem+env(safe-area-inset-bottom))] backdrop-blur-md md:hidden"
+      style={{ gridTemplateColumns: `repeat(${tabs.length + 1}, minmax(0, 1fr))` }}
+    >
+      {tabs.map((tab) => (
+        <Link
+          key={tab.to}
+          to={tab.to}
+          activeOptions={{ exact: tab.to === domain.home }}
+          className={tabClass}
+          activeProps={{ className: 'text-primary' }}
+        >
+          <tab.icon aria-hidden />
+          {tab.label}
+        </Link>
+      ))}
+      <Link
+        to={domain.more}
+        className={cn(tabClass, !inTabs && 'text-primary')}
+        aria-current={!inTabs ? 'page' : undefined}
+      >
+        <Ellipsis aria-hidden />
+        More
+      </Link>
+    </nav>
+  );
+}
+
+/** Mine or Household: which accounts the page's sums count. */
+function ViewSwitch() {
+  const { view, setView } = useView();
+  return (
+    <Segmented
+      label="View"
+      value={view}
+      onChange={setView}
+      options={(['personal', 'household'] satisfies View[]).map((option) => ({
+        value: option,
+        label: VIEW_LABELS[option],
+        title: VIEW_NOTES[option],
+      }))}
+    />
+  );
+}
+
+/**
+ * Every page's header: its title, how fresh the data is, and on pages that sum money
+ * (`showsView`) the Mine / Household switch, then the page's own actions.
+ */
 export function PageHeader({
   title,
   description,
@@ -207,23 +215,24 @@ export function PageHeader({
   showsView?: boolean;
 }) {
   return (
-    <div className="mb-6 flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
-      <div>
-        <h1 className="text-2xl font-semibold">{title}</h1>
-        {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
-        {showsView && <ViewNote />}
-      </div>
-      {actions && <div className="flex shrink-0 gap-2">{actions}</div>}
-    </div>
-  );
-}
-
-function ViewNote() {
-  const { view } = useView();
-  return (
-    <p className="mt-1 flex items-center gap-2 text-sm text-muted-foreground" aria-live="polite">
-      <Badge variant="secondary">{VIEW_LABELS[view]}</Badge>
-      {VIEW_NOTES[view]}
-    </p>
+    <>
+      <header
+        className={cn(
+          'sticky top-0 z-20 -mx-4 flex min-h-[58px] flex-wrap items-center gap-x-3 gap-y-2 bg-background/88 px-4 py-2.5 backdrop-blur-md md:-mx-7 md:border-b md:px-7',
+          description ? 'mb-2' : 'mb-5',
+        )}
+      >
+        <h1 className="text-2xl font-bold tracking-[-0.02em] md:text-lg md:tracking-normal">
+          {title}
+        </h1>
+        <div className="flex-1" />
+        <SyncFreshness className="hidden md:flex" />
+        {showsView && <ViewSwitch />}
+        {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+      </header>
+      {description && (
+        <p className="mb-5 max-w-[70ch] text-sm text-muted-foreground">{description}</p>
+      )}
+    </>
   );
 }

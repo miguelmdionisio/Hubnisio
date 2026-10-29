@@ -13,8 +13,9 @@ import { UpcomingCard } from './overview/upcoming-card';
 export function HomePage() {
   return (
     <>
-      <PageHeader title="Overview" showsView actions={<SyncStatus />} />
+      <PageHeader title="Overview" showsView />
       <section aria-labelledby="glance" className="space-y-4">
+        <SyncStatus />
         <h2 id="glance" className="sr-only">
           At a glance
         </h2>

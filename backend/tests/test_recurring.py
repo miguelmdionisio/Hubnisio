@@ -149,7 +149,9 @@ async def test_review_survives_detection(home: Home) -> None:
         ).json()
         assert [(s["name"], s["occurrences"]) for s in confirmed] == [("Music", 3)]
 
-        upcoming = (await client.get("/api/finance/recurring/upcoming")).json()
+        # 20 days: with 5 days' grace, one monthly payment at most, whatever today's date (on
+        # the 29th, the one due on the 28th still shows, and so would the next within 30 days).
+        upcoming = (await client.get("/api/finance/recurring/upcoming", params={"days": 20})).json()
         assert [(u["name"], u["amount"], u["amount_eur"]) for u in upcoming] == [
             ("Music", "-5.9900", "-5.99")
         ]

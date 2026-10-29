@@ -90,7 +90,9 @@ test('hiding an account moves it to the collapsed hidden section, and unhiding b
   await waitFor(() =>
     expect(calls.find((call) => call.method === 'PATCH')?.body).toEqual({ hidden: true }),
   );
-  expect(calls[0]?.search.get('include_hidden')).toBe('true');
+  expect(
+    calls.find((call) => call.path === '/api/finance/accounts')?.search.get('include_hidden'),
+  ).toBe('true');
 
   const section = await screen.findByRole('button', { name: 'Hidden accounts (1)' });
   expect(screen.queryByText('Poupança')).toBeNull(); // collapsed
