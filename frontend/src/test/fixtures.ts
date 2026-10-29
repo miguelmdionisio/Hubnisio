@@ -2,7 +2,6 @@ import type {
   AccountOut,
   BudgetOut,
   BudgetsOut,
-  CashFlow,
   CategoryGroupOut,
   ConnectionOut,
   CounterpartyOut,
@@ -13,10 +12,7 @@ import type {
   OverallBudgetOut,
   RecurringOut,
   RuleOut,
-  Spending,
-  SpendingCategory,
   SpendingDay,
-  SpendingGroup,
   SpendingMonth,
   SpendingRank,
   TransactionOut,
@@ -225,45 +221,7 @@ export function netWorth(
   };
 }
 
-export function spendingCategory(id: string, name: string, amounts: string[]): SpendingCategory {
-  return { id, name, amounts };
-}
-
-export function spendingGroup(
-  id: string,
-  name: string,
-  amounts: string[],
-  categories: SpendingCategory[] = [],
-): SpendingGroup {
-  return { id, name, amounts, categories };
-}
-
-export function spending(
-  months: string[],
-  groups: SpendingGroup[],
-  uncategorized: string[],
-  overrides: Partial<Spending> = {},
-): Spending {
-  return { months, groups, uncategorized, unconverted: 0, ...overrides };
-}
-
 /** Cash flow from (month, income, spending) rows; net is income minus spending. */
-export function cashFlow(
-  rows: [string, string, string][],
-  overrides: Partial<CashFlow> = {},
-): CashFlow {
-  return {
-    months: rows.map(([month, income, spent]) => ({
-      month,
-      income,
-      spending: spent,
-      net: (Number(income) - Number(spent)).toFixed(2),
-    })),
-    unconverted: 0,
-    ...overrides,
-  };
-}
-
 export function upcomingPayment(
   seriesId: string,
   name: string,

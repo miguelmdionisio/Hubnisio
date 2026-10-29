@@ -24,19 +24,29 @@ export function SyncStatus() {
   }
   const needsLook = linked.some((connection) => syncState(connection).attention);
   return (
-    <div className="text-xs text-muted-foreground">
-      <ul>
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] text-muted-foreground">
+      <ul className="contents">
         {linked.map((connection) => {
           const state = syncState(connection);
           return (
-            <li key={connection.id} className={cn(state.attention && 'text-destructive')}>
+            <li
+              key={connection.id}
+              className={cn('flex items-center gap-1.5', state.attention && 'text-destructive')}
+            >
+              <span
+                aria-hidden
+                className={cn(
+                  'size-1.5 rounded-full',
+                  state.attention ? 'bg-destructive' : 'bg-good',
+                )}
+              />
               {connection.institution_name} {state.text}
             </li>
           );
         })}
       </ul>
       {needsLook && (
-        <Link to="/finance/connections" className="underline underline-offset-4">
+        <Link to="/finance/connections" className="font-semibold text-primary">
           Check bank connections
         </Link>
       )}
