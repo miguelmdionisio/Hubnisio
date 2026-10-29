@@ -108,7 +108,7 @@ A quiet instrument for one household's money, opened for a few seconds on a phon
 
 The look was chosen on 2026-10-29 from the round-two looks (`.impeccable/mocks/looks-b1-v2.html`) and the M7 prototype (`.impeccable/mocks/prototype.html`); its references are Revolut's analytics screens, Linear and Things. Rejected earlier: a top bar, a command-first layout, a two-column domain rail, and the Conserveira, Euro Series, Graphite Console and Envelopes looks.
 
-As of M7 F1 the shell (sidebar, tab bar, page header, More page, theme, search) is in this system; the pages inside it move over in F3–F6.
+Since M7 (done 2026-10-29) the whole finance app is in this system: the shell, the Spending page and its drill-downs, the transaction sheet, the Overview, and every other page.
 
 **Key Characteristics:**
 - Dark first; light and system offered, remembered per browser.
@@ -198,6 +198,19 @@ Soft and round. Controls are fully rounded pills (9999px); list panels 18px; row
 
 ### List panels and rows
 - **Style:** soft panel, 18px radius, 6px inset; rows of chip, label and a trailing chevron or control, 14px radius, soft-2 on hover.
+
+### Pills (`components/pills.tsx`)
+- **Style:** 34px (36px on desktop) soft pills, semibold 13.5–14px, a 16px icon first. A pill that narrows what's shown (`on`) takes primary-soft with primary text. `MenuPill` opens a short ticked menu; `MonthStepper` is "‹ This month ›" and never steps past the current month. shadcn buttons are pills too.
+
+### Chips (`components/category-chip.tsx`)
+- **Style:** round, 34/40/56px, a white lucide icon on the category's hue (`--cat-*`, the same in both themes), or a letter: a merchant's initial on its category's hue, else on soft-2. Seeded categories map to icons by name; others take their group's, then a hue from the name. Uncategorized is grey with a dashed circle.
+
+### Figures and charts
+- **Total:** 36px (42px desktop) at 750 weight, one line under it: an average, or "▲/▼ €213 vs September so far" in bad/good. A partial month gets a "Partial" marker, never a sentence.
+- **Charts (Recharts):** no gridlines; dashed faint reference lines at the highest day and the average, labelled on the right; bars in ink (a category's hue on its page); the running total in the accent over last month's dashed faint line; the donut's four biggest plus Others, the total and change in its middle. Every chart has a screen-reader list of its values.
+
+### Transaction sheet
+- **Style:** a 400px side panel on desktop, a bottom sheet (22px top radius, 88dvh) on the phone: chip, merchant and amount centred; a soft facts panel (date, account, who set the category); a two-column grid of categories by group that sets one in a click; then the rest.
 
 ### Search
 - **Style:** the command menu (Ctrl K / ⌘K, or Search in the sidebar or More): every page of every domain, and the three themes.

@@ -40,7 +40,7 @@ What BPI's, Revolut's and Trading 212's own apps can't do:
 
 ## Capabilities and Constraints
 
-- Pages today: overview (spending, donut, cash flow, net worth, budgets, upcoming), Transactions, Categories, Merchants, Rules, Budgets, Recurring, Accounts, Bank connections, Investments.
+- Pages today: Overview (spent, left to spend, due soon, net worth, budgets, coming up, spent per day), Spending (with category and merchant pages), Transactions, Categories, Merchants, Rules, Budgets, Recurring, Accounts, Bank connections, Investments.
 - **Mine / Household view:** "Mine" (default) counts what the user moves into shared pots; "Household" counts everything. Another member's private accounts never show, not even by name.
 - Money is multi-currency (EUR, MAD, instruments in other currencies), shown in EUR.
 - Desktop and mobile web both count: the user is on iPhone, and quick glances and alerts will happen there. Every page and the navigation are designed for both. No native app planned.

@@ -61,7 +61,6 @@ test('starts on the suggestions and filters by tab, with counts', async () => {
   expect(await screen.findByRole('button', { name: 'Netflix' })).toBeDefined();
   expect(screen.getByRole('button', { name: 'Gym' })).toBeDefined();
   expect(screen.queryByRole('button', { name: 'Spotify' })).toBeNull();
-  expect(screen.getByText(/only confirmed ones count in upcoming payments/)).toBeDefined();
   expect(screen.getByRole('tab', { name: /Suggested\s*2/ })).toBeDefined();
   expect(screen.getByRole('tab', { name: /Confirmed\s*4/ })).toBeDefined();
   expect(screen.getByRole('tab', { name: /Dismissed\s*1/ })).toBeDefined();
@@ -219,7 +218,7 @@ test('says what is missing on an empty tab', async () => {
   expect(await screen.findByText(/Nothing to review/)).toBeDefined();
   expect(screen.queryByRole('table')).toBeNull();
   openTab(/Confirmed/);
-  expect(await screen.findByText(/No confirmed payments yet/)).toBeDefined();
+  expect(await screen.findByText(/No confirmed payments/)).toBeDefined();
 });
 
 test('shows why a change failed', async () => {

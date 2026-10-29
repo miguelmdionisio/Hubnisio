@@ -96,10 +96,7 @@ export function InvestmentsPage() {
   });
   return (
     <>
-      <PageHeader
-        title="Investments"
-        description="As Trading 212 reported them at the latest sync, in the account's currency."
-      />
+      <PageHeader title="Investments" />
       <QueryView query={investments} skeleton="h-72">
         {(data) =>
           data.accounts.length === 0 ? (
@@ -499,14 +496,15 @@ function ReturnFigure({
 }) {
   return (
     <div className="space-y-1">
-      <h4 className="text-sm text-muted-foreground">{title}</h4>
+      <h4 className="text-sm text-muted-foreground" title={explanation}>
+        {title}
+      </h4>
       <p className={cn('text-2xl font-semibold tabular-nums', toneClass(rate))}>
         {rate === null ? '—' : formatPercent(rate, true)}
         {annual !== null && annual !== rate && (
           <span className="ml-2 text-sm font-normal">{formatPercent(annual, true)} a year</span>
         )}
       </p>
-      <Note>{explanation}</Note>
       {rate === null && gap && <Note>{GAPS[gap]}</Note>}
     </div>
   );
@@ -689,7 +687,7 @@ function signed(amount: string, money: (amount: string) => string): string {
 
 function toneClass(amount: string | null | undefined): string | undefined {
   if (amount === null || amount === undefined) return undefined;
-  if (Number(amount) > 0) return 'text-emerald-700 dark:text-emerald-400';
+  if (Number(amount) > 0) return 'text-good';
   if (Number(amount) < 0) return 'text-destructive';
   return undefined;
 }

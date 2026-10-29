@@ -37,25 +37,21 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { errorMessage } from '@/lib/errors';
 import { formatDate, formatMoney, formatShortMonth } from '@/lib/format';
 
-const TABS: { value: Review; label: string; description: string; empty: string }[] = [
+const TABS: { value: Review; label: string; empty: string }[] = [
   {
     value: 'suggested',
     label: 'Suggested',
-    description:
-      'Found in your transactions. Confirm the ones that are real; only confirmed ones count in upcoming payments.',
-    empty: "Nothing to review. New recurring payments show up here when they're found.",
+    empty: 'Nothing to review',
   },
   {
     value: 'confirmed',
     label: 'Confirmed',
-    description: 'These count in upcoming payments.',
-    empty: 'No confirmed payments yet. Confirm a suggestion to see it in upcoming payments.',
+    empty: 'No confirmed payments',
   },
   {
     value: 'dismissed',
     label: 'Dismissed',
-    description: 'Hidden from the suggestions. Restore one if it was a mistake.',
-    empty: 'Nothing dismissed.',
+    empty: 'Nothing dismissed',
   },
 ];
 
@@ -98,10 +94,7 @@ export function RecurringPage() {
 
   return (
     <>
-      <PageHeader
-        title="Recurring payments"
-        description={TABS.find((option) => option.value === tab)?.description}
-      />
+      <PageHeader title="Recurring payments" />
       {series.isPending && <Skeleton className="h-64 w-full" />}
       {series.isError && (
         <Alert variant="destructive">

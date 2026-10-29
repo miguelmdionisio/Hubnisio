@@ -80,7 +80,6 @@ export function CategoriesPage() {
     <>
       <PageHeader
         title="Categories"
-        description="Groups hold categories; transactions can go in either. Archiving hides a category from pickers without losing what's in it."
         actions={
           <>
             <Label className="gap-2 font-normal">

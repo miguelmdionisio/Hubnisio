@@ -166,10 +166,10 @@ test('shows the returns over the period, broken down, against net deposits', asy
   expect(await screen.findByText('1 Aug 2025 to 20 Oct 2026')).toBeDefined();
   expect(screen.getByText('+12.3%')).toBeDefined();
   expect(screen.getByText('+11% a year')).toBeDefined();
-  expect(screen.getByText(/whatever the timing of deposits and withdrawals/)).toBeDefined();
+  expect(screen.getByTitle(/whatever the timing of deposits and withdrawals/)).toBeDefined();
   expect(screen.getByText('+11.5%')).toBeDefined();
   expect(screen.getByText('+10.2% a year')).toBeDefined();
-  expect(screen.getByText(/given when it went in and came out/)).toBeDefined();
+  expect(screen.getByTitle(/given when it went in and came out/)).toBeDefined();
 
   const line = (label: string) =>
     screen.getByText(label, { selector: 'dt' }).nextElementSibling?.textContent;

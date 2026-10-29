@@ -9,6 +9,7 @@ import {
 } from '@/api/@tanstack/react-query.gen';
 import type { CounterpartyOut } from '@/api/types.gen';
 import { PageHeader } from '@/components/app-shell';
+import { Chip, useCategoryStyles } from '@/components/category-chip';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -24,17 +25,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { errorMessage } from '@/lib/errors';
 import { CategoryPicker, categoryNames, useCategories } from './category-picker';
 import { MerchantPicker, useMerchants } from './merchant-picker';
+import { ListPanel } from './transaction-rows';
 import { invalidateUserLayer } from './use-transaction-edits';
 
 const SHOWN_ALIASES = 3;
@@ -47,6 +41,7 @@ export function MerchantsPage() {
   const queryClient = useQueryClient();
   const merchants = useMerchants();
   const names = categoryNames(useCategories().data);
+  const styleOf = useCategoryStyles();
   const [search, setSearch] = useState('');
   const [needsCategory, setNeedsCategory] = useState(false);
   const [showUnused, setShowUnused] = useState(false);
@@ -80,10 +75,7 @@ export function MerchantsPage() {
 
   return (
     <>
-      <PageHeader
-        title="Merchants"
-        description="Who the money went to or came from. A merchant's default category covers all its transactions, past and future, unless a rule or a choice of yours says otherwise."
-      />
+      <PageHeader title="Merchants" />
       <div className="mb-4 flex flex-wrap items-center gap-x-6 gap-y-3">
         <Input
           type="search"
@@ -121,29 +113,33 @@ export function MerchantsPage() {
         </Card>
       )}
       {shown && shown.length > 0 && (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Merchant</TableHead>
-              <TableHead>Default category</TableHead>
-              <TableHead className="text-right">Transactions</TableHead>
-              <TableHead className="w-24" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
+        <ListPanel>
+          <ul>
             {shown.map((merchant) => (
-              <TableRow key={merchant.id}>
-                <TableCell>
-                  <div className="font-medium">{merchant.name}</div>
+              <li
+                key={merchant.id}
+                className="flex flex-wrap items-center gap-x-3.5 gap-y-1 rounded-[14px] px-3 py-2.5 hover:bg-surface-2"
+              >
+                <Chip
+                  letter={merchant.name}
+                  style={
+                    merchant.default_category_id ? styleOf(merchant.default_category_id) : undefined
+                  }
+                />
+                <div className="min-w-0 flex-1 basis-40">
+                  <p className="truncate text-[15px] font-semibold">{merchant.name}</p>
                   {merchant.aliases.length > 0 && (
-                    <div className="max-w-md truncate text-xs text-muted-foreground">
-                      Bank names: {merchant.aliases.slice(0, SHOWN_ALIASES).join(', ')}
+                    <p
+                      className="truncate text-[13px] text-muted-foreground"
+                      title={`Bank names: ${merchant.aliases.join(', ')}`}
+                    >
+                      {merchant.aliases.slice(0, SHOWN_ALIASES).join(', ')}
                       {merchant.aliases.length > SHOWN_ALIASES &&
                         ` +${merchant.aliases.length - SHOWN_ALIASES}`}
-                    </div>
+                    </p>
                   )}
-                </TableCell>
-                <TableCell>
+                </div>
+                <div className="ml-[54px] flex w-full items-center gap-1 md:ml-0 md:w-auto">
                   <CategoryPicker
                     value={merchant.default_category_id}
                     noneLabel="No default"
@@ -161,18 +157,14 @@ export function MerchantsPage() {
                       <span className="text-muted-foreground">No default</span>
                     )}
                   </CategoryPicker>
-                </TableCell>
-                <TableCell className="text-right tabular-nums">
                   <Link
                     to="/finance/transactions"
                     search={{ counterparty: merchant.id }}
-                    className="underline-offset-4 hover:underline"
+                    className="ml-auto min-w-10 rounded-full px-2 py-1 text-right text-sm font-semibold tabular-nums hover:bg-surface"
                     aria-label={`${merchant.transactions} transactions with ${merchant.name}`}
                   >
                     {merchant.transactions}
                   </Link>
-                </TableCell>
-                <TableCell className="text-right">
                   <Button
                     variant="ghost"
                     size="icon-sm"
@@ -191,11 +183,11 @@ export function MerchantsPage() {
                   >
                     <Merge aria-hidden />
                   </Button>
-                </TableCell>
-              </TableRow>
+                </div>
+              </li>
             ))}
-          </TableBody>
-        </Table>
+          </ul>
+        </ListPanel>
       )}
       {shown?.length === 0 && !!merchants.data?.length && (
         <p className="text-sm text-muted-foreground">

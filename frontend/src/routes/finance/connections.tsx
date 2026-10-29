@@ -58,7 +58,6 @@ export function ConnectionsPage() {
     <>
       <PageHeader
         title="Bank connections"
-        description="Each connection is your consent for the hub to read one bank's accounts, or a read-only Trading 212 API key. Neither can move money."
         actions={<Button onClick={() => setLinking(true)}>Link a bank</Button>}
       />
       {connections.isPending && <Skeleton className="h-36 w-full max-w-xl" />}
@@ -172,7 +171,7 @@ function ConnectionCard({
             <p>The bank ended this consent. Link again to keep syncing.</p>
           ))}
         {expiresSoon && (
-          <p className="text-amber-700 dark:text-amber-400">
+          <p className="text-destructive">
             The consent ends in {connection.days_left} days. Link again to renew it.
           </p>
         )}

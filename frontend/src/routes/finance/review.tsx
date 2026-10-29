@@ -500,7 +500,7 @@ function ReviewCard({
 function QueueEmpty({ afterWork }: { afterWork: boolean }) {
   return (
     <div className="flex max-w-2xl flex-col items-start gap-2 rounded-xl border bg-card p-6">
-      <CircleCheck className="size-6 text-emerald-700 dark:text-emerald-400" aria-hidden />
+      <CircleCheck className="size-6 text-good" aria-hidden />
       <h2 className="text-lg font-semibold">{afterWork ? 'Queue empty' : 'Nothing to review'}</h2>
       <p className="text-sm text-muted-foreground">
         {afterWork

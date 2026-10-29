@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
-import { ChevronDown, ChevronRight, EyeOff, Pencil } from 'lucide-react';
+import { ChartLine, ChevronDown, ChevronRight, EyeOff, Landmark, Pencil } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { deleteAccountMutation, updateAccountMutation } from '@/api/@tanstack/react-query.gen';
@@ -27,7 +27,6 @@ import {
   Table,
   TableBody,
   TableCell,
-  TableFooter,
   TableHead,
   TableHeader,
   TableRow,
@@ -35,7 +34,12 @@ import {
 import { errorMessage } from '@/lib/errors';
 import { formatMoney, formatRelative } from '@/lib/format';
 import { CategoryPicker, categoryNames, useCategories } from './category-picker';
+import { NetWorth } from './net-worth';
+import { ListPanel } from './transaction-rows';
 import { useAccounts } from './use-accounts';
+
+const POT_NOTE =
+  'An account shared with someone outside the hub. In Mine, what you move into it counts as spending in its category; its own spending and balance count only in Household.';
 
 const BALANCE_LABELS: Record<string, string> = {
   ITAV: 'available',
@@ -65,13 +69,14 @@ export function AccountsPage() {
     <>
       <PageHeader
         title="Accounts"
-        description="Balances as the banks report them at each sync. An investment account shows its value: cash plus holdings at market value."
+        showsView
         actions={
           <Button variant="outline" asChild>
             <Link to="/finance/connections">Bank connections</Link>
           </Button>
         }
       />
+      <NetWorth />
       {accounts.isPending && <Skeleton className="h-48 w-full" />}
       {accounts.isError && (
         <Alert variant="destructive">
@@ -99,115 +104,108 @@ export function AccountsPage() {
         </Card>
       )}
       {accounts.listed.length > 0 && (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Account</TableHead>
-              <TableHead>IBAN</TableHead>
-              <TableHead className="text-right">Balance</TableHead>
-              <TableHead>Private</TableHead>
-              <TableHead>In net worth</TableHead>
-              <TableHead>Shared pot</TableHead>
-              <TableHead>
-                <span className="sr-only">Actions</span>
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
+        <ListPanel>
+          <ul>
             {accounts.listed.map((account) => (
-              <TableRow key={account.id}>
-                <TableCell>
-                  <div className="flex items-center gap-1">
-                    <span className="font-medium">{account.name}</span>
-                    {account.is_owner && (
-                      <Button
-                        variant="ghost"
-                        size="icon-xs"
-                        aria-label={`Rename ${account.name}`}
-                        onClick={() => setRenaming(account)}
-                      >
-                        <Pencil />
-                      </Button>
+              <li key={account.id} className="rounded-[14px] px-3 py-3 hover:bg-surface-2/60">
+                <div className="grid grid-cols-[40px_minmax(0,1fr)_auto] items-center gap-3.5">
+                  <span
+                    aria-hidden
+                    className="grid size-10 place-items-center rounded-full bg-surface-2 text-muted-foreground"
+                  >
+                    {account.is_investment ? (
+                      <ChartLine className="size-[18px]" />
+                    ) : (
+                      <Landmark className="size-[18px]" />
+                    )}
+                  </span>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1">
+                      <span className="truncate text-[15px] font-semibold">{account.name}</span>
+                      {account.is_owner && (
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          aria-label={`Rename ${account.name}`}
+                          onClick={() => setRenaming(account)}
+                        >
+                          <Pencil />
+                        </Button>
+                      )}
+                    </div>
+                    <p className="truncate text-[13px] text-muted-foreground">
+                      {account.institution_name}
+                      {account.is_investment && ' · investments'}
+                      {account.iban_masked && (
+                        <span className="font-mono"> · {account.iban_masked}</span>
+                      )}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    {account.balance ? (
+                      <>
+                        <p className="text-[15px] font-[650] tabular-nums">
+                          {formatMoney(account.balance.amount, account.balance.currency)}
+                        </p>
+                        <p className="text-[13px] text-muted-foreground">
+                          {BALANCE_LABELS[account.balance.balance_type] ??
+                            account.balance.balance_type}
+                          {' · '}
+                          {formatRelative(account.balance.fetched_at)}
+                        </p>
+                      </>
+                    ) : (
+                      <span className="text-[13px] text-muted-foreground">Not synced</span>
                     )}
                   </div>
-                  <div className="text-xs text-muted-foreground">
-                    {account.institution_name}
-                    {account.is_investment && ' · investments'}
-                  </div>
-                </TableCell>
-                <TableCell className="font-mono text-xs">{account.iban_masked ?? '—'}</TableCell>
-                <TableCell className="text-right">
-                  {account.balance ? (
-                    <>
-                      <div className="font-medium tabular-nums">
-                        {formatMoney(account.balance.amount, account.balance.currency)}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {BALANCE_LABELS[account.balance.balance_type] ??
-                          account.balance.balance_type}
-                        {' · '}
-                        {formatRelative(account.balance.fetched_at)}
-                      </div>
-                    </>
-                  ) : (
-                    <span className="text-muted-foreground">Not synced</span>
-                  )}
-                  {account.is_pot && (
-                    <Badge variant="outline" className="mt-1">
-                      Not in Mine
-                    </Badge>
-                  )}
-                </TableCell>
-                <TableCell>
-                  <Switch
+                </div>
+                <div className="mt-2.5 flex flex-wrap items-center gap-x-5 gap-y-2 pl-[54px] text-[13px] text-muted-foreground">
+                  <Toggle
+                    label="Private"
                     aria-label={`${account.name} is private`}
                     checked={account.visibility === 'private'}
                     disabled={!account.is_owner || update.isPending}
-                    onCheckedChange={(checked) =>
+                    onChange={(checked) =>
                       change(account, { visibility: checked ? 'private' : 'shared' })
                     }
                   />
-                </TableCell>
-                <TableCell>
-                  <Switch
+                  <Toggle
+                    label="In net worth"
                     aria-label={`Count ${account.name} in net worth`}
                     checked={account.include_in_net_worth}
                     disabled={!account.is_owner || update.isPending}
-                    onCheckedChange={(checked) =>
-                      change(account, { include_in_net_worth: checked })
-                    }
+                    onChange={(checked) => change(account, { include_in_net_worth: checked })}
                   />
-                </TableCell>
-                <TableCell>
-                  <Switch
+                  <Toggle
+                    label="Shared pot"
+                    title={POT_NOTE}
                     aria-label={`${account.name} is a shared pot`}
                     checked={account.is_pot}
                     disabled={!account.is_owner || update.isPending}
-                    onCheckedChange={(checked) => change(account, { is_pot: checked })}
+                    onChange={(checked) => change(account, { is_pot: checked })}
                   />
                   {account.is_pot && (
-                    <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
-                      Contributions:
+                    <span className="flex items-center gap-1">
+                      <Badge variant="outline">Not in Mine</Badge>
                       <CategoryPicker
                         kind="expense"
                         noneLabel="Uncategorized"
                         value={account.pot_category_id}
                         disabled={!account.is_owner || update.isPending}
                         onChange={(categoryId) => change(account, { pot_category_id: categoryId })}
-                        className="h-6 text-xs"
+                        className="h-7 text-xs"
                       >
                         {account.pot_category_id
                           ? (names.get(account.pot_category_id) ?? 'Unknown category')
                           : 'Uncategorized'}
                       </CategoryPicker>
-                    </div>
+                    </span>
                   )}
-                </TableCell>
-                <TableCell className="text-right">
                   {account.is_owner && (
                     <Button
                       variant="ghost"
-                      size="sm"
+                      size="xs"
+                      className="ml-auto"
                       aria-label={`Hide ${account.name}`}
                       onClick={() => setHiding(account)}
                     >
@@ -215,19 +213,12 @@ export function AccountsPage() {
                       Hide
                     </Button>
                   )}
-                </TableCell>
-              </TableRow>
+                </div>
+              </li>
             ))}
-          </TableBody>
+          </ul>
           <Totals accounts={accounts.listed} />
-        </Table>
-      )}
-      {accounts.listed.length > 0 && (
-        <p className="mt-2 text-sm text-muted-foreground">
-          A shared pot is an account you share with someone outside the hub: in Mine, what you move
-          into it counts as spending in its category, and its own spending and balance count only in
-          Household.
-        </p>
+        </ListPanel>
       )}
       <HiddenAccounts
         accounts={accounts.hidden}
@@ -266,17 +257,16 @@ function Totals({ accounts }: { accounts: AccountOut[] }) {
   }
   if (totals.size === 0) return null;
   return (
-    <TableFooter>
-      <TableRow>
-        <TableCell colSpan={2}>Total</TableCell>
-        <TableCell className="text-right font-medium tabular-nums">
-          {[...totals].map(([currency, amount]) => (
-            <div key={currency}>{formatMoney(amount, currency)}</div>
-          ))}
-        </TableCell>
-        <TableCell colSpan={4} />
-      </TableRow>
-    </TableFooter>
+    <p className="flex justify-between gap-3 px-3 pt-2 pb-2.5 text-[15px] font-semibold">
+      <span>Total</span>
+      <span className="text-right tabular-nums">
+        {[...totals].map(([currency, amount]) => (
+          <span key={currency} className="block">
+            {formatMoney(amount, currency)}
+          </span>
+        ))}
+      </span>
+    </p>
   );
 }
 
@@ -536,5 +526,34 @@ function TransfersLine({ blocked }: { blocked: AccountDeleteBlocked | null }) {
         : `${transfers} transfers with your other accounts stay marked as transfers on their side`}
       , so spending and income don't change.
     </p>
+  );
+}
+
+/** A labelled switch in an account's settings line. */
+function Toggle({
+  label,
+  title,
+  checked,
+  disabled,
+  onChange,
+  'aria-label': ariaLabel,
+}: {
+  label: string;
+  title?: string;
+  checked: boolean;
+  disabled: boolean;
+  onChange: (checked: boolean) => void;
+  'aria-label': string;
+}) {
+  return (
+    <span className="flex items-center gap-2" title={title}>
+      <Switch
+        aria-label={ariaLabel}
+        checked={checked}
+        disabled={disabled}
+        onCheckedChange={onChange}
+      />
+      {label}
+    </span>
   );
 }

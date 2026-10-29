@@ -207,13 +207,11 @@ function ViewSwitch() {
 export function PageHeader({
   title,
   leading,
-  description,
   actions,
   showsView,
 }: {
   title: string;
   leading?: ReactNode; // before the title: a back button, a chip
-  description?: string;
   actions?: ReactNode;
   showsView?: boolean;
 }) {
@@ -221,8 +219,7 @@ export function PageHeader({
     <>
       <header
         className={cn(
-          'sticky top-0 z-20 -mx-4 flex min-h-[58px] flex-wrap items-center gap-x-3 gap-y-2 bg-background/88 px-4 py-2.5 backdrop-blur-md md:-mx-7 md:border-b md:px-7',
-          description ? 'mb-2' : 'mb-5',
+          'sticky top-0 z-20 -mx-4 mb-5 flex min-h-[58px] flex-wrap items-center gap-x-3 gap-y-2 bg-background/88 px-4 py-2.5 backdrop-blur-md md:-mx-7 md:border-b md:px-7',
         )}
       >
         {leading && <div className="-mr-0.5 flex items-center gap-2">{leading}</div>}
@@ -234,9 +231,6 @@ export function PageHeader({
         {showsView && <ViewSwitch />}
         {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
       </header>
-      {description && (
-        <p className="mb-5 max-w-[70ch] text-sm text-muted-foreground">{description}</p>
-      )}
     </>
   );
 }

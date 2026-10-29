@@ -61,7 +61,6 @@ export function BudgetsPage() {
     <>
       <PageHeader
         title="Budgets"
-        description="What each category or group may spend per month, and how much is left."
         showsView
         actions={
           <Button onClick={() => setTarget({ type: 'new' })}>
@@ -293,11 +292,11 @@ function BudgetTable({
       <TableHeader>
         <TableRow>
           <TableHead>Budget</TableHead>
-          <TableHead className="text-right">Limit</TableHead>
-          <TableHead className="text-right">Available</TableHead>
+          <TableHead className="hidden text-right md:table-cell">Limit</TableHead>
+          <TableHead className="hidden text-right md:table-cell">Available</TableHead>
           <TableHead className="text-right">Spent</TableHead>
           <TableHead className="text-right">Remaining</TableHead>
-          <TableHead className="w-36">
+          <TableHead className="w-24 md:w-36">
             <span className="sr-only">Progress</span>
           </TableHead>
         </TableRow>
@@ -337,8 +336,12 @@ function BudgetRows({
             <BudgetBadges rollover={budget.rollover} carriedIn={budget.carried_in} over={over} />
           </div>
         </TableCell>
-        <TableCell className="text-right tabular-nums">{eur(budget.limit)}</TableCell>
-        <TableCell className="text-right tabular-nums">{eur(budget.available)}</TableCell>
+        <TableCell className="hidden text-right tabular-nums md:table-cell">
+          {eur(budget.limit)}
+        </TableCell>
+        <TableCell className="hidden text-right tabular-nums md:table-cell">
+          {eur(budget.available)}
+        </TableCell>
         <TableCell className="text-right tabular-nums">{eur(budget.spent)}</TableCell>
         <TableCell
           className={cn('text-right font-medium tabular-nums', over && 'text-destructive')}

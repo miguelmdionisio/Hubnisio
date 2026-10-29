@@ -88,7 +88,6 @@ export function RulesPage() {
     <>
       <PageHeader
         title="Rules"
-        description="Rules run from the top. A later rule's action replaces an earlier one's, unless an earlier rule stops processing. What you set by hand is never overridden."
         actions={
           <>
             <Button variant="outline" disabled={run.isPending} onClick={() => run.mutate({})}>

@@ -94,7 +94,7 @@ export function CallbackPage() {
   return (
     <Outcome title={`${connection.institution_name} is linked`}>
       <p className="flex items-center gap-2">
-        <CircleCheck className="size-4 text-emerald-600" aria-hidden />
+        <CircleCheck className="size-4 text-good" aria-hidden />
         The hub can now read {accounts} {accounts === 1 ? 'account' : 'accounts'}.
       </p>
       {connection.last_synced_at ? (

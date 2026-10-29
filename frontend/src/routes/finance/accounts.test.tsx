@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, expect, test, vi } from 'vitest';
 import type { AccountOut } from '@/api/types.gen';
-import { categories } from '@/test/fixtures';
+import { categories, netWorth } from '@/test/fixtures';
 import { mockApi, renderAt } from '@/test/render';
 
 afterEach(() => {
@@ -246,6 +246,30 @@ test('an investment account shows its value, outside the total until counted', a
   expect(await screen.findByText('Trading 212 · investments')).toBeDefined();
   expect(screen.getByText('€1,234.56')).toBeDefined();
   expect(screen.getByText(/^value ·/)).toBeDefined();
-  const total = screen.getByText('Total').closest('tr') as HTMLElement;
+  const total = screen.getByText('Total').closest('p') as HTMLElement;
   expect(within(total).getByText('€90.00')).toBeDefined(); // the bank account only
+});
+
+test('shows net worth with its change over 30 days, above the accounts', async () => {
+  mockApi({
+    'GET /api/finance/accounts': () => [],
+    'GET /api/finance/categories': () => categories,
+    'GET /api/finance/insights/net-worth': () =>
+      netWorth(
+        [
+          ['2026-09-01', '10000.00'],
+          ['2026-09-22', '10100.00'],
+          ['2026-10-22', '10220.00'],
+        ],
+        { unpriced: 3 },
+      ),
+  });
+
+  renderAt('/finance/accounts');
+
+  const section = within(await screen.findByRole('region', { name: 'Net worth' }));
+  expect(await section.findByText('€10,220')).toBeDefined();
+  expect(section.getByText('+€120.00')).toBeDefined();
+  expect(section.getByText('in 30 days')).toBeDefined();
+  expect(section.getByText('3 without a price')).toBeDefined();
 });

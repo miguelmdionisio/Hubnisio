@@ -33,9 +33,7 @@ test('lists merchants with their default category and bank names', async () => {
   renderAt('/finance/merchants');
 
   expect(await screen.findByText('Pingo Doce')).toBeDefined();
-  expect(
-    screen.getByText('Bank names: continente, continente modelo, cont bom dia +1'),
-  ).toBeDefined();
+  expect(screen.getByText('continente, continente modelo, cont bom dia +1')).toBeDefined();
   expect(screen.getByRole('button', { name: 'Groceries' })).toBeDefined();
   expect(screen.getAllByRole('button', { name: 'No default' })).toHaveLength(2);
   expect(
@@ -58,7 +56,7 @@ test('sets and clears the default category', async () => {
   const calls = api({ 'PATCH /api/finance/counterparties/m2': () => merchants[1] });
 
   renderAt('/finance/merchants');
-  const row = (await screen.findByText('Pingo Doce')).closest('tr') as HTMLElement;
+  const row = (await screen.findByText('Pingo Doce')).closest('li') as HTMLElement;
   fireEvent.click(within(row).getByRole('button', { name: 'No default' }));
   fireEvent.click(within(await screen.findByRole('listbox')).getByText('Groceries'));
   await waitFor(() =>
@@ -125,7 +123,7 @@ test('hides unused merchants, and filters those that need a category', async () 
   fireEvent.click(screen.getByRole('switch', { name: 'Show unused' }));
 
   fireEvent.click(screen.getByRole('switch', { name: 'Needs a category' }));
-  const rows = screen.getAllByRole('row').slice(1); // after the header
-  const names = rows.map((row) => within(row).getAllByRole('cell').at(0)?.firstChild?.textContent);
+  const rows = within(screen.getByRole('main')).getAllByRole('listitem');
+  const names = rows.map((row) => row.querySelector('p')?.textContent);
   expect(names).toEqual(['Pingo Doce', 'Continente Online']); // most transactions first
 });
