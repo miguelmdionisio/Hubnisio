@@ -16,10 +16,22 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
+from typing import Any
 
-from sqlalchemy import ColumnElement, Date, DateTime, and_, cast, false, func, not_, or_, select
+from sqlalchemy import (
+    ColumnElement,
+    Date,
+    DateTime,
+    and_,
+    cast,
+    false,
+    func,
+    not_,
+    or_,
+    select,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import aliased
+from sqlalchemy.orm import InstrumentedAttribute, aliased
 
 from hubnisio.core.auth import Principal
 from hubnisio.finance import schemas
@@ -104,12 +116,21 @@ def cents(amount: Decimal) -> Decimal:
     return amount.quantize(CENT)
 
 
-async def monthly_sums(
-    session: AsyncSession, principal: Principal, first: date, last: date, *, view: View
-) -> MonthlySums:
-    """Sums for the months from `first`'s to `last`'s, over the accounts that count in
-    `view` (finance/scoping.py)."""
-    month = cast(func.date_trunc("month", cast(Transaction.occurred_on, DateTime)), Date)
+async def _grouped_rows(
+    session: AsyncSession,
+    principal: Principal,
+    first: date,
+    end: date,
+    *,
+    view: View,
+    group_by: Sequence[ColumnElement[Any] | InstrumentedAttribute[Any]],
+    account_id: uuid.UUID | None = None,
+) -> Sequence[tuple[Any, ...]]:
+    """Booked, non-transfer transactions from `first` up to `end` (exclusive) in the accounts
+    that count in `view`, grouped by `group_by`, the transaction's category (a move to or from
+    a pot takes the pot's), its kind override and its sign. Rows are (*group_by, category,
+    override, positive, euros, unconverted, converted): the EUR sum, the transactions left out
+    for want of a rate, and those summed."""
     query = (
         select()
         .select_from(Transaction)
@@ -146,37 +167,118 @@ async def monthly_sums(
         Transaction.occurred_on,
     )
     positive = Transaction.amount > 0
+    query = query.add_columns(
+        *group_by,
+        category,
+        TransactionAnnotation.kind_override,
+        positive,
+        func.sum(eur),
+        func.count().filter(eur.is_(None)),
+        func.count().filter(eur.is_not(None)),
+    )
+    # A move to a pot has no merchant or kind override of its own.
+    query = query.outerjoin(
+        TransactionAnnotation,
+        and_(TransactionAnnotation.transaction_id == Transaction.id, not_(to_pot)),
+    ).outerjoin(
+        CategoryAssignment,
+        and_(CategoryAssignment.transaction_id == Transaction.id, not_(to_pot)),
+    )
+    query = query.where(
+        Transaction.account_id.in_(counted_account_ids(principal, view)),
+        Transaction.status == TransactionStatus.BOOKED,
+        Transaction.occurred_on >= first,
+        Transaction.occurred_on < end,
+        or_(not_(IS_TRANSFER), to_pot),
+    )
+    if account_id is not None:
+        query = query.where(Transaction.account_id == account_id)
     rows = await session.execute(
-        query.add_columns(
-            month,
-            category,
-            TransactionAnnotation.kind_override,
-            positive,
-            func.sum(eur),
-            func.count().filter(eur.is_(None)),
-        )
-        .outerjoin(
-            TransactionAnnotation,
-            and_(TransactionAnnotation.transaction_id == Transaction.id, not_(to_pot)),
-        )
-        .outerjoin(
-            CategoryAssignment,
-            and_(CategoryAssignment.transaction_id == Transaction.id, not_(to_pot)),
-        )
-        .where(
-            Transaction.account_id.in_(counted_account_ids(principal, view)),
-            Transaction.status == TransactionStatus.BOOKED,
-            Transaction.occurred_on >= month_start(first),
-            Transaction.occurred_on < add_months(month_start(last), 1),
-            or_(not_(IS_TRANSFER), to_pot),
-        )
-        .group_by(month, category, TransactionAnnotation.kind_override, positive)
+        query.group_by(*group_by, category, TransactionAnnotation.kind_override, positive)
+    )
+    return [tuple(row) for row in rows]
+
+
+def _kind(override: TransactionKind | None, is_positive: bool) -> TransactionKind:
+    return override or (TransactionKind.INCOME if is_positive else TransactionKind.EXPENSE)
+
+
+async def monthly_sums(
+    session: AsyncSession, principal: Principal, first: date, last: date, *, view: View
+) -> MonthlySums:
+    """Sums for the months from `first`'s to `last`'s, over the accounts that count in
+    `view` (finance/scoping.py)."""
+    month = cast(func.date_trunc("month", cast(Transaction.occurred_on, DateTime)), Date)
+    rows = await _grouped_rows(
+        session,
+        principal,
+        month_start(first),
+        add_months(month_start(last), 1),
+        view=view,
+        group_by=[month],
     )
     sums = MonthlySums()
-    for month_, category_id, override, is_positive, total, unconverted in rows:
-        kind = override or (TransactionKind.INCOME if is_positive else TransactionKind.EXPENSE)
-        sums.add(month_, category_id, kind, total, unconverted)
+    for month_, category_id, override, is_positive, total, unconverted, _ in rows:
+        sums.add(month_, category_id, _kind(override, is_positive), total, unconverted)
     return sums
+
+
+@dataclass(frozen=True)
+class DayRow:
+    """Transactions of one day with the same category and merchant: signed euros (negative =
+    money out) and how many were summed. `kind` is the category's stand-in when it has none."""
+
+    day: date
+    category_id: uuid.UUID | None
+    counterparty_id: uuid.UUID | None
+    kind: TransactionKind
+    total: Decimal
+    count: int
+
+
+async def daily_rows(
+    session: AsyncSession,
+    principal: Principal,
+    first: date,
+    end: date,
+    *,
+    view: View,
+    account_id: uuid.UUID | None = None,
+) -> list[DayRow]:
+    """`DayRow`s from `first` up to `end` (exclusive), by the same rules as `monthly_sums`,
+    optionally for one account only (still within `view`)."""
+    rows = await _grouped_rows(
+        session,
+        principal,
+        first,
+        end,
+        view=view,
+        group_by=[Transaction.occurred_on, TransactionAnnotation.counterparty_id],
+        account_id=account_id,
+    )
+    return [
+        DayRow(day, category_id, counterparty_id, _kind(override, is_positive), total, count)
+        for day, counterparty_id, category_id, override, is_positive, total, _, count in rows
+        if total is not None
+    ]
+
+
+async def first_booked_day(
+    session: AsyncSession,
+    principal: Principal,
+    *,
+    view: View,
+    account_id: uuid.UUID | None = None,
+) -> date | None:
+    """The earliest booked transaction in the accounts counted: before it, a month is only
+    partly known."""
+    query = select(func.min(Transaction.occurred_on)).where(
+        Transaction.account_id.in_(counted_account_ids(principal, view)),
+        Transaction.status == TransactionStatus.BOOKED,
+    )
+    if account_id is not None:
+        query = query.where(Transaction.account_id == account_id)
+    return await session.scalar(query)
 
 
 async def household_categories(

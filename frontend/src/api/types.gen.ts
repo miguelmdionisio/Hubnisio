@@ -1384,6 +1384,28 @@ export type SpendingCategory = {
 };
 
 /**
+ * SpendingDay
+ */
+export type SpendingDay = {
+    /**
+     * Day
+     */
+    day: string;
+    /**
+     * Amount
+     */
+    amount: string;
+    /**
+     * Count
+     */
+    count: number;
+    /**
+     * Running
+     */
+    running: string | null;
+};
+
+/**
  * SpendingGroup
  */
 export type SpendingGroup = {
@@ -1403,6 +1425,117 @@ export type SpendingGroup = {
      * Categories
      */
     categories: Array<SpendingCategory>;
+};
+
+/**
+ * SpendingMonth
+ *
+ * One month's spending, narrowed by at most one of account, category (a group takes its
+ * categories) or merchant. Transactions without a rate for their day are left out, as in
+ * the other insights.
+ */
+export type SpendingMonth = {
+    /**
+     * Month
+     */
+    month: string;
+    /**
+     * Through
+     */
+    through: string | null;
+    /**
+     * Incomplete
+     */
+    incomplete: boolean;
+    /**
+     * Total
+     */
+    total: string;
+    /**
+     * Count
+     */
+    count: number;
+    /**
+     * Days
+     */
+    days: Array<SpendingDay>;
+    /**
+     * Daily Average
+     */
+    daily_average: string;
+    /**
+     * Categories
+     */
+    categories: Array<SpendingRank>;
+    /**
+     * Merchants
+     */
+    merchants: Array<SpendingRank>;
+    previous: SpendingMonthPart;
+    /**
+     * Previous To Date
+     */
+    previous_to_date: string;
+};
+
+/**
+ * SpendingMonthPart
+ */
+export type SpendingMonthPart = {
+    /**
+     * Month
+     */
+    month: string;
+    /**
+     * Through
+     */
+    through: string | null;
+    /**
+     * Incomplete
+     */
+    incomplete: boolean;
+    /**
+     * Total
+     */
+    total: string;
+    /**
+     * Count
+     */
+    count: number;
+    /**
+     * Days
+     */
+    days: Array<SpendingDay>;
+};
+
+/**
+ * SpendingRank
+ */
+export type SpendingRank = {
+    /**
+     * Id
+     */
+    id: string | null;
+    /**
+     * Name
+     */
+    name: string | null;
+    /**
+     * Parent Id
+     */
+    parent_id: string | null;
+    /**
+     * Amount
+     */
+    amount: string;
+    /**
+     * Count
+     */
+    count: number;
+    /**
+     * Share
+     */
+    share: string;
 };
 
 /**
@@ -2668,6 +2801,52 @@ export type GetSpendingResponses = {
 };
 
 export type GetSpendingResponse = GetSpendingResponses[keyof GetSpendingResponses];
+
+export type GetSpendingMonthData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Month
+         */
+        month?: string | null;
+        /**
+         * View
+         */
+        view?: 'personal' | 'household';
+        /**
+         * Account Id
+         */
+        account_id?: string | null;
+        /**
+         * Category Id
+         */
+        category_id?: string | null;
+        /**
+         * Merchant
+         */
+        merchant?: string | null;
+    };
+    url: '/api/finance/insights/spending/month';
+};
+
+export type GetSpendingMonthErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetSpendingMonthError = GetSpendingMonthErrors[keyof GetSpendingMonthErrors];
+
+export type GetSpendingMonthResponses = {
+    /**
+     * Successful Response
+     */
+    200: SpendingMonth;
+};
+
+export type GetSpendingMonthResponse = GetSpendingMonthResponses[keyof GetSpendingMonthResponses];
 
 export type GetCashFlowData = {
     body?: never;

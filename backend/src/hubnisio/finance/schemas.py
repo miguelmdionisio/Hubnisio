@@ -307,6 +307,43 @@ class Spending(BaseModel):
     unconverted: int  # transactions left out: no exchange rate for their day
 
 
+class SpendingDay(BaseModel):
+    day: date
+    amount: Decimal  # spent that day, net of refunds (negative if only refunds came in)
+    count: int  # transactions summed
+    running: Decimal | None  # spent from the 1st through this day; null after `through`
+
+
+class SpendingRank(BaseModel):
+    id: uuid.UUID | None  # null: no category (or no merchant) assigned
+    name: str | None
+    parent_id: uuid.UUID | None  # categories only: the group a category belongs to
+    amount: Decimal  # positive = spent, net of refunds
+    count: int
+    share: Decimal  # amount / total spent, four decimals; 0 if nothing was spent
+
+
+class SpendingMonthPart(BaseModel):
+    month: date  # its first day
+    through: date | None  # the last day counted: today in the current month, else the month's end
+    incomplete: bool  # the current month, or the accounts' data starts after the month does
+    total: Decimal  # positive = spent, in euros, net of refunds
+    count: int
+    days: list[SpendingDay]  # every day of the month, in order
+
+
+class SpendingMonth(SpendingMonthPart):
+    """One month's spending, narrowed by at most one of account, category (a group takes its
+    categories) or merchant. Transactions without a rate for their day are left out, as in
+    the other insights."""
+
+    daily_average: Decimal  # total over the days from the 1st through `through`
+    categories: list[SpendingRank]  # biggest first
+    merchants: list[SpendingRank]  # biggest first
+    previous: SpendingMonthPart  # the month before, same narrowing
+    previous_to_date: Decimal  # the month before, through the same day number as `through`
+
+
 class CashFlowMonth(BaseModel):
     month: date
     income: Decimal

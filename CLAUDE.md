@@ -16,7 +16,8 @@ A private, self-hosted personal hub, one app per domain; finance first. Decision
   - M6 T4 (ADR-0008, no migration): returns. `insights/returns.py` splits an investment account's result over a period, the change in value less net deposits, into realised and unrealised price movements (average cost), dividends, interest, and fees and taxes, to the cent; the time-weighted return chained daily; the money-weighted one as an XIRR; and the value against net deposits. `GET /api/finance/investments/returns`, a Returns card on the Investments page, and the `investments` MCP tool, loaded from T3's views. Live since 2026-10-28. M6 is done.
 - **In progress:** M7, the frontend rework ([plan](docs/design/m7-frontend-rework.md), [navigation](docs/design/navigation.md), [DESIGN.md](DESIGN.md)), slices F1–F6.
   - F1 done: the "Calm" tokens in `frontend/src/index.css` (dark by default; light and system in `lib/theme.tsx`, kept per browser), Figtree, the B1 sidebar and phone tab bar from the per-domain config in `components/domains.ts`, the More page, search on Ctrl K, and `PageHeader` (title, sync freshness, Mine / Household, actions). The pages inside are unchanged until F3–F6. Spending joins the sidebar and the tabs in F3.
-  - Next: F2, the spending-month API.
+  - F2 done: `GET /api/finance/insights/spending/month` (`insights/spending_month.py`, pure `month_spending` over `DayRow`s from `daily_rows`, which shares `_grouped_rows` with `monthly_sums`): per day, per category and merchant, the month before; no frontend yet.
+  - Next: F3, the Spending page.
 - **Deferred:** M5 server (Tailscale, Caddy, passkey login replacing the dev user, Postgres roles, backups) waits until the user has an always-on machine. Don't start it, and don't build anything that needs one, until they say so.
 - **Waiting on the user:**
   - switching on "Include in net worth" for the Trading 212 account on the Accounts page (ADR-0008, action item 3);

@@ -1523,6 +1523,122 @@
         }
       }
     },
+    "/api/finance/insights/spending/month": {
+      "get": {
+        "tags": [
+          "finance"
+        ],
+        "summary": "Get Spending Month",
+        "description": "One month's spending (`month`'s first day; default this month) day by day, by category\nand by merchant, with the month before for comparison. `account_id`, `category_id` (a group\ntakes its categories) and `merchant` (a counterparty) narrow it. An account the principal\ncan't see counts for nothing.",
+        "operationId": "getSpendingMonth",
+        "parameters": [
+          {
+            "name": "month",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Month"
+            }
+          },
+          {
+            "name": "view",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "personal",
+                "household"
+              ],
+              "type": "string",
+              "default": "personal",
+              "title": "View"
+            }
+          },
+          {
+            "name": "account_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Account Id"
+            }
+          },
+          {
+            "name": "category_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category Id"
+            }
+          },
+          {
+            "name": "merchant",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Merchant"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpendingMonth"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/finance/insights/cash-flow": {
       "get": {
         "tags": [
@@ -4740,6 +4856,42 @@
         ],
         "title": "SpendingCategory"
       },
+      "SpendingDay": {
+        "properties": {
+          "day": {
+            "type": "string",
+            "format": "date",
+            "title": "Day"
+          },
+          "amount": {
+            "type": "string",
+            "title": "Amount"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "running": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Running"
+          }
+        },
+        "type": "object",
+        "required": [
+          "day",
+          "amount",
+          "count",
+          "running"
+        ],
+        "title": "SpendingDay"
+      },
       "SpendingGroup": {
         "properties": {
           "id": {
@@ -4774,6 +4926,198 @@
           "categories"
         ],
         "title": "SpendingGroup"
+      },
+      "SpendingMonth": {
+        "properties": {
+          "month": {
+            "type": "string",
+            "format": "date",
+            "title": "Month"
+          },
+          "through": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Through"
+          },
+          "incomplete": {
+            "type": "boolean",
+            "title": "Incomplete"
+          },
+          "total": {
+            "type": "string",
+            "title": "Total"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "days": {
+            "items": {
+              "$ref": "#/components/schemas/SpendingDay"
+            },
+            "type": "array",
+            "title": "Days"
+          },
+          "daily_average": {
+            "type": "string",
+            "title": "Daily Average"
+          },
+          "categories": {
+            "items": {
+              "$ref": "#/components/schemas/SpendingRank"
+            },
+            "type": "array",
+            "title": "Categories"
+          },
+          "merchants": {
+            "items": {
+              "$ref": "#/components/schemas/SpendingRank"
+            },
+            "type": "array",
+            "title": "Merchants"
+          },
+          "previous": {
+            "$ref": "#/components/schemas/SpendingMonthPart"
+          },
+          "previous_to_date": {
+            "type": "string",
+            "title": "Previous To Date"
+          }
+        },
+        "type": "object",
+        "required": [
+          "month",
+          "through",
+          "incomplete",
+          "total",
+          "count",
+          "days",
+          "daily_average",
+          "categories",
+          "merchants",
+          "previous",
+          "previous_to_date"
+        ],
+        "title": "SpendingMonth",
+        "description": "One month's spending, narrowed by at most one of account, category (a group takes its\ncategories) or merchant. Transactions without a rate for their day are left out, as in\nthe other insights."
+      },
+      "SpendingMonthPart": {
+        "properties": {
+          "month": {
+            "type": "string",
+            "format": "date",
+            "title": "Month"
+          },
+          "through": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Through"
+          },
+          "incomplete": {
+            "type": "boolean",
+            "title": "Incomplete"
+          },
+          "total": {
+            "type": "string",
+            "title": "Total"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "days": {
+            "items": {
+              "$ref": "#/components/schemas/SpendingDay"
+            },
+            "type": "array",
+            "title": "Days"
+          }
+        },
+        "type": "object",
+        "required": [
+          "month",
+          "through",
+          "incomplete",
+          "total",
+          "count",
+          "days"
+        ],
+        "title": "SpendingMonthPart"
+      },
+      "SpendingRank": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          },
+          "amount": {
+            "type": "string",
+            "title": "Amount"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "share": {
+            "type": "string",
+            "title": "Share"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "parent_id",
+          "amount",
+          "count",
+          "share"
+        ],
+        "title": "SpendingRank"
       },
       "StartConnection": {
         "properties": {

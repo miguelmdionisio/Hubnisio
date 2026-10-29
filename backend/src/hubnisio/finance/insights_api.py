@@ -4,6 +4,7 @@ Everything is in euros and counts the accounts of the chosen view (finance/scopi
 "personal" (Mine, the default) or "household".
 """
 
+import uuid
 from datetime import date
 from typing import Annotated
 
@@ -19,6 +20,7 @@ from hubnisio.finance.insights.spending import (
     months_until,
     spending_by_group,
 )
+from hubnisio.finance.insights.spending_month import MonthFilter, load_month_spending
 from hubnisio.finance.scoping import View
 
 router = APIRouter(prefix="/finance/insights", tags=["finance"])
@@ -39,6 +41,32 @@ async def get_spending(
     window = months_until(until or date.today(), months)
     sums = await monthly_sums(session, principal, window[0], window[-1], view=view)
     return spending_by_group(sums, await household_categories(session, principal), window)
+
+
+@router.get("/spending/month", operation_id="getSpendingMonth")
+async def get_spending_month(
+    session: DbSession,
+    principal: CurrentPrincipal,
+    month: date | None = None,
+    view: View = "personal",
+    account_id: uuid.UUID | None = None,
+    category_id: uuid.UUID | None = None,
+    merchant: uuid.UUID | None = None,
+) -> schemas.SpendingMonth:
+    """One month's spending (`month`'s first day; default this month) day by day, by category
+    and by merchant, with the month before for comparison. `account_id`, `category_id` (a group
+    takes its categories) and `merchant` (a counterparty) narrow it. An account the principal
+    can't see counts for nothing."""
+    today = date.today()
+    return await load_month_spending(
+        session,
+        principal,
+        month or today,
+        view=view,
+        today=today,
+        account_id=account_id,
+        narrowed=MonthFilter(category_id, merchant),
+    )
 
 
 @router.get("/cash-flow", operation_id="getCashFlow")
