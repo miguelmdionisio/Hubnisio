@@ -2,8 +2,9 @@
 
 Chosen by the user on 2026-10-28 from the sketches in `.impeccable/mocks/` (`navigation.html`, `navigation-b.html`, option B1). Built in M7 F1 (`frontend/src/components/app-shell.tsx`, config in `components/domains.ts`). Not built yet:
 - the icon-only sidebar below 1024px (the 200px sidebar holds down to 768px);
-- the domain switcher in the phone's page header, which waits for a second domain;
-- Spending in the sidebar and the tab bar (Overview, Spending, Transactions, Budgets, More), which arrives with its page in F3. Until then the tabs are Overview, Transactions, Budgets, More.
+- the domain switcher in the phone's page header, which waits for a second domain.
+
+Spending joined the sidebar (after Overview) and the tab bar (Overview, Spending, Transactions, Budgets, More) with its page in F3.
 
 ## Why it looks like this
 

@@ -85,3 +85,28 @@ export function formatRelative(isoDateTime: string, now = Date.now(), locale = L
   }
   return format.format(0, 'second');
 }
+
+/** Whole euros for big figures: "€1,234". */
+export function formatWholeMoney(amount: string | number, currency: string, locale = LOCALE) {
+  return new Intl.NumberFormat(locale, {
+    style: 'currency',
+    currency,
+    maximumFractionDigits: 0,
+  }).format(Number(amount));
+}
+
+/** "Wed 14 Oct", from a date. */
+export function formatDay(isoDate: string, locale = LOCALE): string {
+  return new Intl.DateTimeFormat(locale, {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+  }).format(parseDate(isoDate));
+}
+
+/** A share of a whole as a whole percentage, "<1%" for a sliver. */
+export function formatShare(share: string | number): string {
+  const value = Number(share);
+  const rounded = Math.round(value * 100);
+  return rounded === 0 && value > 0 ? '<1%' : `${rounded}%`;
+}

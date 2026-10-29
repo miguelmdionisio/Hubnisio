@@ -16,6 +16,9 @@ import { MerchantsPage } from './routes/finance/merchants';
 import { MorePage } from './routes/finance/more';
 import { RecurringPage, validateRecurringSearch } from './routes/finance/recurring';
 import { RulesPage } from './routes/finance/rules';
+import { CategorySpendingPage, MerchantSpendingPage } from './routes/finance/spending/detail';
+import { validateSpendingSearch } from './routes/finance/spending/search';
+import { SpendingPage } from './routes/finance/spending/spending';
 import { TransactionsPage, validateTransactionSearch } from './routes/finance/transactions';
 import { HomePage } from './routes/home';
 
@@ -40,6 +43,24 @@ const routeTree = rootRoute.addChildren([
     getParentRoute: () => rootRoute,
     path: '/finance/investments',
     component: InvestmentsPage,
+  }),
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/finance/spending',
+    validateSearch: validateSpendingSearch,
+    component: SpendingPage,
+  }),
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/finance/spending/category/$id',
+    validateSearch: validateSpendingSearch,
+    component: CategorySpendingPage,
+  }),
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/finance/spending/merchant/$id',
+    validateSearch: validateSpendingSearch,
+    component: MerchantSpendingPage,
   }),
   createRoute({
     getParentRoute: () => rootRoute,

@@ -41,6 +41,7 @@ test('on a phone, the tab bar holds the main pages and More lists the rest', asy
   const tabs = within(await screen.findByRole('navigation', { name: 'Tabs' }));
   expect(tabs.getAllByRole('link').map((link) => link.textContent)).toEqual([
     'Overview',
+    'Spending',
     'Transactions',
     'Budgets',
     'More',

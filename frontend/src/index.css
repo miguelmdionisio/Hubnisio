@@ -152,6 +152,21 @@
   --sidebar-ring: #6b8cff;
 }
 
+/* Category chips and their chart slices: the same hues in both themes, white icons on top. */
+:root {
+  --cat-indigo: #6a6cf0;
+  --cat-green: #3a9f62;
+  --cat-orange: #e07f30;
+  --cat-sky: #2b93c4;
+  --cat-pink: #d84f92;
+  --cat-purple: #8e62d9;
+  --cat-red: #d9504f;
+  --cat-gold: #b98a17;
+  --cat-grey: #737b88;
+  --cat-teal: #19928e;
+  --cat-brown: #9c7049;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

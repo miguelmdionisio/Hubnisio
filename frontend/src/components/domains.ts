@@ -1,5 +1,6 @@
 import {
   ChartLine,
+  ChartPie,
   Landmark,
   LayoutGrid,
   List,
@@ -14,6 +15,7 @@ import {
 
 export type Path =
   | '/'
+  | '/finance/spending'
   | '/finance/transactions'
   | '/finance/budgets'
   | '/finance/recurring'
@@ -48,6 +50,7 @@ export const FINANCE: Domain = {
     {
       items: [
         { label: 'Overview', to: '/', icon: LayoutGrid },
+        { label: 'Spending', to: '/finance/spending', icon: ChartPie },
         { label: 'Transactions', to: '/finance/transactions', icon: List },
         { label: 'Budgets', to: '/finance/budgets', icon: Target },
         { label: 'Recurring', to: '/finance/recurring', icon: Repeat },
@@ -70,8 +73,7 @@ export const FINANCE: Domain = {
       ],
     },
   ],
-  // Spending joins the tabs, after Overview, when its page exists (M7 F3).
-  tabs: ['/', '/finance/transactions', '/finance/budgets'],
+  tabs: ['/', '/finance/spending', '/finance/transactions', '/finance/budgets'],
   more: '/finance/more',
 };
 

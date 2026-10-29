@@ -15,7 +15,10 @@ import type {
   RuleOut,
   Spending,
   SpendingCategory,
+  SpendingDay,
   SpendingGroup,
+  SpendingMonth,
+  SpendingRank,
   TransactionOut,
   UpcomingPayment,
 } from '@/api/types.gen';
@@ -374,6 +377,63 @@ export function connection(overrides: Partial<ConnectionOut> = {}): ConnectionOu
     syncing: false,
     last_error: null,
     account_ids: ['a1', 'a2'],
+    ...overrides,
+  };
+}
+
+/** A month's days with `amounts` on some of them ("YYYY-MM", day number → euros). */
+export function spendingDays(month: string, amounts: Record<number, string> = {}): SpendingDay[] {
+  const [year = 1970, number = 1] = month.split('-').map(Number);
+  const last = new Date(year, number, 0).getDate();
+  let running = 0;
+  return Array.from({ length: last }, (_, index) => {
+    const amount = amounts[index + 1] ?? '0.00';
+    running += Number(amount);
+    return {
+      day: `${month}-${String(index + 1).padStart(2, '0')}`,
+      amount,
+      count: amounts[index + 1] ? 1 : 0,
+      running: running.toFixed(2),
+    };
+  });
+}
+
+export function spendingRank(
+  id: string | null,
+  name: string | null,
+  amount: string,
+  overrides: Partial<SpendingRank> = {},
+): SpendingRank {
+  return { id, name, parent_id: null, amount, count: 1, share: '0.5', ...overrides };
+}
+
+/** September 2026 with €60 spent on the 3rd and €40 on the 14th; August spent €150. */
+export function spendingMonth(overrides: Partial<SpendingMonth> = {}): SpendingMonth {
+  return {
+    month: '2026-09-01',
+    through: '2026-09-30',
+    incomplete: false,
+    total: '100.00',
+    count: 2,
+    days: spendingDays('2026-09', { 3: '60.00', 14: '40.00' }),
+    daily_average: '3.33',
+    categories: [
+      spendingRank('c-groceries', 'Groceries', '60.00', { share: '0.6' }),
+      spendingRank(null, null, '40.00', { share: '0.4' }),
+    ],
+    merchants: [
+      spendingRank('m-pingo', 'Pingo Doce', '60.00', { share: '0.6' }),
+      spendingRank('m-cafe', 'Café Central', '40.00', { share: '0.4' }),
+    ],
+    previous: {
+      month: '2026-08-01',
+      through: '2026-08-31',
+      incomplete: true,
+      total: '150.00',
+      count: 3,
+      days: spendingDays('2026-08', { 5: '150.00' }),
+    },
+    previous_to_date: '150.00',
     ...overrides,
   };
 }

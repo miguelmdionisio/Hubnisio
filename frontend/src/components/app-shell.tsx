@@ -201,15 +201,18 @@ function ViewSwitch() {
 
 /**
  * Every page's header: its title, how fresh the data is, and on pages that sum money
- * (`showsView`) the Mine / Household switch, then the page's own actions.
+ * (`showsView`) the Mine / Household switch, then the page's own actions. `leading` comes
+ * before the title: a drill-down's back button and chip.
  */
 export function PageHeader({
   title,
+  leading,
   description,
   actions,
   showsView,
 }: {
   title: string;
+  leading?: ReactNode; // before the title: a back button, a chip
   description?: string;
   actions?: ReactNode;
   showsView?: boolean;
@@ -222,7 +225,8 @@ export function PageHeader({
           description ? 'mb-2' : 'mb-5',
         )}
       >
-        <h1 className="text-2xl font-bold tracking-[-0.02em] md:text-lg md:tracking-normal">
+        {leading && <div className="-mr-0.5 flex items-center gap-2">{leading}</div>}
+        <h1 className="min-w-0 truncate text-2xl font-bold tracking-[-0.02em] md:text-lg md:tracking-normal">
           {title}
         </h1>
         <div className="flex-1" />
