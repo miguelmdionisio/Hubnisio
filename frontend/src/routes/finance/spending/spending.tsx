@@ -4,9 +4,11 @@ import type { SpendingMonth } from '@/api/types.gen';
 import { PageHeader } from '@/components/app-shell';
 import { useCategoryStyles } from '@/components/category-chip';
 import { formatMoney, formatWholeMoney } from '@/lib/format';
+import { useIsDesktop } from '@/lib/media';
 import { currentMonth } from '@/lib/months';
 import { cn } from '@/lib/utils';
 import { QueryView } from '@/routes/overview/panel';
+import { TransactionDays } from '../transaction-rows';
 import { DayBars, Donut, RunningTotal, type Slice } from './charts';
 import {
   Change,
@@ -16,14 +18,8 @@ import {
   type SetSearch,
   SpendingControls,
   Total,
-  TransactionDays,
 } from './parts';
-import {
-  type SpendingSearch,
-  useIsDesktop,
-  useSpendingMonth,
-  useSpendingTransactions,
-} from './search';
+import { type SpendingSearch, useSpendingMonth, useSpendingTransactions } from './search';
 
 const whole = (amount: string | number) => formatWholeMoney(amount, 'EUR');
 const MERCHANT_COLORS = ['var(--chart-1)', 'var(--chart-2)', 'var(--chart-3)', 'var(--chart-4)'];

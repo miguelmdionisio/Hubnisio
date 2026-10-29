@@ -14,7 +14,7 @@ import {
 import type { SpendingDay } from '@/api/types.gen';
 import { ChartContainer } from '@/components/ui/chart';
 import { formatDay, formatMoney, formatWholeMoney, parseDate } from '@/lib/format';
-import { useIsDesktop } from './search';
+import { useIsDesktop } from '@/lib/media';
 
 const eur = (amount: string | number) => formatMoney(amount, 'EUR');
 const whole = (amount: number) => formatWholeMoney(amount, 'EUR');

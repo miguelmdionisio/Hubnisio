@@ -100,7 +100,7 @@ test('approves a whole group at once, then moves on, and can undo it', async () 
   const card = await screen.findByRole('region', { name: 'Mercado Exemplo' });
   expect(within(card).getByText('Groceries')).toBeDefined();
   expect(screen.getByText(/left/).textContent).toBe('5 left · 4 this month');
-  expect(screen.getByRole('tab', { name: /Review/ }).textContent).toContain('5');
+  expect(screen.getByRole('button', { name: /Review/ }).textContent).toContain('5');
 
   fireEvent.click(within(card).getByRole('button', { name: 'Approve Groceries' }));
 

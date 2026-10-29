@@ -1,47 +1,23 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { useNavigate, useSearch } from '@tanstack/react-router';
-import { ArrowLeftRight, Check } from 'lucide-react';
+import { ArrowLeftRight, Check, ListFilter, Search, Tag, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { listTransactionsInfiniteQueryKey } from '@/api/@tanstack/react-query.gen';
 import { listTransactions } from '@/api/sdk.gen';
-import type { TransactionKind, TransactionOut, TransactionStatus } from '@/api/types.gen';
+import type { TransactionKind, TransactionStatus } from '@/api/types.gen';
 import { PageHeader } from '@/components/app-shell';
+import { useCategoryStyles } from '@/components/category-chip';
+import { MenuPill, Pill } from '@/components/pills';
+import { Segmented } from '@/components/segmented';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Skeleton } from '@/components/ui/skeleton';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { errorMessage } from '@/lib/errors';
-import { formatDate, formatMoney, parseDate } from '@/lib/format';
-import { cn } from '@/lib/utils';
-import { activeGroups, CategoryPicker, useCategories } from './category-picker';
-import { isRepayment, repaymentLabel } from './repayments';
+import { formatDate, parseDate } from '@/lib/format';
+import { activeGroups, categoryNames, useCategories } from './category-picker';
 import { ReviewQueue, useReviewQueue } from './review';
-import { TransactionSheet, transactionTitle } from './transaction-sheet';
+import { TransactionDays } from './transaction-rows';
 import { useAccounts } from './use-accounts';
-import {
-  SOURCE_LABELS,
-  useApproveSuggestions,
-  useUpdateTransaction,
-} from './use-transaction-edits';
+import { useApproveSuggestions } from './use-transaction-edits';
 
 const PAGE_SIZE = 50;
 const SEARCH_DELAY_MS = 300;
@@ -108,8 +84,43 @@ export function TransactionsPage() {
       search: (previous: TransactionSearch) => ({ ...previous, ...changes }),
       replace: true,
     });
+  const queue = useReviewQueue();
+  const toReview = new Set(queue.data?.items.map((item) => item.id)).size;
 
+  return (
+    <>
+      <PageHeader
+        title="Transactions"
+        actions={
+          <Segmented
+            label="Show"
+            value={search.view ?? ALL}
+            onChange={(value) => setSearch({ view: value === 'review' ? 'review' : undefined })}
+            options={[
+              { value: ALL, label: 'All' },
+              { value: 'review', label: queue.isSuccess ? `Review ${toReview}` : 'Review' },
+            ]}
+          />
+        }
+      />
+      {search.view === 'review' ? (
+        <ReviewQueue />
+      ) : (
+        <AllTransactions search={search} setSearch={setSearch} />
+      )}
+    </>
+  );
+}
+
+function AllTransactions({
+  search,
+  setSearch,
+}: {
+  search: TransactionSearch;
+  setSearch: (changes: Partial<TransactionSearch>) => void;
+}) {
   // Typing updates the URL (and the query) once the user pauses.
+  const navigate = useNavigate({ from: '/finance/transactions' });
   const [text, setText] = useState(search.q ?? '');
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -122,13 +133,11 @@ export function TransactionsPage() {
   }, [text, search.q, navigate]);
 
   const accounts = useAccounts();
-  const accountNames = accounts.names;
-  const groups = activeGroups(useCategories().data);
-  const update = useUpdateTransaction();
+  const categories = useCategories();
+  const names = categoryNames(categories.data);
+  const groups = activeGroups(categories.data);
+  const styleOf = useCategoryStyles();
   const approve = useApproveSuggestions();
-  const [openId, setOpenId] = useState<string | null>(null);
-  const queue = useReviewQueue();
-  const toReview = new Set(queue.data?.items.map((item) => item.id)).size;
 
   const filters = {
     account_id: search.account,
@@ -159,313 +168,158 @@ export function TransactionsPage() {
     getNextPageParam: (page) => page.next_cursor,
   });
   const rows = transactions.data?.pages.flatMap((page) => page.items) ?? [];
-  const open = rows.find((row) => row.id === openId);
   const suggestions = rows
     .filter((row) => row.category?.source === 'ai')
     .slice(0, MAX_APPROVALS)
     .map((row) => row.id);
+  const merchant = search.counterparty
+    ? (rows.find((row) => row.counterparty?.id === search.counterparty)?.counterparty?.name ??
+      'Merchant')
+    : undefined;
+  const dot = (id: string) => (
+    <span className="size-2.5 shrink-0 rounded-full" style={{ background: styleOf(id).color }} />
+  );
 
   return (
     <>
-      <PageHeader
-        title="Transactions"
-        description={
-          search.view === 'review'
-            ? 'What still needs a category, one merchant at a time: this month first.'
-            : 'Newest first, as the banks report them.'
-        }
-      />
-      <Tabs
-        value={search.view ?? ALL}
-        onValueChange={(value) => setSearch({ view: value === 'review' ? 'review' : undefined })}
-        className="mb-4"
-      >
-        <TabsList>
-          <TabsTrigger value={ALL}>All</TabsTrigger>
-          <TabsTrigger value="review">
-            Review
-            {queue.isSuccess && (
-              <span className="text-xs text-muted-foreground tabular-nums">{toReview}</span>
-            )}
-          </TabsTrigger>
-        </TabsList>
-      </Tabs>
-      {search.view === 'review' ? (
-        <ReviewQueue />
-      ) : (
-        <>
-          <div className="mb-4 flex flex-wrap gap-2">
-            <Input
-              className="w-72"
-              placeholder="Search description, merchant or note"
-              aria-label="Search transactions"
-              value={text}
-              onChange={(event) => setText(event.target.value)}
-            />
-            <Select
-              value={search.account ?? ALL}
-              onValueChange={(value) => setSearch({ account: value === ALL ? undefined : value })}
-            >
-              <SelectTrigger className="w-48" aria-label="Account">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ALL}>All accounts</SelectItem>
-                {accounts.listed.map((account) => (
-                  <SelectItem key={account.id} value={account.id}>
-                    {account.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select
-              value={search.kind ?? ALL}
-              onValueChange={(value) =>
-                setSearch({ kind: value === ALL ? undefined : (value as TransactionKind) })
-              }
-            >
-              <SelectTrigger className="w-36" aria-label="Kind">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ALL}>All kinds</SelectItem>
-                {KINDS.map((kind) => (
-                  <SelectItem key={kind.value} value={kind.value}>
-                    {kind.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select
-              value={search.category ?? ALL}
-              onValueChange={(value) => setSearch({ category: value === ALL ? undefined : value })}
-            >
-              <SelectTrigger className="w-52" aria-label="Category">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ALL}>All categories</SelectItem>
-                <SelectItem value={UNCATEGORIZED}>Uncategorized</SelectItem>
-                <SelectItem value={SUGGESTED}>Suggested by AI</SelectItem>
-                {groups.map((group) => (
-                  <SelectGroup key={group.id}>
-                    <SelectLabel>{group.name}</SelectLabel>
-                    <SelectItem value={group.id}>All of {group.name}</SelectItem>
-                    {group.children.map((child) => (
-                      <SelectItem key={child.id} value={child.id}>
-                        {child.name}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select
-              value={search.status ?? ALL}
-              onValueChange={(value) =>
-                setSearch({ status: value === ALL ? undefined : (value as TransactionStatus) })
-              }
-            >
-              <SelectTrigger className="w-32" aria-label="Status">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ALL}>Any status</SelectItem>
-                <SelectItem value="booked">Booked</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-              </SelectContent>
-            </Select>
-            {search.counterparty && (
-              <Button variant="ghost" onClick={() => setSearch({ counterparty: undefined })}>
-                Clear merchant filter
-              </Button>
-            )}
-            {(search.from || search.to) && (
-              <Button variant="ghost" onClick={() => setSearch({ from: undefined, to: undefined })}>
-                Clear dates ({dateRange(search.from, search.to)})
-              </Button>
-            )}
-          </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="flex h-[34px] min-w-[180px] flex-1 items-center gap-2 rounded-full bg-surface px-3.5 focus-within:outline-2 focus-within:outline-ring md:h-9">
+          <Search className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+          <input
+            className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-faint"
+            placeholder="Search"
+            aria-label="Search transactions"
+            value={text}
+            onChange={(event) => setText(event.target.value)}
+          />
+        </label>
+        <MenuPill
+          icon={Tag}
+          ariaLabel="Category"
+          on={search.category !== undefined}
+          label={
+            search.category === UNCATEGORIZED
+              ? 'Uncategorized'
+              : search.category === SUGGESTED
+                ? 'Suggested by AI'
+                : search.category
+                  ? (names.get(search.category) ?? 'Category')
+                  : 'Any category'
+          }
+          value={search.category ?? ''}
+          onChange={(value) => setSearch({ category: value || undefined })}
+          align="end"
+          options={[
+            { value: '', label: 'Any category' },
+            { value: UNCATEGORIZED, label: 'Uncategorized' },
+            { value: SUGGESTED, label: 'Suggested by AI' },
+            ...groups.flatMap((group) => [
+              { value: group.id, label: `All of ${group.name}`, leading: dot(group.id) },
+              ...group.children.map((child) => ({
+                value: child.id,
+                label: child.name,
+                leading: <span className="w-2.5" />,
+              })),
+            ]),
+          ]}
+        />
+        <MenuPill
+          icon={ListFilter}
+          ariaLabel="Account"
+          on={search.account !== undefined}
+          label={accounts.names.get(search.account ?? '') ?? 'All accounts'}
+          value={search.account ?? ''}
+          onChange={(value) => setSearch({ account: value || undefined })}
+          align="end"
+          options={[
+            { value: '', label: 'All accounts' },
+            ...accounts.listed.map((account) => ({ value: account.id, label: account.name })),
+          ]}
+        />
+        <MenuPill
+          icon={ArrowLeftRight}
+          ariaLabel="Kind"
+          on={search.kind !== undefined}
+          label={KINDS.find((kind) => kind.value === search.kind)?.label ?? 'All kinds'}
+          value={search.kind ?? ''}
+          onChange={(value) =>
+            setSearch({ kind: (value || undefined) as TransactionKind | undefined })
+          }
+          align="end"
+          options={[{ value: '', label: 'All kinds' }, ...KINDS]}
+        />
+      </div>
 
-          {transactions.isPending && <Skeleton className="h-64 w-full" />}
-          {transactions.isError && (
-            <Alert variant="destructive">
-              <AlertTitle>Couldn't load transactions</AlertTitle>
-              <AlertDescription>{errorMessage(transactions.error)}</AlertDescription>
-            </Alert>
+      {(merchant || search.from || search.to || search.status) && (
+        <div className="mt-2 flex flex-wrap gap-2">
+          {merchant && (
+            <Pill
+              on
+              aria-label="Clear merchant filter"
+              onClick={() => setSearch({ counterparty: undefined })}
+            >
+              {merchant}
+              <X aria-hidden />
+            </Pill>
           )}
-          {search.category === SUGGESTED && suggestions.length > 0 && (
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
-              <span>Check each suggestion: approve it to keep it, or pick another category.</span>
-              <Button
-                size="sm"
-                disabled={approve.isPending}
-                onClick={() => approve.mutate({ body: { transaction_ids: suggestions } })}
-              >
-                <Check aria-hidden />
-                Approve the {suggestions.length} shown
-              </Button>
-            </div>
+          {(search.from || search.to) && (
+            <Pill
+              on
+              aria-label={`Clear dates (${dateRange(search.from, search.to)})`}
+              onClick={() => setSearch({ from: undefined, to: undefined })}
+            >
+              {dateRange(search.from, search.to)}
+              <X aria-hidden />
+            </Pill>
           )}
-          {transactions.isSuccess && rows.length === 0 && (
-            <p className="text-sm text-muted-foreground">No transactions match.</p>
+          {search.status && (
+            <Pill on aria-label="Clear status" onClick={() => setSearch({ status: undefined })}>
+              {search.status === 'pending' ? 'Pending' : 'Booked'}
+              <X aria-hidden />
+            </Pill>
           )}
-          {rows.length > 0 && (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-28">Date</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead className="w-52">Category</TableHead>
-                  <TableHead>Account</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rows.map((row) => (
-                  <TableRow key={row.id}>
-                    <TableCell className="text-muted-foreground tabular-nums">
-                      {formatDate(row.occurred_on)}
-                    </TableCell>
-                    <TableCell className="max-w-sm">
-                      <button
-                        type="button"
-                        className="block w-full text-left"
-                        onClick={() => setOpenId(row.id)}
-                      >
-                        <div className="truncate font-medium hover:underline">
-                          {transactionTitle(row)}
-                        </div>
-                        {row.description && row.description !== transactionTitle(row) && (
-                          <div className="truncate text-xs text-muted-foreground">
-                            {row.description}
-                          </div>
-                        )}
-                      </button>
-                    </TableCell>
-                    <TableCell>
-                      <CategoryCell
-                        row={row}
-                        disabled={update.isPending || approve.isPending}
-                        onChange={(categoryId) =>
-                          update.mutate({
-                            path: { transaction_id: row.id },
-                            body: { category_id: categoryId },
-                          })
-                        }
-                        onApprove={() => approve.mutate({ body: { transaction_ids: [row.id] } })}
-                      />
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {accountNames.get(row.account_id) ?? ''}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        {row.status === 'pending' && <Badge variant="outline">Pending</Badge>}
-                        <span
-                          className={cn(
-                            'font-medium tabular-nums',
-                            row.kind === 'income' && 'text-emerald-700 dark:text-emerald-400',
-                            row.kind === 'transfer' && 'text-muted-foreground',
-                          )}
-                        >
-                          {isRepayment(row) && '+'}
-                          {formatMoney(row.amount, row.currency)}
-                        </span>
-                      </div>
-                      {isRepayment(row) && (
-                        <div className="text-xs text-muted-foreground">{repaymentLabel(row)}</div>
-                      )}
-                      {row.original_amount && row.original_currency && (
-                        <div className="text-xs text-muted-foreground tabular-nums">
-                          {formatMoney(row.original_amount, row.original_currency)}
-                        </div>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
+        </div>
+      )}
+
+      {search.category === SUGGESTED && suggestions.length > 0 && (
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
+          <span className="tabular-nums">{suggestions.length} to check</span>
+          <Button
+            size="sm"
+            className="rounded-full"
+            disabled={approve.isPending}
+            onClick={() => approve.mutate({ body: { transaction_ids: suggestions } })}
+          >
+            <Check aria-hidden />
+            Approve the {suggestions.length} shown
+          </Button>
+        </div>
+      )}
+
+      {transactions.isError ? (
+        <Alert variant="destructive" className="mt-4">
+          <AlertTitle>Couldn't load transactions</AlertTitle>
+          <AlertDescription>{errorMessage(transactions.error)}</AlertDescription>
+        </Alert>
+      ) : (
+        <TransactionDays
+          items={rows}
+          pending={transactions.isPending}
+          empty="No transactions match"
+          onApprove={(row) => approve.mutate({ body: { transaction_ids: [row.id] } })}
+        >
           {transactions.hasNextPage && (
             <div className="mt-4 flex justify-center">
-              <Button
-                variant="outline"
+              <Pill
                 disabled={transactions.isFetchingNextPage}
                 onClick={() => transactions.fetchNextPage()}
               >
                 {transactions.isFetchingNextPage ? 'Loading…' : 'Load more'}
-              </Button>
+              </Pill>
             </div>
           )}
-          <TransactionSheet
-            transaction={open}
-            accountName={open ? (accountNames.get(open.account_id) ?? '') : ''}
-            onOpenChange={(isOpen) => !isOpen && setOpenId(null)}
-          />
-        </>
+        </TransactionDays>
       )}
     </>
-  );
-}
-
-function CategoryCell({
-  row,
-  disabled,
-  onChange,
-  onApprove,
-}: {
-  row: TransactionOut;
-  disabled: boolean;
-  onChange: (categoryId: string | null) => void;
-  onApprove: () => void;
-}) {
-  if (row.kind === 'transfer' && !row.category) {
-    return (
-      <span className="flex items-center gap-1.5 px-2 text-sm text-muted-foreground">
-        <ArrowLeftRight className="size-3.5 shrink-0" aria-hidden />
-        <span className="truncate">
-          {row.transfer
-            ? `${Number(row.amount) < 0 ? 'To' : 'From'} ${row.transfer.other_account_name}`
-            : 'Transfer'}
-        </span>
-      </span>
-    );
-  }
-  const { category } = row;
-  const picker = (
-    <CategoryPicker
-      value={category?.source === 'manual' ? category.id : null}
-      onChange={onChange}
-      disabled={disabled}
-    >
-      {category ? (
-        <span
-          title={SOURCE_LABELS[category.source]}
-          className={cn(category.source !== 'manual' && 'text-muted-foreground')}
-        >
-          {category.name}
-          {category.source === 'ai' && <span className="ml-1.5 text-xs font-medium">AI</span>}
-        </span>
-      ) : (
-        <span className="text-muted-foreground italic">Uncategorized</span>
-      )}
-    </CategoryPicker>
-  );
-  if (category?.source !== 'ai') return picker;
-  return (
-    <div className="flex items-center gap-0.5">
-      {picker}
-      <Button
-        variant="ghost"
-        size="icon-xs"
-        aria-label={`Approve ${category.name}`}
-        title="Approve: keep this category"
-        disabled={disabled}
-        onClick={onApprove}
-      >
-        <Check aria-hidden />
-      </Button>
-    </div>
   );
 }

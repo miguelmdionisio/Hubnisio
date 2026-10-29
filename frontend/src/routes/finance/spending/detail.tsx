@@ -17,6 +17,7 @@ import { currentMonth, monthStart } from '@/lib/months';
 import { cn } from '@/lib/utils';
 import { useView } from '@/lib/view';
 import { QueryView } from '@/routes/overview/panel';
+import { TransactionDays } from '../transaction-rows';
 import { DayBars, RunningTotal } from './charts';
 import {
   Change,
@@ -26,7 +27,6 @@ import {
   type SetSearch,
   SpendingControls,
   Total,
-  TransactionDays,
 } from './parts';
 import { type SpendingSearch, useSpendingMonth, useSpendingTransactions } from './search';
 import { useSetSpendingSearch } from './spending';

@@ -148,7 +148,7 @@ test('a category page has its budget, merchants and transactions', async () => {
   expect(await screen.findByText('€60.00')).toBeTruthy();
   expect(await screen.findByText('€20.00 left')).toBeTruthy();
   expect(screen.getByRole('link', { name: /Pingo Doce/ })).toBeTruthy();
-  expect(await screen.findByRole('button', { name: /Pingo Doce Groceries/ })).toBeTruthy();
+  expect(await screen.findByRole('button', { name: /Pingo Doce.*Groceries/ })).toBeTruthy();
   expect(screen.queryByRole('button', { name: /Group by/ })).toBeNull();
 
   const call = calls.find((c) => c.path === '/api/finance/insights/spending/month');

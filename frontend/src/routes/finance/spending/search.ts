@@ -1,5 +1,4 @@
 import { useQuery } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
 import { getSpendingMonthOptions, listTransactionsOptions } from '@/api/@tanstack/react-query.gen';
 import type { TransactionOut } from '@/api/types.gen';
 import { currentMonth, isMonth, monthStart } from '@/lib/months';
@@ -109,17 +108,4 @@ export function useSpendingTransactions(
     items: query.data?.items.filter(counts),
     more: Boolean(query.data?.next_cursor),
   };
-}
-
-/** True from 768px: the sidebar's breakpoint. */
-export function useIsDesktop(): boolean {
-  const query = '(min-width: 768px)';
-  const [matches, setMatches] = useState(() => window.matchMedia(query).matches);
-  useEffect(() => {
-    const list = window.matchMedia(query);
-    const update = () => setMatches(list.matches);
-    list.addEventListener('change', update);
-    return () => list.removeEventListener('change', update);
-  }, []);
-  return matches;
 }

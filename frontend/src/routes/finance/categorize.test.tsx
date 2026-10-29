@@ -60,7 +60,7 @@ test('shows each transaction’s category, merchant and transfers', async () => 
   expect(screen.getByText('Salary').getAttribute('title')).toBe('set by a rule');
 });
 
-test('setting a category offers it for the whole merchant', async () => {
+test('one click in the sheet sets a category, then offers it for the whole merchant', async () => {
   const calls = api({
     'PATCH /api/finance/transactions/t1': () => ({
       transaction: {
@@ -84,10 +84,10 @@ test('setting a category offers it for the whole merchant', async () => {
   });
 
   renderAt('/finance/transactions');
-  fireEvent.click(await screen.findByRole('button', { name: /uncategorized/i }));
-  const list = await screen.findByRole('listbox');
-  expect(within(list).queryByText('Old stuff')).toBeNull(); // archived
-  fireEvent.click(within(list).getByText('Groceries'));
+  fireEvent.click(await screen.findByRole('button', { name: /Continente/ }));
+  const panel = within(await screen.findByRole('dialog'));
+  expect(panel.queryByText('Old stuff')).toBeNull(); // archived
+  fireEvent.click(panel.getByRole('button', { name: 'Groceries' }));
 
   await waitFor(() =>
     expect(calls.find((call) => call.method === 'PATCH')?.body).toEqual({
@@ -133,4 +133,34 @@ test('kind and category filters come from the URL', async () => {
   expect(query?.get('kind')).toBe('expense');
   expect(query?.get('uncategorized')).toBe('true');
   expect(query?.get('category_id')).toBeNull();
+});
+
+test('the sheet shows who set the category, approves a suggestion, and links the merchant', async () => {
+  const suggested = transaction('t4', {
+    counterparty_name: 'PINGO',
+    counterparty: { id: 'm2', name: 'Pingo Doce', source: 'bank' },
+    category: { id: 'c-groceries', name: 'Groceries', group_name: 'Food', source: 'ai' },
+  });
+  const calls = api({
+    'GET /api/finance/transactions': () => ({ items: [suggested], next_cursor: null }),
+    'POST /api/finance/transactions/approve-suggestions': () => ({ approved: 1 }),
+  });
+
+  renderAt('/finance/transactions');
+  fireEvent.click(await screen.findByRole('button', { name: /Pingo Doce/ }));
+  const panel = within(await screen.findByRole('dialog'));
+  expect(panel.getByText('AI suggestion')).toBeDefined();
+  expect(panel.getByRole('button', { name: 'Groceries' }).getAttribute('aria-pressed')).toBe(
+    'true',
+  );
+  expect(panel.getByRole('link', { name: 'All from Pingo Doce' }).getAttribute('href')).toBe(
+    '/finance/spending/merchant/m2',
+  );
+
+  fireEvent.click(panel.getByRole('button', { name: 'Approve' }));
+  await waitFor(() =>
+    expect(calls.find((call) => call.path.endsWith('/approve-suggestions'))?.body).toEqual({
+      transaction_ids: ['t4'],
+    }),
+  );
 });

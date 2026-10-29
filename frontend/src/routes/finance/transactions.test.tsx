@@ -42,8 +42,8 @@ test('lists transactions and loads more pages', async () => {
   renderAt('/finance/transactions');
 
   expect(await screen.findByText('Supermercado Exemplo')).toBeDefined();
-  expect(screen.getByText('COMPRA 4450')).toBeDefined();
-  expect(screen.getByText('Pending')).toBeDefined();
+  expect(screen.getByText(/Pending/)).toBeDefined();
+  expect(screen.getByRole('heading', { name: /14 Oct/ })).toBeDefined(); // grouped by day
   expect(screen.getByText(/2,100\.00/)).toBeDefined();
   fireEvent.click(screen.getByRole('button', { name: 'Load more' }));
 
@@ -89,21 +89,21 @@ test('money in with an expense category is a repayment or refund, not income', a
   renderAt('/finance/transactions');
 
   const rowOf = async (title: string) =>
-    (await screen.findByText(title)).closest('tr') as HTMLElement;
+    (await screen.findByText(title)).closest('li') as HTMLElement;
   const ana = within(await rowOf('Ana Silva'));
-  expect(ana.getByText('+€600.00').className).not.toContain('text-emerald');
+  expect(ana.getByText('+€600.00').className).not.toContain('text-good');
   expect(ana.getByText('Repayment')).toBeDefined();
   expect(within(await rowOf('Zara')).getByText('Refund')).toBeDefined();
   expect(within(await rowOf('DEV. COMPRA 4450')).getByText('Refund')).toBeDefined();
   // Real income stays green, and spending has no hint or plus sign.
   const salary = within(await rowOf('SALARIO'));
-  expect(salary.getByText('€2,100.00').className).toContain('text-emerald');
+  expect(salary.getByText('+€2,100.00').className).toContain('text-good');
   expect(salary.queryByText(/Repayment|Refund/)).toBeNull();
   const continente = within(await rowOf('Continente'));
-  expect(continente.getByText('-€42.17')).toBeDefined();
+  expect(continente.getByText('−€42.17')).toBeDefined();
   expect(continente.queryByText(/Repayment|Refund/)).toBeNull();
 
-  fireEvent.click(screen.getByRole('button', { name: 'Ana Silva' }));
+  fireEvent.click(screen.getByRole('button', { name: /Ana Silva/ }));
   const panel = await screen.findByRole('dialog');
   expect(within(panel).getByText('Lowers Rent & mortgage by €600.00')).toBeDefined();
 });
@@ -125,8 +125,9 @@ test('limits the list to the dates in the URL, and clears them', async () => {
   const calls = api();
   const { router } = renderAt('/finance/transactions?from=2026-10-01&to=2026-10-31&q=cafe');
 
-  const clear = await screen.findByRole('button', { name: /Clear dates/ });
-  expect(clear.textContent).toBe('Clear dates (1 Oct 2026 to 31 Oct 2026)');
+  const clear = await screen.findByRole('button', {
+    name: 'Clear dates (1 Oct 2026 to 31 Oct 2026)',
+  });
   const first = calls.find(tablePage);
   expect(first?.search.get('date_from')).toBe('2026-10-01');
   expect(first?.search.get('date_to')).toBe('2026-10-31');
@@ -169,9 +170,9 @@ test('lists the categories an AI suggested, marked as such', async () => {
 
   renderAt('/finance/transactions?category=suggested');
 
-  const row = (await screen.findByText('Mercado')).closest('tr') as HTMLElement;
+  const row = (await screen.findByText('Mercado')).closest('li') as HTMLElement;
   expect(within(row).getByTitle('suggested by AI').textContent).toBe('GroceriesAI');
-  expect(screen.getByRole('combobox', { name: 'Category' }).textContent).toBe('Suggested by AI');
+  expect(screen.getByRole('button', { name: 'Category' }).textContent).toBe('Suggested by AI');
   const request = calls.find(tablePage);
   expect(request?.search.get('source')).toBe('ai');
   expect(request?.search.has('category_id')).toBe(false);
@@ -206,8 +207,8 @@ test('approves AI suggestions one at a time, or all those shown', async () => {
 
   renderAt('/finance/transactions?category=suggested');
 
-  const row = (await screen.findByText('Mercado')).closest('tr') as HTMLElement;
-  const mine = screen.getByText('Café').closest('tr') as HTMLElement;
+  const row = (await screen.findByText('Mercado')).closest('li') as HTMLElement;
+  const mine = screen.getByText('Café').closest('li') as HTMLElement;
   expect(within(mine).queryByRole('button', { name: 'Approve Groceries' })).toBeNull();
   fireEvent.click(within(row).getByRole('button', { name: 'Approve Groceries' }));
   await waitFor(() => expect(approvals()).toHaveLength(1));

@@ -2,6 +2,8 @@ import { type QueryClient, useMutation, useQueryClient } from '@tanstack/react-q
 import { toast } from 'sonner';
 import {
   approveSuggestionsMutation,
+  getSpendingMonthQueryKey,
+  listBudgetsQueryKey,
   listCategoriesQueryKey,
   listCounterpartiesQueryKey,
   listTransactionsInfiniteQueryKey,
@@ -29,6 +31,8 @@ export function invalidateUserLayer(queryClient: QueryClient) {
   queryClient.invalidateQueries({ queryKey: listTransactionsQueryKey() }); // the overview's counts
   queryClient.invalidateQueries({ queryKey: listCategoriesQueryKey() });
   queryClient.invalidateQueries({ queryKey: listCounterpartiesQueryKey() });
+  queryClient.invalidateQueries({ queryKey: getSpendingMonthQueryKey() });
+  queryClient.invalidateQueries({ queryKey: listBudgetsQueryKey() });
 }
 
 /**

@@ -1,11 +1,10 @@
 import { Link } from '@tanstack/react-router';
 import { ArrowDownUp, ChartColumn, ChartPie, ChartSpline, ListFilter, X } from 'lucide-react';
 import { type ReactNode, useState } from 'react';
-import type { SpendingMonth, SpendingRank, TransactionOut } from '@/api/types.gen';
-import { type CategoryStyle, Chip, useCategoryStyles } from '@/components/category-chip';
+import type { SpendingMonth, SpendingRank } from '@/api/types.gen';
+import { Chip, useCategoryStyles } from '@/components/category-chip';
 import { MenuPill, MonthStepper, Pill } from '@/components/pills';
 import { Segmented } from '@/components/segmented';
-import { Skeleton } from '@/components/ui/skeleton';
 import {
   formatDay,
   formatMoney,
@@ -16,7 +15,7 @@ import {
 } from '@/lib/format';
 import { currentMonth, monthStart } from '@/lib/months';
 import { cn } from '@/lib/utils';
-import { TransactionSheet, transactionTitle } from '../transaction-sheet';
+import { ListPanel, rowClass } from '../transaction-rows';
 import { type SpendingChart, type SpendingSearch, useSpendingAccounts } from './search';
 
 const eur = (amount: string | number, currency = 'EUR') => formatMoney(amount, currency);
@@ -180,14 +179,6 @@ export function SelectedDay({
   );
 }
 
-const rowClass =
-  'grid w-full grid-cols-[40px_minmax(0,1fr)_auto] items-center gap-3.5 rounded-[14px] px-3 py-2.5 text-left transition-colors hover:bg-surface-2';
-
-/** The list panel rows sit in. */
-export function ListPanel({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cn('rounded-[18px] bg-surface p-1.5', className)}>{children}</div>;
-}
-
 export function SectionTitle({ children, action }: { children: ReactNode; action?: ReactNode }) {
   return (
     <div className="mt-7 mb-2 flex items-center">
@@ -294,97 +285,5 @@ export function RankList({
         </button>
       )}
     </ListPanel>
-  );
-}
-
-/** A payment's row: chip, merchant, category and account, amount. */
-export function TransactionRow({
-  transaction,
-  styleOf,
-  accountName,
-  onOpen,
-}: {
-  transaction: TransactionOut;
-  styleOf: (id: string | null | undefined) => CategoryStyle;
-  accountName: string;
-  onOpen: () => void;
-}) {
-  const style = styleOf(transaction.category?.id);
-  const amount = Number(transaction.amount);
-  const title = transactionTitle(transaction);
-  return (
-    <button type="button" onClick={onOpen} className={rowClass}>
-      <Chip style={style} letter={transaction.category ? title : undefined} />
-      <div className="min-w-0">
-        <p className="truncate text-[15px] font-semibold">{title}</p>
-        <p className="truncate text-[13px] text-muted-foreground">
-          {transaction.category ? style.name : amount > 0 ? 'Income' : style.name} · {accountName}
-        </p>
-      </div>
-      <p
-        className={cn('text-right text-[15px] font-[650] tabular-nums', amount > 0 && 'text-good')}
-      >
-        {amount > 0 ? '+' : '−'}
-        {eur(Math.abs(amount), transaction.currency)}
-      </p>
-    </button>
-  );
-}
-
-/** Transactions grouped by day, newest first; a row opens the transaction. */
-export function TransactionDays({
-  items,
-  pending,
-  showDays = true,
-  more,
-}: {
-  items: TransactionOut[] | undefined;
-  pending: boolean;
-  showDays?: boolean;
-  more?: ReactNode;
-}) {
-  const styleOf = useCategoryStyles();
-  const { names } = useSpendingAccounts();
-  const [openId, setOpenId] = useState<string | null>(null);
-  if (pending) return <Skeleton className="mt-4 h-40 w-full rounded-[18px]" />;
-  if (!items?.length) {
-    return <p className="py-7 text-center text-muted-foreground">No transactions</p>;
-  }
-  const days = new Map<string, TransactionOut[]>();
-  for (const item of items)
-    days.set(item.occurred_on, [...(days.get(item.occurred_on) ?? []), item]);
-  const open = items.find((item) => item.id === openId);
-  return (
-    <>
-      {[...days].map(([day, list]) => (
-        <section key={day} aria-label={formatDay(day)}>
-          {showDays && (
-            <h3 className="mt-[18px] mb-1.5 text-[13px] font-[650] text-muted-foreground">
-              {formatDay(day)}
-            </h3>
-          )}
-          <ListPanel className={showDays ? undefined : 'mt-4'}>
-            <ul>
-              {list.map((transaction) => (
-                <li key={transaction.id}>
-                  <TransactionRow
-                    transaction={transaction}
-                    styleOf={styleOf}
-                    accountName={names.get(transaction.account_id) ?? '—'}
-                    onOpen={() => setOpenId(transaction.id)}
-                  />
-                </li>
-              ))}
-            </ul>
-          </ListPanel>
-        </section>
-      ))}
-      {more}
-      <TransactionSheet
-        transaction={open}
-        accountName={open ? (names.get(open.account_id) ?? '—') : ''}
-        onOpenChange={(isOpen) => !isOpen && setOpenId(null)}
-      />
-    </>
   );
 }
