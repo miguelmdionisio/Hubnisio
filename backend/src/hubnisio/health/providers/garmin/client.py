@@ -112,8 +112,8 @@ class Fetched:
 
 
 def read_key_file(path: Path) -> ApiKey:
-    """A key file holds one line, `key=<personal API key>`. Blank lines and lines starting with
-    # are ignored. Errors name the file and the line, never a value."""
+    """A key file holds one line, `key=<personal API key>` or the bare key. Blank lines and
+    lines starting with # are ignored. Errors name the file and the line, never a value."""
     try:
         text = path.read_text(encoding="utf-8")
     except OSError as exc:
@@ -125,11 +125,15 @@ def read_key_file(path: Path) -> ApiKey:
         if not line or line.startswith("#"):
             continue
         name, sep, value = line.partition("=")
-        if not sep or name.strip().lower() != "key":
+        if sep and name.strip().lower() == "key":
+            found = value.strip()
+        elif not any(ch.isspace() for ch in line) and not (sep and name.isalpha()):
+            found = line  # the bare key on a line of its own, as Garmin shows it
+        else:
             raise KeyFileError(f"Line {number} of {path} isn't `key=…`.")
         if key is not None:
             raise KeyFileError(f"{path} has more than one `key=` line.")
-        key = value.strip()
+        key = found
     if not key:
         raise KeyFileError(f"{path} has no `key=` line.")
     return ApiKey(key)
@@ -168,7 +172,7 @@ class GarminClient:
             base_url=API_URL,
             timeout=60,
             transport=transport,
-            headers={"User-Agent": USER_AGENT, "Accept": "application/json"},
+            headers={"User-Agent": USER_AGENT},  # no Accept: Garmin answers 406 to application/json
         )
         self._clock = clock
         self._sleep = sleep

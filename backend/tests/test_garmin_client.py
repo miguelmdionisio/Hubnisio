@@ -235,6 +235,9 @@ def test_read_key_file(tmp_path: Path) -> None:
     path = tmp_path / "garmin"
     path.write_text("# my key\n\nkey = abc-123 \n", encoding="utf-8")
     assert read_key_file(path).key == "abc-123"
+    bare = tmp_path / "bare"
+    bare.write_text("abc-123==\n", encoding="utf-8")
+    assert read_key_file(bare).key == "abc-123=="
     assert "abc" not in repr(read_key_file(path))
 
     for text, message in [
