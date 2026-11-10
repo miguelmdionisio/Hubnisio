@@ -122,6 +122,15 @@
 | A cursor per kind, less two days (chosen) | Resumes after a failure; a skipped kind catches up alone | One more table |
 | One date per connection | Simple | A failure in one kind re-reads, or loses, the others |
 
+## As built in H4 (Recovery)
+
+`GET /api/health/recovery?days=30|90|365` (`health/recovery_api.py`) returns what `health/insights/recovery.py` computes from the member's own rows (`recovery_loader.py`, through `scoping.py`). A day without data is a gap, never a zero.
+
+- **Normal range:** a band around the mean of the nightly HRV over the trailing 60 days (the night included): mean ± 0.75 sample standard deviations. Under 14 nights in those 60 days there is no band, and the figure says so. A night below the band is flagged. Garmin's own baseline (`hrv_nights.baseline_*`) is stored but not used.
+- **7-day averages** (HRV, resting heart rate) need at least 4 of their 7 days. **Night-to-night swing** is the coefficient of variation of the last 7 nights (population deviation, in %); its 90-day value is the mean of that swing over the last 90 days (at least 14 of them).
+- **Body Battery at wake:** the first reading of the night's day at or after the night's end. Charged and drained are the day's totals.
+- **Signals today:** independent checks, each ok / watch / no data, counted and never merged: the HRV 7-day average inside the band; resting heart rate at most 3 bpm above its 7-day average; last night's sleep at least 85% of need; Body Battery at wake at least 60. A value older than 2 days is no data. Training form joins when it exists (H6), as ok at -10 or more: a provisional floor until H6's form bands replace it.
+
 ## Consequences
 
 - **Easier:** later slices read typed rows through `scoping.py`; a normalizer fix is a `garmin-renormalize` away; a new endpoint is one line in `ENDPOINTS` and one normalizer.

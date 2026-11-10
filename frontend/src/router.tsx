@@ -26,6 +26,7 @@ import { GarminPage } from './routes/health/garmin/garmin';
 import { HealthMorePage } from './routes/health/more/more';
 import { PerformancePage } from './routes/health/performance/performance';
 import { RecoveryPage } from './routes/health/recovery/recovery';
+import { validateRecoverySearch } from './routes/health/recovery/search';
 import { SleepPage } from './routes/health/sleep/sleep';
 import { TodayPage } from './routes/health/today/today';
 import { TrainingPage } from './routes/health/training/training';
@@ -126,6 +127,7 @@ const routeTree = rootRoute.addChildren([
     getParentRoute: () => rootRoute,
     path: '/health/recovery',
     component: RecoveryPage,
+    validateSearch: validateRecoverySearch,
   }),
   createRoute({ getParentRoute: () => rootRoute, path: '/health/sleep', component: SleepPage }),
   createRoute({ getParentRoute: () => rootRoute, path: '/health/body', component: BodyPage }),

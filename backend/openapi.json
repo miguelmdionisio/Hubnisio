@@ -2319,6 +2319,49 @@
           }
         }
       }
+    },
+    "/api/health/recovery": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Get Recovery",
+        "description": "The `days` ending today (the member's own), a day without data as a gap.",
+        "operationId": "getRecovery",
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/Period",
+              "default": 90
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Recovery"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -2662,6 +2705,121 @@
           "beta"
         ],
         "title": "Bank"
+      },
+      "BatteryOut": {
+        "properties": {
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/BatteryPoint"
+            },
+            "type": "array",
+            "title": "Points"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/BatterySummary"
+          }
+        },
+        "type": "object",
+        "required": [
+          "points",
+          "summary"
+        ],
+        "title": "BatteryOut"
+      },
+      "BatteryPoint": {
+        "properties": {
+          "day": {
+            "type": "string",
+            "format": "date",
+            "title": "Day"
+          },
+          "at_wake": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At Wake"
+          },
+          "charged": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Charged"
+          },
+          "drained": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Drained"
+          }
+        },
+        "type": "object",
+        "required": [
+          "day",
+          "at_wake",
+          "charged",
+          "drained"
+        ],
+        "title": "BatteryPoint"
+      },
+      "BatterySummary": {
+        "properties": {
+          "at_wake": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At Wake"
+          },
+          "charged": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Charged"
+          },
+          "day": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Day"
+          }
+        },
+        "type": "object",
+        "required": [
+          "at_wake",
+          "charged",
+          "day"
+        ],
+        "title": "BatterySummary"
       },
       "BudgetIn": {
         "properties": {
@@ -3759,6 +3917,188 @@
         ],
         "title": "Holding"
       },
+      "HrvOut": {
+        "properties": {
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/HrvPoint"
+            },
+            "type": "array",
+            "title": "Points"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/HrvSummary"
+          }
+        },
+        "type": "object",
+        "required": [
+          "points",
+          "summary"
+        ],
+        "title": "HrvOut"
+      },
+      "HrvPoint": {
+        "properties": {
+          "day": {
+            "type": "string",
+            "format": "date",
+            "title": "Day"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "avg7": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg7"
+          },
+          "band_low": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Band Low"
+          },
+          "band_high": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Band High"
+          },
+          "below": {
+            "type": "boolean",
+            "title": "Below"
+          }
+        },
+        "type": "object",
+        "required": [
+          "day",
+          "value",
+          "avg7",
+          "band_low",
+          "band_high",
+          "below"
+        ],
+        "title": "HrvPoint"
+      },
+      "HrvSummary": {
+        "properties": {
+          "avg7": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg7"
+          },
+          "band_low": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Band Low"
+          },
+          "band_high": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Band High"
+          },
+          "position": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "in",
+                  "below",
+                  "above"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Position"
+          },
+          "below_nights": {
+            "type": "integer",
+            "title": "Below Nights"
+          },
+          "swing": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Swing"
+          },
+          "swing_90": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Swing 90"
+          },
+          "nights": {
+            "type": "integer",
+            "title": "Nights"
+          }
+        },
+        "type": "object",
+        "required": [
+          "avg7",
+          "band_low",
+          "band_high",
+          "position",
+          "below_nights",
+          "swing",
+          "swing_90",
+          "nights"
+        ],
+        "title": "HrvSummary"
+      },
       "InvestmentAccount": {
         "properties": {
           "id": {
@@ -4358,6 +4698,15 @@
         "title": "Overspend",
         "description": "What overspending a budget does to the next month (ADR-0007, \"Budgets\")."
       },
+      "Period": {
+        "type": "integer",
+        "enum": [
+          30,
+          90,
+          365
+        ],
+        "title": "Period"
+      },
       "ProviderName": {
         "type": "string",
         "enum": [
@@ -4365,6 +4714,51 @@
           "trading212"
         ],
         "title": "ProviderName"
+      },
+      "Recovery": {
+        "properties": {
+          "days": {
+            "type": "integer",
+            "title": "Days"
+          },
+          "first_day": {
+            "type": "string",
+            "format": "date",
+            "title": "First Day"
+          },
+          "last_day": {
+            "type": "string",
+            "format": "date",
+            "title": "Last Day"
+          },
+          "hrv": {
+            "$ref": "#/components/schemas/HrvOut"
+          },
+          "resting_hr": {
+            "$ref": "#/components/schemas/RestingOut"
+          },
+          "body_battery": {
+            "$ref": "#/components/schemas/BatteryOut"
+          },
+          "stress": {
+            "$ref": "#/components/schemas/StressOut"
+          },
+          "signals": {
+            "$ref": "#/components/schemas/Signals"
+          }
+        },
+        "type": "object",
+        "required": [
+          "days",
+          "first_day",
+          "last_day",
+          "hrv",
+          "resting_hr",
+          "body_battery",
+          "stress",
+          "signals"
+        ],
+        "title": "Recovery"
       },
       "RecurringOut": {
         "properties": {
@@ -4536,6 +4930,120 @@
         "type": "object",
         "title": "RecurringUpdate",
         "description": "Only the fields sent change. An empty `name` goes back to the detected one."
+      },
+      "RestingOut": {
+        "properties": {
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/RestingPoint"
+            },
+            "type": "array",
+            "title": "Points"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/RestingSummary"
+          }
+        },
+        "type": "object",
+        "required": [
+          "points",
+          "summary"
+        ],
+        "title": "RestingOut"
+      },
+      "RestingPoint": {
+        "properties": {
+          "day": {
+            "type": "string",
+            "format": "date",
+            "title": "Day"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "avg7": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg7"
+          }
+        },
+        "type": "object",
+        "required": [
+          "day",
+          "value",
+          "avg7"
+        ],
+        "title": "RestingPoint"
+      },
+      "RestingSummary": {
+        "properties": {
+          "latest": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest"
+          },
+          "avg7": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg7"
+          },
+          "change": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Change"
+          },
+          "average": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Average"
+          }
+        },
+        "type": "object",
+        "required": [
+          "latest",
+          "avg7",
+          "change",
+          "average"
+        ],
+        "title": "RestingSummary"
       },
       "ReturnGap": {
         "type": "string",
@@ -4898,6 +5406,112 @@
           "kind"
         ],
         "title": "SetKind"
+      },
+      "Signal": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "enum": [
+              "hrv",
+              "resting_hr",
+              "sleep",
+              "body_battery",
+              "form"
+            ],
+            "title": "Key"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "watch",
+              "no_data"
+            ],
+            "title": "State"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "reference_low": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference Low"
+          },
+          "reference_high": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference High"
+          },
+          "day": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Day"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "state",
+          "value",
+          "reference_low",
+          "reference_high",
+          "day"
+        ],
+        "title": "Signal",
+        "description": "One check. `value` is compared with `reference_low` / `reference_high`:\nhrv: the 7-day average against the band; resting_hr: the latest against its 7-day average\n(`reference_low`) and the most that still passes (`reference_high`); sleep: minutes slept\nagainst the threshold (`reference_low`) and the need (`reference_high`); body_battery: at\nwake against its floor; form: against its floor."
+      },
+      "Signals": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Signal"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "ok": {
+            "type": "integer",
+            "title": "Ok"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "ok",
+          "total"
+        ],
+        "title": "Signals"
       },
       "Source": {
         "type": "string",
@@ -5273,6 +5887,132 @@
           "url"
         ],
         "title": "StartedConnection"
+      },
+      "StressOut": {
+        "properties": {
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/StressPoint"
+            },
+            "type": "array",
+            "title": "Points"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/StressSummary"
+          }
+        },
+        "type": "object",
+        "required": [
+          "points",
+          "summary"
+        ],
+        "title": "StressOut"
+      },
+      "StressPoint": {
+        "properties": {
+          "day": {
+            "type": "string",
+            "format": "date",
+            "title": "Day"
+          },
+          "rest_min": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rest Min"
+          },
+          "low_min": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Low Min"
+          },
+          "medium_min": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Medium Min"
+          },
+          "high_min": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "High Min"
+          },
+          "avg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg"
+          }
+        },
+        "type": "object",
+        "required": [
+          "day",
+          "rest_min",
+          "low_min",
+          "medium_min",
+          "high_min",
+          "avg"
+        ],
+        "title": "StressPoint"
+      },
+      "StressSummary": {
+        "properties": {
+          "avg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg"
+          },
+          "high_min": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "High Min"
+          }
+        },
+        "type": "object",
+        "required": [
+          "avg",
+          "high_min"
+        ],
+        "title": "StressSummary"
       },
       "SuggestionApproval": {
         "properties": {

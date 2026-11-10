@@ -199,6 +199,57 @@ export type Bank = {
 };
 
 /**
+ * BatteryOut
+ */
+export type BatteryOut = {
+    /**
+     * Points
+     */
+    points: Array<BatteryPoint>;
+    summary: BatterySummary;
+};
+
+/**
+ * BatteryPoint
+ */
+export type BatteryPoint = {
+    /**
+     * Day
+     */
+    day: string;
+    /**
+     * At Wake
+     */
+    at_wake: number | null;
+    /**
+     * Charged
+     */
+    charged: number | null;
+    /**
+     * Drained
+     */
+    drained: number | null;
+};
+
+/**
+ * BatterySummary
+ */
+export type BatterySummary = {
+    /**
+     * At Wake
+     */
+    at_wake: number | null;
+    /**
+     * Charged
+     */
+    charged: number | null;
+    /**
+     * Day
+     */
+    day: string | null;
+};
+
+/**
  * BudgetIn
  */
 export type BudgetIn = {
@@ -762,6 +813,85 @@ export type Holding = {
 };
 
 /**
+ * HrvOut
+ */
+export type HrvOut = {
+    /**
+     * Points
+     */
+    points: Array<HrvPoint>;
+    summary: HrvSummary;
+};
+
+/**
+ * HrvPoint
+ */
+export type HrvPoint = {
+    /**
+     * Day
+     */
+    day: string;
+    /**
+     * Value
+     */
+    value: number | null;
+    /**
+     * Avg7
+     */
+    avg7: number | null;
+    /**
+     * Band Low
+     */
+    band_low: number | null;
+    /**
+     * Band High
+     */
+    band_high: number | null;
+    /**
+     * Below
+     */
+    below: boolean;
+};
+
+/**
+ * HrvSummary
+ */
+export type HrvSummary = {
+    /**
+     * Avg7
+     */
+    avg7: number | null;
+    /**
+     * Band Low
+     */
+    band_low: number | null;
+    /**
+     * Band High
+     */
+    band_high: number | null;
+    /**
+     * Position
+     */
+    position: 'in' | 'below' | 'above' | null;
+    /**
+     * Below Nights
+     */
+    below_nights: number;
+    /**
+     * Swing
+     */
+    swing: number | null;
+    /**
+     * Swing 90
+     */
+    swing_90: number | null;
+    /**
+     * Nights
+     */
+    nights: number;
+};
+
+/**
  * InvestmentAccount
  */
 export type InvestmentAccount = {
@@ -1067,9 +1197,37 @@ export type OverallBudgetOut = {
 export type Overspend = 'forgive' | 'carry';
 
 /**
+ * Period
+ */
+export type Period = 30 | 90 | 365;
+
+/**
  * ProviderName
  */
 export type ProviderName = 'enable_banking' | 'trading212';
+
+/**
+ * Recovery
+ */
+export type Recovery = {
+    /**
+     * Days
+     */
+    days: number;
+    /**
+     * First Day
+     */
+    first_day: string;
+    /**
+     * Last Day
+     */
+    last_day: string;
+    hrv: HrvOut;
+    resting_hr: RestingOut;
+    body_battery: BatteryOut;
+    stress: StressOut;
+    signals: Signals;
+};
 
 /**
  * RecurringOut
@@ -1157,6 +1315,57 @@ export type RecurringUpdate = {
      * Cancelled
      */
     cancelled?: boolean | null;
+};
+
+/**
+ * RestingOut
+ */
+export type RestingOut = {
+    /**
+     * Points
+     */
+    points: Array<RestingPoint>;
+    summary: RestingSummary;
+};
+
+/**
+ * RestingPoint
+ */
+export type RestingPoint = {
+    /**
+     * Day
+     */
+    day: string;
+    /**
+     * Value
+     */
+    value: number | null;
+    /**
+     * Avg7
+     */
+    avg7: number | null;
+};
+
+/**
+ * RestingSummary
+ */
+export type RestingSummary = {
+    /**
+     * Latest
+     */
+    latest: number | null;
+    /**
+     * Avg7
+     */
+    avg7: number | null;
+    /**
+     * Change
+     */
+    change: number | null;
+    /**
+     * Average
+     */
+    average: number | null;
 };
 
 /**
@@ -1368,6 +1577,60 @@ export type SetKind = {
      */
     type: 'set_kind';
     kind: TransactionKind;
+};
+
+/**
+ * Signal
+ *
+ * One check. `value` is compared with `reference_low` / `reference_high`:
+ * hrv: the 7-day average against the band; resting_hr: the latest against its 7-day average
+ * (`reference_low`) and the most that still passes (`reference_high`); sleep: minutes slept
+ * against the threshold (`reference_low`) and the need (`reference_high`); body_battery: at
+ * wake against its floor; form: against its floor.
+ */
+export type Signal = {
+    /**
+     * Key
+     */
+    key: 'hrv' | 'resting_hr' | 'sleep' | 'body_battery' | 'form';
+    /**
+     * State
+     */
+    state: 'ok' | 'watch' | 'no_data';
+    /**
+     * Value
+     */
+    value: number | null;
+    /**
+     * Reference Low
+     */
+    reference_low: number | null;
+    /**
+     * Reference High
+     */
+    reference_high: number | null;
+    /**
+     * Day
+     */
+    day: string | null;
+};
+
+/**
+ * Signals
+ */
+export type Signals = {
+    /**
+     * Items
+     */
+    items: Array<Signal>;
+    /**
+     * Ok
+     */
+    ok: number;
+    /**
+     * Total
+     */
+    total: number;
 };
 
 /**
@@ -1595,6 +1858,61 @@ export type StartedConnection = {
      * Url
      */
     url: string;
+};
+
+/**
+ * StressOut
+ */
+export type StressOut = {
+    /**
+     * Points
+     */
+    points: Array<StressPoint>;
+    summary: StressSummary;
+};
+
+/**
+ * StressPoint
+ */
+export type StressPoint = {
+    /**
+     * Day
+     */
+    day: string;
+    /**
+     * Rest Min
+     */
+    rest_min: number | null;
+    /**
+     * Low Min
+     */
+    low_min: number | null;
+    /**
+     * Medium Min
+     */
+    medium_min: number | null;
+    /**
+     * High Min
+     */
+    high_min: number | null;
+    /**
+     * Avg
+     */
+    avg: number | null;
+};
+
+/**
+ * StressSummary
+ */
+export type StressSummary = {
+    /**
+     * Avg
+     */
+    avg: number | null;
+    /**
+     * High Min
+     */
+    high_min: number | null;
 };
 
 /**
@@ -3325,3 +3643,30 @@ export type SyncHealthResponses = {
 };
 
 export type SyncHealthResponse = SyncHealthResponses[keyof SyncHealthResponses];
+
+export type GetRecoveryData = {
+    body?: never;
+    path?: never;
+    query?: {
+        days?: Period;
+    };
+    url: '/api/health/recovery';
+};
+
+export type GetRecoveryErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetRecoveryError = GetRecoveryErrors[keyof GetRecoveryErrors];
+
+export type GetRecoveryResponses = {
+    /**
+     * Successful Response
+     */
+    200: Recovery;
+};
+
+export type GetRecoveryResponse = GetRecoveryResponses[keyof GetRecoveryResponses];

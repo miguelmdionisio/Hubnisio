@@ -62,15 +62,19 @@ test('the switcher moves between Finance and Health', async () => {
   expect(screen.getByRole('navigation', { name: 'Health' })).toBeDefined();
 });
 
-test.each(HEALTH_PAGES)('$title renders its title and an honest gap', async ({ to, title }) => {
-  mockApi({});
+// Recovery has its own tests (routes/health/recovery).
+test.each(HEALTH_PAGES.filter((page) => page.title !== 'Recovery'))(
+  '$title renders its title and an honest gap',
+  async ({ to, title }) => {
+    mockApi({});
 
-  renderAt(to);
+    renderAt(to);
 
-  expect(await screen.findByRole('heading', { name: title })).toBeDefined();
-  expect(screen.getByText('No data yet')).toBeDefined();
-  expect(screen.queryByText(/Synced/)).toBeNull();
-});
+    expect(await screen.findByRole('heading', { name: title })).toBeDefined();
+    expect(screen.getByText('No data yet')).toBeDefined();
+    expect(screen.queryByText(/Synced/)).toBeNull();
+  },
+);
 
 test('More lists the pages the tabs leave out and the domains to switch to', async () => {
   mockApi({});
