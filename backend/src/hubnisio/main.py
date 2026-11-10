@@ -15,6 +15,7 @@ from hubnisio.finance.investments_api import router as investments_router
 from hubnisio.finance.organize_api import router as organize_router
 from hubnisio.finance.recurring_api import router as recurring_router
 from hubnisio.finance.transactions_api import router as transactions_router
+from hubnisio.health.api import router as health_router
 from hubnisio.jobs import app as job_app
 
 
@@ -27,11 +28,19 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(title="Hubnisio", version="0.1.0", lifespan=lifespan)
-app.include_router(core_router, prefix="/api")
-app.include_router(finance_router, prefix="/api")
-app.include_router(transactions_router, prefix="/api")
-app.include_router(organize_router, prefix="/api")
-app.include_router(insights_router, prefix="/api")
-app.include_router(investments_router, prefix="/api")
-app.include_router(budgets_router, prefix="/api")
-app.include_router(recurring_router, prefix="/api")
+# Every router, by domain. A new one (e.g. health/sleep_api.py) is added here, nowhere else.
+ROUTERS = (
+    core_router,
+    # Finance
+    finance_router,
+    transactions_router,
+    organize_router,
+    insights_router,
+    investments_router,
+    budgets_router,
+    recurring_router,
+    # Health
+    health_router,
+)
+for router in ROUTERS:
+    app.include_router(router, prefix="/api")

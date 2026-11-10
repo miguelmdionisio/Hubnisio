@@ -105,6 +105,23 @@ docker compose exec api python -m hubnisio.cli fx-backfill
 
 If an instrument has no symbol found ("no symbol found" in the output), look it up on Yahoo Finance and set it by hand, e.g. `prices-symbol --ticker VUSAl_EQ --symbol VUSA.L`; `--auto` forgets it again.
 
+## Linking Garmin
+
+Health reads a member's Garmin data through Garmin's Connect Personal API, with a personal key ([ADR-0009](docs/adr/0009-health-garmin.md)). Only that member ever sees it. The key stays in a file: the database records only the file's name and the day the key lapses.
+
+1. On connect.garmin.com, make a personal API key and note the date it expires (a year at most).
+2. Save it in a file in `secrets/garmin/`, for example `secrets/garmin/garmin`, as one line; blank lines and lines starting with `#` are ignored:
+   ```
+   key=<personal API key>
+   ```
+   Compose mounts that folder read-only into the api and worker containers. After adding it for the first time, run `docker compose up -d` so they get the mount.
+3. Link it to your user, with the key's expiry date. The command exchanges the key, reads your time zone, and queues the first sync, which reads everything since February 2025 (it takes a while: Garmin is asked politely, a day at a time for the night's detail):
+   ```bash
+   docker compose exec api python -m hubnisio.cli garmin-link --email you@example.com --key-file garmin --key-expires 2027-11-01
+   ```
+
+The worker syncs every morning; `garmin-sync` syncs now, `garmin-backfill --since YYYY-MM-DD` reads days again, and `garmin-renormalize` rebuilds the health tables from the stored replies. Each prints counts only. When the key lapses or Garmin rejects it, make a new key and run `garmin-link` again.
+
 ## Work on it without Docker
 
 Needs [uv](https://docs.astral.sh/uv/) and Node 24 (pnpm comes through corepack). The database still runs in Compose: `docker compose up db migrate`.

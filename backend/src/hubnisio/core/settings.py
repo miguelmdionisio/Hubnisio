@@ -29,6 +29,8 @@ class Settings(BaseSettings):
     ai_secrets_dir: Path = Path("../secrets/ai")
     # Trading 212 API keys (ADR-0008), one file per account; a connection names its file.
     trading212_keys_dir: Path = Path("../secrets/trading212")
+    # Garmin personal API keys (ADR-0009), one file per member; a health connection names its file.
+    garmin_keys_dir: Path = Path("../secrets/garmin")
     # The MCP server (hubnisio.ai): the kill switch, and the member login it connects as (one of
     # the files above). It never uses database_url.
     ai_enabled: bool = False

@@ -12,5 +12,6 @@ Each significant design decision gets a short record here: the context, the opti
 | [0006](0006-ai-access.md) | AI access to hub data | Accepted |
 | [0007](0007-finance-domain-model.md) | Finance domain model | Accepted |
 | [0008](0008-investments.md) | Investments (Trading 212) | Accepted |
+| [0009](0009-health-garmin.md) | Health from Garmin | Accepted |
 
 Statuses: **Proposed** (written, awaiting sign-off), **Accepted**, **Deprecated**, **Superseded by ADR-XXXX**.

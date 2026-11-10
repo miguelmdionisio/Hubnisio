@@ -17,6 +17,8 @@ x-backend: &backend
     HUBNISIO_AI_SECRETS_DIR: /run/secrets/ai
     # Trading 212 API keys (ADR-0008), one file per account, read by `cli t212-link` and the sync.
     HUBNISIO_TRADING212_KEYS_DIR: /run/secrets/trading212
+    # Garmin personal API keys (ADR-0009), one file per member, read by `cli garmin-link` and the sync.
+    HUBNISIO_GARMIN_KEYS_DIR: /run/secrets/garmin
     # The MCP server's switch (ADR-0006): it starts only when .env sets this to true.
     HUBNISIO_AI_ENABLED: ${HUBNISIO_AI_ENABLED:-false}
     # File-change events don't cross from a Windows host into the container; poll instead.
@@ -58,6 +60,7 @@ services:
       - ./secrets/ai:/run/secrets/ai
       # A folder, so the stack starts without it and a new key needs no restart.
       - ./secrets/trading212:/run/secrets/trading212:ro
+      - ./secrets/garmin:/run/secrets/garmin:ro
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:
@@ -70,6 +73,7 @@ services:
     volumes:
       - ./backend/src:/app/src
       - ./secrets/trading212:/run/secrets/trading212:ro
+      - ./secrets/garmin:/run/secrets/garmin:ro
     depends_on:
       migrate:
         condition: service_completed_successfully

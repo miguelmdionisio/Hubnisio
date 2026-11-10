@@ -44,12 +44,12 @@ addopts = "-ra"
 root_package = "hubnisio"
 
 [[tool.importlinter.contracts]]
-name = "Entrypoints on top, domain modules in the middle, core at the bottom"
+name = "Entrypoints on top, domain modules in the middle (never importing each other), core at the bottom"
 type = "layers"
 layers = [
     "main | worker | cli | ai",
     "jobs",
-    "finance",
+    "finance | health",
     "core",
 ]
 containers = ["hubnisio"]

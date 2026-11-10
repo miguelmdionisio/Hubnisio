@@ -13,6 +13,7 @@ from psycopg_pool import AsyncConnectionPool
 
 from hubnisio.core.settings import get_settings
 from hubnisio.finance import tasks as finance_tasks
+from hubnisio.health import tasks as health_tasks
 
 
 def _pool(**kwargs: Any) -> AsyncConnectionPool:
@@ -29,6 +30,7 @@ app = procrastinate.App(
     ),
 )
 app.add_tasks_from(finance_tasks.blueprint, namespace="finance")
+app.add_tasks_from(health_tasks.blueprint, namespace="health")
 
 
 @app.periodic(cron="30 3 * * *")

@@ -548,7 +548,7 @@ export type ConnectionOut = {
      * Institution Country
      */
     institution_country: string | null;
-    status: ConnectionStatus;
+    status: HubnisioFinanceModelsConnectionStatus;
     /**
      * Valid Until
      */
@@ -578,11 +578,6 @@ export type ConnectionOut = {
      */
     account_ids: Array<string>;
 };
-
-/**
- * ConnectionStatus
- */
-export type ConnectionStatus = 'pending' | 'active' | 'expired' | 'revoked' | 'failed';
 
 /**
  * CounterpartyCreate
@@ -670,6 +665,46 @@ export type Health = {
      * Database
      */
     database: string;
+};
+
+/**
+ * HealthConnection
+ */
+export type HealthConnection = {
+    /**
+     * Linked
+     */
+    linked: boolean;
+    /**
+     * Provider
+     */
+    provider?: string | null;
+    status?: HubnisioHealthModelsConnectionStatus | null;
+    /**
+     * Key Expires On
+     */
+    key_expires_on?: string | null;
+    /**
+     * Key Expires Soon
+     */
+    key_expires_soon?: boolean;
+    /**
+     * Last Synced At
+     */
+    last_synced_at?: string | null;
+    last_run?: SyncRunOut | null;
+    /**
+     * Synced Through
+     */
+    synced_through?: {
+        [key: string]: string;
+    };
+    /**
+     * Counts
+     */
+    counts?: {
+        [key: string]: number;
+    };
 };
 
 /**
@@ -1595,6 +1630,38 @@ export type SyncQueued = {
 };
 
 /**
+ * SyncRunOut
+ */
+export type SyncRunOut = {
+    /**
+     * Trigger
+     */
+    trigger: string;
+    status: SyncStatus;
+    /**
+     * Error Code
+     */
+    error_code: string | null;
+    /**
+     * Skipped
+     */
+    skipped: Array<string>;
+    /**
+     * Started At
+     */
+    started_at: string;
+    /**
+     * Finished At
+     */
+    finished_at: string | null;
+};
+
+/**
+ * SyncStatus
+ */
+export type SyncStatus = 'running' | 'succeeded' | 'failed';
+
+/**
  * TransactionCategory
  */
 export type TransactionCategory = {
@@ -1900,6 +1967,16 @@ export type ValuePoint = {
      */
     net_deposits: string;
 };
+
+/**
+ * ConnectionStatus
+ */
+export type HubnisioFinanceModelsConnectionStatus = 'pending' | 'active' | 'expired' | 'revoked' | 'failed';
+
+/**
+ * ConnectionStatus
+ */
+export type HubnisioHealthModelsConnectionStatus = 'active' | 'expired';
 
 export type GetHealthData = {
     body?: never;
@@ -3216,3 +3293,35 @@ export type ListUpcomingPaymentsResponses = {
 };
 
 export type ListUpcomingPaymentsResponse = ListUpcomingPaymentsResponses[keyof ListUpcomingPaymentsResponses];
+
+export type GetHealthConnectionData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/health/connection';
+};
+
+export type GetHealthConnectionResponses = {
+    /**
+     * Successful Response
+     */
+    200: HealthConnection;
+};
+
+export type GetHealthConnectionResponse = GetHealthConnectionResponses[keyof GetHealthConnectionResponses];
+
+export type SyncHealthData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/health/sync';
+};
+
+export type SyncHealthResponses = {
+    /**
+     * Successful Response
+     */
+    202: SyncQueued;
+};
+
+export type SyncHealthResponse = SyncHealthResponses[keyof SyncHealthResponses];

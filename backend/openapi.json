@@ -2277,6 +2277,48 @@
           }
         }
       }
+    },
+    "/api/health/connection": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Get Connection",
+        "operationId": "getHealthConnection",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthConnection"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/health/sync": {
+      "post": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Sync Now",
+        "operationId": "syncHealth",
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyncQueued"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -3259,7 +3301,7 @@
             "title": "Institution Country"
           },
           "status": {
-            "$ref": "#/components/schemas/ConnectionStatus"
+            "$ref": "#/components/schemas/hubnisio__finance__models__ConnectionStatus"
           },
           "valid_until": {
             "anyOf": [
@@ -3347,17 +3389,6 @@
           "account_ids"
         ],
         "title": "ConnectionOut"
-      },
-      "ConnectionStatus": {
-        "type": "string",
-        "enum": [
-          "pending",
-          "active",
-          "expired",
-          "revoked",
-          "failed"
-        ],
-        "title": "ConnectionStatus"
       },
       "CounterpartyCreate": {
         "properties": {
@@ -3506,6 +3537,96 @@
           "database"
         ],
         "title": "Health"
+      },
+      "HealthConnection": {
+        "properties": {
+          "linked": {
+            "type": "boolean",
+            "title": "Linked"
+          },
+          "provider": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/hubnisio__health__models__ConnectionStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "key_expires_on": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key Expires On"
+          },
+          "key_expires_soon": {
+            "type": "boolean",
+            "title": "Key Expires Soon",
+            "default": false
+          },
+          "last_synced_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Synced At"
+          },
+          "last_run": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SyncRunOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "synced_through": {
+            "additionalProperties": {
+              "type": "string",
+              "format": "date"
+            },
+            "type": "object",
+            "title": "Synced Through",
+            "default": {}
+          },
+          "counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Counts",
+            "default": {}
+          }
+        },
+        "type": "object",
+        "required": [
+          "linked"
+        ],
+        "title": "HealthConnection"
       },
       "Holding": {
         "properties": {
@@ -5199,6 +5320,71 @@
         ],
         "title": "SyncQueued"
       },
+      "SyncRunOut": {
+        "properties": {
+          "trigger": {
+            "type": "string",
+            "title": "Trigger"
+          },
+          "status": {
+            "$ref": "#/components/schemas/SyncStatus"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "skipped": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Skipped"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Started At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "trigger",
+          "status",
+          "error_code",
+          "skipped",
+          "started_at",
+          "finished_at"
+        ],
+        "title": "SyncRunOut"
+      },
+      "SyncStatus": {
+        "type": "string",
+        "enum": [
+          "running",
+          "succeeded",
+          "failed"
+        ],
+        "title": "SyncStatus"
+      },
       "TransactionCategory": {
         "properties": {
           "id": {
@@ -5826,6 +6012,25 @@
           "net_deposits"
         ],
         "title": "ValuePoint"
+      },
+      "hubnisio__finance__models__ConnectionStatus": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "active",
+          "expired",
+          "revoked",
+          "failed"
+        ],
+        "title": "ConnectionStatus"
+      },
+      "hubnisio__health__models__ConnectionStatus": {
+        "type": "string",
+        "enum": [
+          "active",
+          "expired"
+        ],
+        "title": "ConnectionStatus"
       }
     }
   }

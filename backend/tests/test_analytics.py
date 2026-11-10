@@ -168,7 +168,13 @@ async def test_a_login_reads_only_the_analytics_views(
         "SELECT table_schema, table_name FROM information_schema.tables"
         " WHERE table_schema NOT IN ('analytics', 'information_schema', 'pg_catalog')",
     )
-    assert {schema for schema, _ in others} >= {"core", "finance", "procrastinate", "public"}
+    assert {schema for schema, _ in others} >= {
+        "core",
+        "finance",
+        "health",
+        "procrastinate",
+        "public",
+    }
     for schema, table in others:
         query = sql.SQL("SELECT 1 FROM {}.{} LIMIT 1").format(
             sql.Identifier(schema), sql.Identifier(table)

@@ -44,6 +44,16 @@ from hubnisio.finance.providers.trading212.errors import (
 )
 from hubnisio.finance.recurring.run import detect_recurring
 from hubnisio.finance.sync import SyncTrigger
+from hubnisio.health import sync as health_sync
+from hubnisio.health import tasks as health_tasks
+from hubnisio.health.ingest import fact_counts, renormalize_member
+from hubnisio.health.models import Connection as HealthConnection
+from hubnisio.health.models import ConnectionStatus as HealthStatus
+from hubnisio.health.models import ProviderName as HealthProvider
+from hubnisio.health.providers.garmin import errors as garmin
+from hubnisio.health.providers.garmin.client import GarminClient
+from hubnisio.health.providers.garmin.normalize import normalize as garmin_normalize
+from hubnisio.health.scoping import of_member
 from hubnisio.jobs import app as job_app
 
 
@@ -260,6 +270,146 @@ async def t212_link(
     return 0
 
 
+async def _member_id(email: str) -> uuid.UUID | None:
+    async with get_sessionmaker()() as session:
+        return await session.scalar(
+            select(User.id).where(
+                User.email == email, exists().where(HouseholdMember.user_id == User.id)
+            )
+        )
+
+
+async def garmin_link(
+    email: str,
+    key_file: str,
+    key_expires: date,
+    *,
+    client_factory: Callable[[Path], GarminClient] = GarminClient,
+) -> int:
+    """Link a member's Garmin account from a personal API key file (ADR-0009), then queue its
+    first sync. Garmin doesn't say when a key lapses, so the member gives the date. Prints no
+    key or value."""
+    email = email.strip().lower()
+    if not KEY_FILE_NAME.fullmatch(key_file):
+        print("--key-file takes a file's name in the keys folder, e.g. garmin.", file=sys.stderr)
+        return 1
+    if key_expires <= date.today():
+        print("--key-expires must be a day after today.", file=sys.stderr)
+        return 1
+    user_id = await _member_id(email)
+    if user_id is None:
+        print(f"No household member has the email {email}.", file=sys.stderr)
+        return 1
+    path = get_settings().garmin_keys_dir / key_file
+    try:
+        async with client_factory(path) as client:
+            profile = await client.get_profile()
+    except garmin.KeyFileError as exc:
+        print(f"{exc.message} See the README for the format.", file=sys.stderr)
+        return 1
+    except garmin.KeyRejected:
+        print("Garmin rejected the key. Check it, or make a new one.", file=sys.stderr)
+        return 1
+    except (garmin.GarminError, httpx.HTTPError) as exc:
+        print(f"Couldn't read the Garmin profile: {exc}.", file=sys.stderr)
+        return 1
+    time_zone = garmin_normalize("profile", profile.raw, None).time_zone
+
+    async with get_sessionmaker()() as session, session.begin():
+        connection = await session.scalar(
+            select(HealthConnection).where(
+                of_member(HealthConnection, user_id),
+                HealthConnection.provider == HealthProvider.GARMIN,
+            )
+        )
+        if connection is None:
+            connection = HealthConnection(user_id=user_id, provider=HealthProvider.GARMIN)
+            session.add(connection)
+        connection.key_file = key_file
+        connection.key_expires_on = key_expires
+        connection.status = HealthStatus.ACTIVE
+        connection.time_zone = time_zone or connection.time_zone
+        await session.flush()
+        connection_id = connection.id
+    async with job_app.open_async():
+        await health_tasks.defer_sync(connection_id, trigger=health_sync.SyncTrigger.INITIAL)
+    print(
+        f"Linked Garmin for {email}, its key valid until {key_expires}. Its first sync is "
+        f"queued; the worker reads everything since {health_sync.BACKFILL_START}."
+    )
+    return 0
+
+
+async def _garmin_connections(email: str | None) -> list[tuple[uuid.UUID, uuid.UUID]] | None:
+    """The active Garmin connections (ID, member), of one member or all; None: none found."""
+    user_id = None
+    if email is not None:
+        user_id = await _member_id(email.strip().lower())
+        if user_id is None:
+            print(f"No household member has the email {email}.", file=sys.stderr)
+            return None
+    async with get_sessionmaker()() as session:
+        query = select(HealthConnection.id, HealthConnection.user_id).where(
+            HealthConnection.status == HealthStatus.ACTIVE
+        )
+        if user_id is not None:
+            query = query.where(of_member(HealthConnection, user_id))
+        rows = [
+            (id_, user) for id_, user in await session.execute(query.order_by(HealthConnection.id))
+        ]
+    if not rows:
+        print("No active Garmin connection.", file=sys.stderr)
+        return None
+    return rows
+
+
+async def _print_health_counts(user_id: uuid.UUID) -> None:
+    async with get_sessionmaker()() as session:
+        counts = await fact_counts(session, user_id)
+    for name, count in counts.items():
+        print(f"  {name}: {count}")
+
+
+async def garmin_sync(
+    email: str | None,
+    *,
+    since: date | None = None,
+    kinds: list[str] | None = None,
+    client_factory: Callable[[HealthConnection], GarminClient] | None = None,
+) -> int:
+    """Sync Garmin here rather than in the worker: from each kind's cursor, or, as a backfill,
+    every kind from `since`. Prints counts, never values."""
+    connections = await _garmin_connections(email)
+    if connections is None:
+        return 1
+    failed = False
+    trigger = health_sync.SyncTrigger.BACKFILL if since else health_sync.SyncTrigger.USER
+    for connection_id, user_id in connections:
+        outcome = await health_sync.sync_connection(
+            connection_id, trigger=trigger, since=since, kinds=kinds, client_factory=client_factory
+        )
+        skipped = f", skipped {', '.join(outcome.skipped)}" if outcome.skipped else ""
+        result = "synced" if outcome.succeeded else f"failed ({outcome.error_code})"
+        print(f"Connection {connection_id}: {result}, {outcome.payloads} replies{skipped}.")
+        await _print_health_counts(user_id)
+        failed = failed or not outcome.succeeded
+    return 1 if failed else 0
+
+
+async def garmin_renormalize(email: str | None) -> int:
+    """Rebuild members' health rows from their stored Garmin replies."""
+    connections = await _garmin_connections(email)
+    if connections is None:
+        return 1
+    for user_id in sorted({user_id for _, user_id in connections}):
+        async with get_sessionmaker()() as session, session.begin():
+            result = await renormalize_member(session, user_id)
+        print(f"Member {user_id}: replayed {result.payloads} replies.")
+        for name, count in result.counts.items():
+            print(f"  {name}: {count}")
+    return 0
+
+
 AI_GROUP = "hub_ai"
 # Set on every AI login: read-only transactions and short statements by default. The grants
 # are what keep it out of everything but `analytics`; these only make the defaults safe.
@@ -369,6 +519,14 @@ async def _run(args: argparse.Namespace) -> int:
                 return await t212_link(args.email, args.key_file)
             case "renormalize":
                 return await renormalize(args.account)
+            case "garmin-link":
+                return await garmin_link(args.email, args.key_file, args.key_expires)
+            case "garmin-sync":
+                return await garmin_sync(args.email)
+            case "garmin-backfill":
+                return await garmin_sync(args.email, since=args.since, kinds=args.kind)
+            case "garmin-renormalize":
+                return await garmin_renormalize(args.email)
             case "recategorize":
                 return await recategorize(args.household)
             case "detect-recurring":
@@ -414,6 +572,52 @@ def main(argv: list[str] | None = None) -> int:
         "--key-file",
         required=True,
         help="the key file's name in the Trading 212 keys folder (secrets/trading212)",
+    )
+
+    garmin_link_parser = commands.add_parser(
+        "garmin-link",
+        help="link a member's Garmin account from a personal API key file, and sync it",
+    )
+    garmin_link_parser.add_argument("--email", required=True)
+    garmin_link_parser.add_argument(
+        "--key-file", required=True, help="the key file's name in the Garmin keys folder"
+    )
+    garmin_link_parser.add_argument(
+        "--key-expires",
+        required=True,
+        type=date.fromisoformat,
+        metavar="YYYY-MM-DD",
+        help="the day the key lapses, as Garmin showed it when making the key",
+    )
+
+    garmin_sync_parser = commands.add_parser(
+        "garmin-sync", help="sync Garmin now, from where the last sync stopped"
+    )
+    garmin_sync_parser.add_argument("--email", help="one member (default: every linked member)")
+
+    garmin_backfill_parser = commands.add_parser(
+        "garmin-backfill", help="read Garmin's daily data again from a day, whatever was synced"
+    )
+    garmin_backfill_parser.add_argument("--email", help="one member (default: every linked member)")
+    garmin_backfill_parser.add_argument(
+        "--since",
+        type=date.fromisoformat,
+        default=health_sync.BACKFILL_START,
+        metavar="YYYY-MM-DD",
+        help=f"the first day to read (default: {health_sync.BACKFILL_START})",
+    )
+    garmin_backfill_parser.add_argument(
+        "--kind",
+        action="append",
+        choices=[*health_sync.SYNCED_KINDS, "fitness_age", "weight_goal"],
+        help="only this kind (repeatable; default: every kind)",
+    )
+
+    garmin_renormalize_parser = commands.add_parser(
+        "garmin-renormalize", help="rebuild health rows from the stored Garmin replies"
+    )
+    garmin_renormalize_parser.add_argument(
+        "--email", help="one member (default: every linked member)"
     )
 
     renormalize_parser = commands.add_parser(

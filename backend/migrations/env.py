@@ -9,13 +9,14 @@ from hubnisio.core import models as core_models
 from hubnisio.core.db import MODULE_SCHEMAS, Base
 from hubnisio.core.settings import get_settings
 from hubnisio.finance import models as finance_models
+from hubnisio.health import models as health_models
 
 config = context.config
 if config.config_file_name is not None and config.attributes.get("configure_logger", True):
     fileConfig(config.config_file_name)
 
 # Importing a module's models registers its tables on Base.metadata.
-_ = (core_models, finance_models)
+_ = (core_models, finance_models, health_models)
 target_metadata = Base.metadata
 
 
