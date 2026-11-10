@@ -131,6 +131,62 @@ export type AddTag = {
 };
 
 /**
+ * AgeLatest
+ */
+export type AgeLatest = {
+    /**
+     * Day
+     */
+    day: string;
+    /**
+     * Fitness Age
+     */
+    fitness_age: number;
+    /**
+     * Chronological Age
+     */
+    chronological_age: number | null;
+    /**
+     * Difference
+     */
+    difference: number | null;
+    /**
+     * Resting Hr
+     */
+    resting_hr: number | null;
+    /**
+     * Bmi
+     */
+    bmi: number | null;
+    /**
+     * Vigorous Days Avg
+     */
+    vigorous_days_avg: number | null;
+    /**
+     * Vigorous Minutes Avg
+     */
+    vigorous_minutes_avg: number | null;
+};
+
+/**
+ * AgePoint
+ */
+export type AgePoint = {
+    /**
+     * Day
+     */
+    day: string;
+    /**
+     * Fitness Age
+     */
+    fitness_age: number | null;
+    /**
+     * Chronological Age
+     */
+    chronological_age: number | null;
+};
+
+/**
  * ApplyToCounterparty
  *
  * Offered after a category is set by hand: make it the counterparty's default too.
@@ -247,6 +303,26 @@ export type BatterySummary = {
      * Day
      */
     day: string | null;
+};
+
+/**
+ * Body
+ */
+export type Body = {
+    /**
+     * Days
+     */
+    days: number | null;
+    /**
+     * First Day
+     */
+    first_day: string | null;
+    /**
+     * Last Day
+     */
+    last_day: string;
+    weight: WeightOut;
+    fitness_age: FitnessAgeOut;
 };
 
 /**
@@ -717,6 +793,20 @@ export type CounterpartyUpdate = {
 };
 
 /**
+ * DateRange
+ */
+export type DateRange = {
+    /**
+     * First
+     */
+    first: string;
+    /**
+     * Last
+     */
+    last: string;
+};
+
+/**
  * DebtOut
  */
 export type DebtOut = {
@@ -740,6 +830,17 @@ export type DebtOut = {
      * Debt Minutes
      */
     debt_minutes: number;
+};
+
+/**
+ * FitnessAgeOut
+ */
+export type FitnessAgeOut = {
+    /**
+     * Points
+     */
+    points: Array<AgePoint>;
+    latest: AgeLatest | null;
 };
 
 /**
@@ -804,6 +905,16 @@ export type HealthConnection = {
     counts?: {
         [key: string]: number;
     };
+    /**
+     * Ranges
+     */
+    ranges?: {
+        [key: string]: DateRange;
+    };
+    /**
+     * Syncing
+     */
+    syncing?: boolean;
 };
 
 /**
@@ -1383,11 +1494,6 @@ export type OverallBudgetOut = {
  * What overspending a budget does to the next month (ADR-0007, "Budgets").
  */
 export type Overspend = 'forgive' | 'carry';
-
-/**
- * Period
- */
-export type Period = 30 | 90 | 365;
 
 /**
  * ProviderName
@@ -2667,14 +2773,91 @@ export type WeekdayScoreOut = {
 };
 
 /**
+ * WeightOut
+ */
+export type WeightOut = {
+    /**
+     * Points
+     */
+    points: Array<WeightPoint>;
+    /**
+     * Goal Kg
+     */
+    goal_kg: number | null;
+    summary: WeightSummary;
+};
+
+/**
+ * WeightPoint
+ */
+export type WeightPoint = {
+    /**
+     * Day
+     */
+    day: string;
+    /**
+     * Kg
+     */
+    kg: number;
+    /**
+     * Bmi
+     */
+    bmi: number | null;
+    /**
+     * Body Fat Pct
+     */
+    body_fat_pct: number | null;
+};
+
+/**
+ * WeightSummary
+ */
+export type WeightSummary = {
+    /**
+     * Count
+     */
+    count: number;
+    /**
+     * Latest Kg
+     */
+    latest_kg: number | null;
+    /**
+     * Latest Day
+     */
+    latest_day: string | null;
+    /**
+     * Change Kg
+     */
+    change_kg: number | null;
+    /**
+     * Bmi
+     */
+    bmi: number | null;
+    /**
+     * To Goal Kg
+     */
+    to_goal_kg: number | null;
+};
+
+/**
  * ConnectionStatus
  */
 export type HubnisioFinanceModelsConnectionStatus = 'pending' | 'active' | 'expired' | 'revoked' | 'failed';
 
 /**
+ * Period
+ */
+export type HubnisioHealthBodyApiPeriod = '90' | '365' | 'all';
+
+/**
  * ConnectionStatus
  */
 export type HubnisioHealthModelsConnectionStatus = 'active' | 'expired';
+
+/**
+ * Period
+ */
+export type HubnisioHealthRecoveryApiPeriod = 30 | 90 | 365;
 
 export type GetHealthData = {
     body?: never;
@@ -4024,11 +4207,38 @@ export type SyncHealthResponses = {
 
 export type SyncHealthResponse = SyncHealthResponses[keyof SyncHealthResponses];
 
+export type GetBodyData = {
+    body?: never;
+    path?: never;
+    query?: {
+        days?: HubnisioHealthBodyApiPeriod;
+    };
+    url: '/api/health/body';
+};
+
+export type GetBodyErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetBodyError = GetBodyErrors[keyof GetBodyErrors];
+
+export type GetBodyResponses = {
+    /**
+     * Successful Response
+     */
+    200: Body;
+};
+
+export type GetBodyResponse = GetBodyResponses[keyof GetBodyResponses];
+
 export type GetRecoveryData = {
     body?: never;
     path?: never;
     query?: {
-        days?: Period;
+        days?: HubnisioHealthRecoveryApiPeriod;
     };
     url: '/api/health/recovery';
 };

@@ -407,6 +407,8 @@ async def test_the_connection_as_the_member_who_linked_it(setup: Setup) -> None:
             "last_run": None,
             "synced_through": {},
             "counts": {},
+            "ranges": {},
+            "syncing": False,
         }
     await linked(setup)
     await setup.sync(sync.SyncTrigger.INITIAL)
@@ -421,6 +423,9 @@ async def test_the_connection_as_the_member_who_linked_it(setup: Setup) -> None:
     assert body["last_run"]["trigger"] == "initial"
     assert body["synced_through"] == dict.fromkeys(sync.SYNCED_KINDS, TODAY.isoformat())
     assert body["counts"] == FULL
+    assert body["syncing"] is False
+    assert set(body["ranges"]["sleeps"]) == {"first", "last"}
+    assert "heart_rate_zones" not in body["ranges"]
 
 
 async def test_a_key_lapsing_within_two_weeks_is_flagged(setup: Setup) -> None:

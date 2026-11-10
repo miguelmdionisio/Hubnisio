@@ -2320,6 +2320,49 @@
         }
       }
     },
+    "/api/health/body": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Get Body",
+        "description": "The `days` ending today (the member's own), or everything stored.",
+        "operationId": "getBody",
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/hubnisio__health__body_api__Period",
+              "default": "365"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Body"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/health/recovery": {
       "get": {
         "tags": [
@@ -2334,7 +2377,7 @@
             "in": "query",
             "required": false,
             "schema": {
-              "$ref": "#/components/schemas/Period",
+              "$ref": "#/components/schemas/hubnisio__health__recovery_api__Period",
               "default": 90
             }
           }
@@ -2705,6 +2748,135 @@
         ],
         "title": "AddTag"
       },
+      "AgeLatest": {
+        "properties": {
+          "day": {
+            "type": "string",
+            "format": "date",
+            "title": "Day"
+          },
+          "fitness_age": {
+            "type": "number",
+            "title": "Fitness Age"
+          },
+          "chronological_age": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chronological Age"
+          },
+          "difference": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Difference"
+          },
+          "resting_hr": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resting Hr"
+          },
+          "bmi": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bmi"
+          },
+          "vigorous_days_avg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vigorous Days Avg"
+          },
+          "vigorous_minutes_avg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vigorous Minutes Avg"
+          }
+        },
+        "type": "object",
+        "required": [
+          "day",
+          "fitness_age",
+          "chronological_age",
+          "difference",
+          "resting_hr",
+          "bmi",
+          "vigorous_days_avg",
+          "vigorous_minutes_avg"
+        ],
+        "title": "AgeLatest"
+      },
+      "AgePoint": {
+        "properties": {
+          "day": {
+            "type": "string",
+            "format": "date",
+            "title": "Day"
+          },
+          "fitness_age": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fitness Age"
+          },
+          "chronological_age": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chronological Age"
+          }
+        },
+        "type": "object",
+        "required": [
+          "day",
+          "fitness_age",
+          "chronological_age"
+        ],
+        "title": "AgePoint"
+      },
       "ApplyToCounterparty": {
         "properties": {
           "counterparty_id": {
@@ -2914,6 +3086,53 @@
           "day"
         ],
         "title": "BatterySummary"
+      },
+      "Body": {
+        "properties": {
+          "days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Days"
+          },
+          "first_day": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Day"
+          },
+          "last_day": {
+            "type": "string",
+            "format": "date",
+            "title": "Last Day"
+          },
+          "weight": {
+            "$ref": "#/components/schemas/WeightOut"
+          },
+          "fitness_age": {
+            "$ref": "#/components/schemas/FitnessAgeOut"
+          }
+        },
+        "type": "object",
+        "required": [
+          "days",
+          "first_day",
+          "last_day",
+          "weight",
+          "fitness_age"
+        ],
+        "title": "Body"
       },
       "BudgetIn": {
         "properties": {
@@ -3811,6 +4030,26 @@
         "type": "object",
         "title": "CounterpartyUpdate"
       },
+      "DateRange": {
+        "properties": {
+          "first": {
+            "type": "string",
+            "format": "date",
+            "title": "First"
+          },
+          "last": {
+            "type": "string",
+            "format": "date",
+            "title": "Last"
+          }
+        },
+        "type": "object",
+        "required": [
+          "first",
+          "last"
+        ],
+        "title": "DateRange"
+      },
       "DebtOut": {
         "properties": {
           "nights": {
@@ -3843,6 +4082,33 @@
           "debt_minutes"
         ],
         "title": "DebtOut"
+      },
+      "FitnessAgeOut": {
+        "properties": {
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/AgePoint"
+            },
+            "type": "array",
+            "title": "Points"
+          },
+          "latest": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AgeLatest"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "points",
+          "latest"
+        ],
+        "title": "FitnessAgeOut"
       },
       "HTTPValidationError": {
         "properties": {
@@ -3957,6 +4223,19 @@
             "type": "object",
             "title": "Counts",
             "default": {}
+          },
+          "ranges": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/DateRange"
+            },
+            "type": "object",
+            "title": "Ranges",
+            "default": {}
+          },
+          "syncing": {
+            "type": "boolean",
+            "title": "Syncing",
+            "default": false
           }
         },
         "type": "object",
@@ -5189,15 +5468,6 @@
         ],
         "title": "Overspend",
         "description": "What overspending a budget does to the next month (ADR-0007, \"Budgets\")."
-      },
-      "Period": {
-        "type": "integer",
-        "enum": [
-          30,
-          90,
-          365
-        ],
-        "title": "Period"
       },
       "ProviderName": {
         "type": "string",
@@ -7668,6 +7938,155 @@
         ],
         "title": "WeekdayScoreOut"
       },
+      "WeightOut": {
+        "properties": {
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/WeightPoint"
+            },
+            "type": "array",
+            "title": "Points"
+          },
+          "goal_kg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Goal Kg"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/WeightSummary"
+          }
+        },
+        "type": "object",
+        "required": [
+          "points",
+          "goal_kg",
+          "summary"
+        ],
+        "title": "WeightOut"
+      },
+      "WeightPoint": {
+        "properties": {
+          "day": {
+            "type": "string",
+            "format": "date",
+            "title": "Day"
+          },
+          "kg": {
+            "type": "number",
+            "title": "Kg"
+          },
+          "bmi": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bmi"
+          },
+          "body_fat_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Body Fat Pct"
+          }
+        },
+        "type": "object",
+        "required": [
+          "day",
+          "kg",
+          "bmi",
+          "body_fat_pct"
+        ],
+        "title": "WeightPoint"
+      },
+      "WeightSummary": {
+        "properties": {
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "latest_kg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Kg"
+          },
+          "latest_day": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Day"
+          },
+          "change_kg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Change Kg"
+          },
+          "bmi": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bmi"
+          },
+          "to_goal_kg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To Goal Kg"
+          }
+        },
+        "type": "object",
+        "required": [
+          "count",
+          "latest_kg",
+          "latest_day",
+          "change_kg",
+          "bmi",
+          "to_goal_kg"
+        ],
+        "title": "WeightSummary"
+      },
       "hubnisio__finance__models__ConnectionStatus": {
         "type": "string",
         "enum": [
@@ -7679,6 +8098,15 @@
         ],
         "title": "ConnectionStatus"
       },
+      "hubnisio__health__body_api__Period": {
+        "type": "string",
+        "enum": [
+          "90",
+          "365",
+          "all"
+        ],
+        "title": "Period"
+      },
       "hubnisio__health__models__ConnectionStatus": {
         "type": "string",
         "enum": [
@@ -7686,6 +8114,15 @@
           "expired"
         ],
         "title": "ConnectionStatus"
+      },
+      "hubnisio__health__recovery_api__Period": {
+        "type": "integer",
+        "enum": [
+          30,
+          90,
+          365
+        ],
+        "title": "Period"
       }
     }
   }

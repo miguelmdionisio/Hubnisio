@@ -16,6 +16,7 @@ from hubnisio.finance.organize_api import router as organize_router
 from hubnisio.finance.recurring_api import router as recurring_router
 from hubnisio.finance.transactions_api import router as transactions_router
 from hubnisio.health.api import router as health_router
+from hubnisio.health.body_api import router as body_router
 from hubnisio.health.recovery_api import router as recovery_router
 from hubnisio.health.sleep_api import router as sleep_router
 from hubnisio.jobs import app as job_app
@@ -43,6 +44,7 @@ ROUTERS = (
     recurring_router,
     # Health
     health_router,
+    body_router,
     recovery_router,
     sleep_router,
 )

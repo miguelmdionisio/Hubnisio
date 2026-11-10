@@ -18,6 +18,7 @@ from hubnisio.core.db import get_session
 from hubnisio.health import tasks
 from hubnisio.health.ingest import fact_counts
 from hubnisio.health.models import ConnectionStatus, SyncCursor, SyncRun, SyncStatus
+from hubnisio.health.ranges import DateRange, fact_ranges
 from hubnisio.health.scoping import mine, own_connection
 from hubnisio.health.sync import SyncTrigger, today_in
 
@@ -51,6 +52,10 @@ class HealthConnection(BaseModel):
     # How far each kind is synced, and the rows stored per kind.
     synced_through: dict[str, date] = {}
     counts: dict[str, int] = {}
+    # The first and last day stored per kind, keyed like `counts`.
+    ranges: dict[str, DateRange] = {}
+    # A sync is running now (the last run hasn't finished).
+    syncing: bool = False
 
 
 class SyncQueued(BaseModel):
@@ -97,6 +102,8 @@ async def get_connection(session: DbSession, principal: CurrentPrincipal) -> Hea
         ),
         synced_through={kind: day for kind, day in cursors},
         counts=await fact_counts(session, principal.user_id),
+        ranges=await fact_ranges(session, principal.user_id),
+        syncing=last_run is not None and last_run.status is SyncStatus.RUNNING,
     )
 
 
