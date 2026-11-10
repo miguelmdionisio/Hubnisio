@@ -22,6 +22,7 @@ import { SpendingPage } from './routes/finance/spending/spending';
 import { TransactionsPage, validateTransactionSearch } from './routes/finance/transactions';
 import { ActivitiesPage } from './routes/health/activities/activities';
 import { BodyPage } from './routes/health/body/body';
+import { validateBodySearch } from './routes/health/body/search';
 import { GarminPage } from './routes/health/garmin/garmin';
 import { HealthMorePage } from './routes/health/more/more';
 import { PerformancePage } from './routes/health/performance/performance';
@@ -136,7 +137,12 @@ const routeTree = rootRoute.addChildren([
     validateSearch: validateSleepSearch,
     component: SleepPage,
   }),
-  createRoute({ getParentRoute: () => rootRoute, path: '/health/body', component: BodyPage }),
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/health/body',
+    component: BodyPage,
+    validateSearch: validateBodySearch,
+  }),
   createRoute({ getParentRoute: () => rootRoute, path: '/health/garmin', component: GarminPage }),
   createRoute({ getParentRoute: () => rootRoute, path: '/health/more', component: HealthMorePage }),
   // Where the bank sends the browser back after authorization (Enable Banking redirect URL).
