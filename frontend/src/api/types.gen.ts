@@ -250,6 +250,74 @@ export type BatterySummary = {
 };
 
 /**
+ * BestClimb
+ */
+export type BestClimb = {
+    /**
+     * Day
+     */
+    day: string;
+    /**
+     * Activity Id
+     */
+    activity_id: number;
+    /**
+     * Distance M
+     */
+    distance_m: number;
+    /**
+     * Gain M
+     */
+    gain_m: number;
+    /**
+     * Duration S
+     */
+    duration_s: number;
+    /**
+     * Grade
+     */
+    grade: number;
+    /**
+     * Vam
+     */
+    vam: number;
+};
+
+/**
+ * BestPoint
+ */
+export type BestPoint = {
+    /**
+     * Duration S
+     */
+    duration_s: number;
+    /**
+     * Value
+     */
+    value: number | null;
+    /**
+     * Day
+     */
+    day?: string | null;
+    /**
+     * Activity Id
+     */
+    activity_id?: number | null;
+};
+
+/**
+ * BikePerformance
+ */
+export type BikePerformance = {
+    hr_curve: SeasonCurves;
+    power_curve: SeasonCurves | null;
+    /**
+     * Climbs
+     */
+    climbs: Array<BestClimb>;
+};
+
+/**
  * BudgetIn
  */
 export type BudgetIn = {
@@ -717,6 +785,58 @@ export type CounterpartyUpdate = {
 };
 
 /**
+ * CriticalPower
+ */
+export type CriticalPower = {
+    /**
+     * Cp
+     */
+    cp: number;
+    /**
+     * W Prime
+     */
+    w_prime: number;
+    /**
+     * Cp Per Kg
+     */
+    cp_per_kg: number | null;
+    /**
+     * Points
+     */
+    points: number;
+    /**
+     * Line
+     */
+    line: Array<ModelPoint>;
+};
+
+/**
+ * CriticalSpeed
+ */
+export type CriticalSpeed = {
+    /**
+     * Speed
+     */
+    speed: number;
+    /**
+     * D Prime
+     */
+    d_prime: number;
+    /**
+     * Pace Per Km S
+     */
+    pace_per_km_s: number;
+    /**
+     * Points
+     */
+    points: number;
+    /**
+     * Line
+     */
+    line: Array<ModelPoint>;
+};
+
+/**
  * DebtOut
  */
 export type DebtOut = {
@@ -740,6 +860,39 @@ export type DebtOut = {
      * Debt Minutes
      */
     debt_minutes: number;
+};
+
+/**
+ * EasyEfficiency
+ */
+export type EasyEfficiency = {
+    /**
+     * Points
+     */
+    points: Array<EasyEfficiencyPoint>;
+    trend: TrendLine | null;
+    /**
+     * Change 6M Pct
+     */
+    change_6m_pct: number | null;
+};
+
+/**
+ * EasyEfficiencyPoint
+ */
+export type EasyEfficiencyPoint = {
+    /**
+     * Day
+     */
+    day: string;
+    /**
+     * Activity Id
+     */
+    activity_id: number;
+    /**
+     * Value
+     */
+    value: number;
 };
 
 /**
@@ -1149,6 +1302,54 @@ export type InvestmentsOut = {
 };
 
 /**
+ * MarathonShape
+ */
+export type MarathonShape = {
+    /**
+     * Score
+     */
+    score: number;
+    /**
+     * Weekly Km
+     */
+    weekly_km: number;
+    /**
+     * Weekly Target Km
+     */
+    weekly_target_km: number;
+    /**
+     * Weekly Share
+     */
+    weekly_share: number;
+    /**
+     * Long Runs
+     */
+    long_runs: number;
+    /**
+     * Long Target Km
+     */
+    long_target_km: number;
+    /**
+     * Long Share
+     */
+    long_share: number;
+};
+
+/**
+ * ModelPoint
+ */
+export type ModelPoint = {
+    /**
+     * Duration S
+     */
+    duration_s: number;
+    /**
+     * Value
+     */
+    value: number;
+};
+
+/**
  * NetWorthAccount
  */
 export type NetWorthAccount = {
@@ -1385,6 +1586,96 @@ export type OverallBudgetOut = {
 export type Overspend = 'forgive' | 'carry';
 
 /**
+ * Performance
+ */
+export type Performance = {
+    /**
+     * Period
+     */
+    period: 'season' | '90d' | 'all';
+    /**
+     * First Day
+     */
+    first_day: string | null;
+    /**
+     * Last Day
+     */
+    last_day: string;
+    /**
+     * Season
+     */
+    season: number;
+    /**
+     * Weight Kg
+     */
+    weight_kg: number | null;
+    run_power: RunPower;
+    run_pace: RunPace;
+    swim_threshold: SwimThreshold | null;
+    vo2max: Vo2MaxTrend;
+    predictions: RacePredictions;
+    efficiency: EasyEfficiency;
+    bike: BikePerformance;
+    records: PerformanceRecords;
+};
+
+/**
+ * PerformanceRecord
+ */
+export type PerformanceRecord = {
+    /**
+     * Key
+     */
+    key: string;
+    /**
+     * Value
+     */
+    value: number | null;
+    /**
+     * Day
+     */
+    day: string | null;
+    /**
+     * Activity Id
+     */
+    activity_id: number | null;
+    /**
+     * Venue
+     */
+    venue?: 'pool' | 'open_water' | null;
+    /**
+     * All Time
+     */
+    all_time?: number | null;
+    /**
+     * All Time Day
+     */
+    all_time_day?: string | null;
+};
+
+/**
+ * PerformanceRecords
+ */
+export type PerformanceRecords = {
+    /**
+     * Run
+     */
+    run: Array<PerformanceRecord>;
+    /**
+     * Swim
+     */
+    swim: Array<PerformanceRecord>;
+    /**
+     * Bike
+     */
+    bike: Array<PerformanceRecord>;
+    /**
+     * Triathlon
+     */
+    triathlon: Array<TriathlonResult>;
+};
+
+/**
  * Period
  */
 export type Period = 30 | 90 | 365;
@@ -1393,6 +1684,48 @@ export type Period = 30 | 90 | 365;
  * ProviderName
  */
 export type ProviderName = 'enable_banking' | 'trading212';
+
+/**
+ * RacePrediction
+ */
+export type RacePrediction = {
+    /**
+     * Distance M
+     */
+    distance_m: number;
+    /**
+     * Needs
+     */
+    needs: number;
+    /**
+     * Vdot S
+     */
+    vdot_s: number | null;
+    /**
+     * Slowed
+     */
+    slowed: boolean;
+    /**
+     * Riegel S
+     */
+    riegel_s: number | null;
+};
+
+/**
+ * RacePredictions
+ */
+export type RacePredictions = {
+    /**
+     * Vo2Max
+     */
+    vo2max: number | null;
+    shape: MarathonShape | null;
+    /**
+     * Items
+     */
+    items: Array<RacePrediction>;
+    riegel_from: RiegelSource | null;
+};
 
 /**
  * ReadingOut
@@ -1637,6 +1970,28 @@ export type ReturnsBreakdown = {
 export type Review = 'suggested' | 'confirmed' | 'dismissed';
 
 /**
+ * RiegelSource
+ */
+export type RiegelSource = {
+    /**
+     * Distance M
+     */
+    distance_m: number;
+    /**
+     * Seconds
+     */
+    seconds: number;
+    /**
+     * Day
+     */
+    day: string;
+    /**
+     * Activity Id
+     */
+    activity_id: number;
+};
+
+/**
  * RuleIn
  *
  * The format of conditions and actions is described in categorize/rules.py.
@@ -1741,6 +2096,36 @@ export type RulePreviewIn = {
 };
 
 /**
+ * RunPace
+ */
+export type RunPace = {
+    /**
+     * Current
+     */
+    current: Array<BestPoint>;
+    /**
+     * Last Season
+     */
+    last_season: Array<BestPoint>;
+    model: CriticalSpeed | null;
+};
+
+/**
+ * RunPower
+ */
+export type RunPower = {
+    /**
+     * Current
+     */
+    current: Array<BestPoint>;
+    /**
+     * Last Season
+     */
+    last_season: Array<BestPoint>;
+    model: CriticalPower | null;
+};
+
+/**
  * RunResult
  */
 export type RunResult = {
@@ -1756,6 +2141,20 @@ export type RunResult = {
      * Counterparties Created
      */
     counterparties_created: number;
+};
+
+/**
+ * SeasonCurves
+ */
+export type SeasonCurves = {
+    /**
+     * Current
+     */
+    current: Array<BestPoint>;
+    /**
+     * Last Season
+     */
+    last_season: Array<BestPoint>;
 };
 
 /**
@@ -2300,6 +2699,28 @@ export type SuggestionsApproved = {
 };
 
 /**
+ * SwimThreshold
+ */
+export type SwimThreshold = {
+    /**
+     * Speed
+     */
+    speed: number;
+    /**
+     * Pace Per 100 S
+     */
+    pace_per_100_s: number;
+    /**
+     * T200 S
+     */
+    t200_s: number;
+    /**
+     * T400 S
+     */
+    t400_s: number;
+};
+
+/**
  * SyncQueued
  */
 export type SyncQueued = {
@@ -2554,6 +2975,54 @@ export type TransferLink = {
 };
 
 /**
+ * TrendLine
+ */
+export type TrendLine = {
+    /**
+     * Start Day
+     */
+    start_day: string;
+    /**
+     * Start
+     */
+    start: number;
+    /**
+     * End Day
+     */
+    end_day: string;
+    /**
+     * End
+     */
+    end: number;
+};
+
+/**
+ * TriathlonResult
+ */
+export type TriathlonResult = {
+    /**
+     * Activity Id
+     */
+    activity_id: number;
+    /**
+     * Name
+     */
+    name: string | null;
+    /**
+     * Day
+     */
+    day: string;
+    /**
+     * Duration S
+     */
+    duration_s: number | null;
+    /**
+     * Distance M
+     */
+    distance_m: number | null;
+};
+
+/**
  * UnexplainedQuantity
  */
 export type UnexplainedQuantity = {
@@ -2646,6 +3115,46 @@ export type ValuePoint = {
      * Net Deposits
      */
     net_deposits: string;
+};
+
+/**
+ * Vo2Point
+ */
+export type Vo2Point = {
+    /**
+     * Day
+     */
+    day: string;
+    /**
+     * Activity Id
+     */
+    activity_id: number;
+    /**
+     * Value
+     */
+    value: number;
+    /**
+     * Line
+     */
+    line: number | null;
+};
+
+/**
+ * Vo2maxTrend
+ */
+export type Vo2MaxTrend = {
+    /**
+     * Points
+     */
+    points: Array<Vo2Point>;
+    /**
+     * Latest
+     */
+    latest: number | null;
+    /**
+     * Change 90D
+     */
+    change_90d: number | null;
 };
 
 /**
@@ -4107,3 +4616,33 @@ export type GetSleepTrendsResponses = {
 };
 
 export type GetSleepTrendsResponse = GetSleepTrendsResponses[keyof GetSleepTrendsResponses];
+
+export type GetPerformanceData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Period
+         */
+        period?: 'season' | '90d' | 'all';
+    };
+    url: '/api/health/performance';
+};
+
+export type GetPerformanceErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetPerformanceError = GetPerformanceErrors[keyof GetPerformanceErrors];
+
+export type GetPerformanceResponses = {
+    /**
+     * Successful Response
+     */
+    200: Performance;
+};
+
+export type GetPerformanceResponse = GetPerformanceResponses[keyof GetPerformanceResponses];
