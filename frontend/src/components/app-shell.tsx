@@ -1,12 +1,12 @@
 import { Link, Outlet, useNavigate, useRouterState } from '@tanstack/react-router';
 import { Check, ChevronDown, Ellipsis, Search } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { type ReactNode, useLayoutEffect, useState } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Toaster } from '@/components/ui/sonner';
 import { ThemeProvider } from '@/lib/theme';
 import { cn } from '@/lib/utils';
 import { useView, VIEW_LABELS, VIEW_NOTES, type View, ViewProvider } from '@/lib/view';
-import { DOMAINS, type Domain, FINANCE, navItems } from './domains';
+import { DOMAINS, type Domain, domainForPath, FINANCE, navItems } from './domains';
 import { SearchProvider, useOpenSearch } from './search';
 import { Segmented } from './segmented';
 import { SyncFreshness } from './sync-freshness';
@@ -26,6 +26,11 @@ export function AppShell() {
 
 /** Desktop: one sidebar (docs/design/navigation.md, B1). Below `md`: a tab bar at the bottom. */
 function Shell() {
+  const domain = useCurrentDomain();
+  // On <html>, so portals (menus, the command menu, toasts) take the accent too.
+  useLayoutEffect(() => {
+    document.documentElement.dataset.domain = domain.id;
+  }, [domain.id]);
   return (
     <div className="min-h-dvh bg-background text-foreground md:flex">
       <a
@@ -34,7 +39,7 @@ function Shell() {
       >
         Skip to content
       </a>
-      <Sidebar domain={FINANCE} />
+      <Sidebar domain={domain} />
       <main
         id="main"
         tabIndex={-1}
@@ -42,10 +47,15 @@ function Shell() {
       >
         <Outlet />
       </main>
-      <TabBar domain={FINANCE} />
+      <TabBar domain={domain} />
       <Toaster />
     </div>
   );
+}
+
+/** The domain the current URL belongs to. */
+export function useCurrentDomain(): Domain {
+  return domainForPath(useRouterState({ select: (state) => state.location.pathname }));
 }
 
 function Sidebar({ domain }: { domain: Domain }) {
@@ -95,7 +105,7 @@ function Sidebar({ domain }: { domain: Domain }) {
   );
 }
 
-function DomainMark({ domain }: { domain: Domain }) {
+export function DomainMark({ domain }: { domain: Domain }) {
   return (
     <b
       className="grid size-[22px] shrink-0 place-items-center rounded-full bg-sidebar-primary text-xs text-sidebar-primary-foreground"
@@ -109,8 +119,9 @@ function DomainMark({ domain }: { domain: Domain }) {
 /** The hub's domains; only built ones are listed. Switching goes to that domain's first page. */
 function DomainSwitcher({ domain }: { domain: Domain }) {
   const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button
           type="button"
@@ -127,7 +138,10 @@ function DomainSwitcher({ domain }: { domain: Domain }) {
           <button
             key={option.name}
             type="button"
-            onClick={() => navigate({ to: option.home })}
+            onClick={() => {
+              setOpen(false);
+              navigate({ to: option.home });
+            }}
             className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm font-medium hover:bg-accent"
           >
             <DomainMark domain={option} />
@@ -215,6 +229,7 @@ export function PageHeader({
   actions?: ReactNode;
   showsView?: boolean;
 }) {
+  const domain = useCurrentDomain();
   return (
     <>
       <header
@@ -227,7 +242,7 @@ export function PageHeader({
           {title}
         </h1>
         <div className="flex-1" />
-        <SyncFreshness className="hidden md:flex" />
+        {domain === FINANCE && <SyncFreshness className="hidden md:flex" />}
         {showsView && <ViewSwitch />}
         {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
       </header>

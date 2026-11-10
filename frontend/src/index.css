@@ -167,6 +167,42 @@
   --cat-brown: #9c7049;
 }
 
+/* Sport and sleep-stage colours for the Health charts: the same in both themes. The accent
+ * (orange) is never one of them, so "awake" is a pale mint. */
+:root {
+  --sport-swim: #4fb3ff;
+  --sport-bike: #b38cff;
+  --sport-run: #ffd166;
+  --sport-strength: #8a909a;
+  --sleep-deep: #4e5bd6;
+  --sleep-light: #8fa3ff;
+  --sleep-rem: #c58cff;
+  --sleep-awake: #8ee6cf;
+}
+
+/* One accent per domain: the shell sets data-domain on <html> from the route, and `primary`
+ * follows it. Finance is the default above. Health is orange; the light value keeps 4.5:1 for
+ * its text on white, on its soft fill and on soft; white on it too. */
+:root[data-domain="health"] {
+  --primary: #b04e08;
+  --primary-foreground: #ffffff;
+  --primary-soft: #fdeee3;
+  --ring: #b04e08;
+  --sidebar-primary: #b04e08;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-ring: #b04e08;
+}
+
+.dark[data-domain="health"] {
+  --primary: #ff9f5a;
+  --primary-foreground: #0d0e13;
+  --primary-soft: #3a2414;
+  --ring: #ff9f5a;
+  --sidebar-primary: #ff9f5a;
+  --sidebar-primary-foreground: #0d0e13;
+  --sidebar-ring: #ff9f5a;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

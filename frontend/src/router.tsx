@@ -20,6 +20,15 @@ import { CategorySpendingPage, MerchantSpendingPage } from './routes/finance/spe
 import { validateSpendingSearch } from './routes/finance/spending/search';
 import { SpendingPage } from './routes/finance/spending/spending';
 import { TransactionsPage, validateTransactionSearch } from './routes/finance/transactions';
+import { ActivitiesPage } from './routes/health/activities/activities';
+import { BodyPage } from './routes/health/body/body';
+import { GarminPage } from './routes/health/garmin/garmin';
+import { HealthMorePage } from './routes/health/more/more';
+import { PerformancePage } from './routes/health/performance/performance';
+import { RecoveryPage } from './routes/health/recovery/recovery';
+import { SleepPage } from './routes/health/sleep/sleep';
+import { TodayPage } from './routes/health/today/today';
+import { TrainingPage } from './routes/health/training/training';
 import { HomePage } from './routes/home';
 
 const rootRoute = createRootRoute({
@@ -97,6 +106,31 @@ const routeTree = rootRoute.addChildren([
     component: ConnectionsPage,
   }),
   createRoute({ getParentRoute: () => rootRoute, path: '/finance/more', component: MorePage }),
+  createRoute({ getParentRoute: () => rootRoute, path: '/health', component: TodayPage }),
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/health/activities',
+    component: ActivitiesPage,
+  }),
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/health/training',
+    component: TrainingPage,
+  }),
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/health/performance',
+    component: PerformancePage,
+  }),
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/health/recovery',
+    component: RecoveryPage,
+  }),
+  createRoute({ getParentRoute: () => rootRoute, path: '/health/sleep', component: SleepPage }),
+  createRoute({ getParentRoute: () => rootRoute, path: '/health/body', component: BodyPage }),
+  createRoute({ getParentRoute: () => rootRoute, path: '/health/garmin', component: GarminPage }),
+  createRoute({ getParentRoute: () => rootRoute, path: '/health/more', component: HealthMorePage }),
   // Where the bank sends the browser back after authorization (Enable Banking redirect URL).
   createRoute({
     getParentRoute: () => rootRoute,

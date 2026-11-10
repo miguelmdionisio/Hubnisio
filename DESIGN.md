@@ -14,6 +14,8 @@ colors:
   pop-dark: "#1b1d25"
   finance-blue-dark: "#6b8cff"
   finance-blue-soft-dark: "#1c2440"
+  health-orange-dark: "#ff9f5a"
+  health-orange-soft-dark: "#3a2414"
   good-dark: "#4cc283"
   bad-dark: "#f2675d"
   ink-light: "#1d2129"
@@ -27,6 +29,16 @@ colors:
   nav-on-light: "#e4e8f0"
   finance-blue-light: "#2a6fdb"
   finance-blue-soft-light: "#e6eefb"
+  health-orange-light: "#b04e08"
+  health-orange-soft-light: "#fdeee3"
+  sport-swim: "#4fb3ff"
+  sport-bike: "#b38cff"
+  sport-run: "#ffd166"
+  sport-strength: "#8a909a"
+  sleep-deep: "#4e5bd6"
+  sleep-light: "#8fa3ff"
+  sleep-rem: "#c58cff"
+  sleep-awake: "#8ee6cf"
   good-light: "#1f8a5b"
   bad-light: "#cf3f36"
 typography:
@@ -104,7 +116,7 @@ components:
 
 **Creative North Star: "Calm"**
 
-A quiet instrument for one household's money, opened for a few seconds on a phone or for a sit-down weekly review on a laptop. Dark by default, near-black ground, one blue accent per domain, and type that does the work: big numbers, short labels, no explanatory sentences. Surfaces are told apart by tone (ground, soft, soft-2), not by lines or shadows.
+A quiet instrument for one household's money, opened for a few seconds on a phone or for a sit-down weekly review on a laptop. Dark by default, near-black ground, one accent per domain (Finance blue, Health orange), and type that does the work: big numbers, short labels, no explanatory sentences. Surfaces are told apart by tone (ground, soft, soft-2), not by lines or shadows.
 
 The look was chosen on 2026-10-29 from the round-two looks (`.impeccable/mocks/looks-b1-v2.html`) and the M7 prototype (`.impeccable/mocks/prototype.html`); its references are Revolut's analytics screens, Linear and Things. Rejected earlier: a top bar, a command-first layout, a two-column domain rail, and the Conserveira, Euro Series, Graphite Console and Envelopes looks.
 
@@ -114,7 +126,7 @@ Since M7 (done 2026-10-29) the whole finance app is in this system: the shell, t
 - Dark first; light and system offered, remembered per browser.
 - Tonal layering instead of borders and shadows.
 - Pills and segmented controls, fully rounded.
-- One accent per domain (Finance: blue), plus good and bad; nothing else is coloured except charts.
+- One accent per domain (Finance: blue, Health: orange), plus good and bad; nothing else is coloured except charts.
 - Copy is numbers and short labels.
 
 ## Colors
@@ -124,6 +136,11 @@ Cool, near-neutral greys with a faint blue cast, one domain accent, and two sema
 ### Primary
 - **Finance Blue** (dark `finance-blue-dark`, light `finance-blue-light`): the Finance domain's accent. The domain mark, the active sidebar icon, the active tab, focus rings, selection, primary buttons. As `primary` in Tailwind.
 - **Finance Blue, soft** (`finance-blue-soft-*`): a selected pill's fill, with Finance Blue text (`primary-soft`).
+- **Health Orange** (dark `health-orange-dark`, light `health-orange-light`) and its soft fill (`health-orange-soft-*`): the Health domain's accent, in the same roles. The light orange is a deep burnt orange: 5.1:1 on white, 4.5:1 on its soft fill, 4.7:1 on soft, and white text on it passes too. Dark orange has 9.5:1 on the ground and the ground's colour as its text.
+- **Following the domain:** `primary`, `primary-soft`, `ring` and the sidebar's primary are not fixed. The shell sets `data-domain` on `<html>` from the route (`finance`, `health`), and `index.css` redefines those tokens per domain and theme (`:root[data-domain="health"]`, `.dark[data-domain="health"]`). Every component that uses the tokens takes the current domain's accent; Finance is the default. It lives on `<html>` so menus, the command menu and toasts, which render outside the shell, follow too.
+
+### Sport and sleep-stage colours
+Chart-only hues for Health, the same in both themes like the `--cat-*` hues (`--sport-*`, `--sleep-*`). Sports: swim `sport-swim`, bike `sport-bike`, run `sport-run`, strength `sport-strength`. Sleep stages: deep `sleep-deep` (darkest), light `sleep-light`, REM `sleep-rem`, and awake `sleep-awake`, a pale mint. Awake is deliberately not orange (the accent marks the domain, never data) and is told apart from the blues and purples by hue and by being the lightest of the four. Chart marks carry a label or screen-reader list too, never colour alone.
 
 ### Neutral
 - **Ground** (`ground-*`): the page (`background`, `card`).
@@ -165,9 +182,9 @@ Cool, near-neutral greys with a faint blue cast, one domain accent, and two sema
 
 ## Layout
 
-- **Desktop (≥768px):** a 200px sidebar, sticky full height, then the content. Each page starts with a sticky 58px header bar across the content (title left; sync freshness, Mine / Household and the page's actions right) with a seam below and the ground at 88% behind a blur. Content gutters are 28px.
+- **Desktop (≥768px):** a 200px sidebar, sticky full height, then the content. Each page starts with a sticky 58px header bar across the content (title left; Finance's sync freshness, Mine / Household and the page's actions right) with a seam below and the ground at 88% behind a blur. Content gutters are 28px.
 - **Phone (<768px):** no sidebar. The page title is large (24px) at the top; Mine / Household sits right of it and actions wrap below. Gutters are 16px. A fixed tab bar at the bottom holds the domain's main pages plus More, respecting `env(safe-area-inset-bottom)`; content keeps 96px of room below it.
-- **More** lists the pages the tab bar leaves out, in the sidebar's groups, plus Search and Theme, as soft panels of rows (max 576px wide).
+- **More** lists the domains first (the phone's domain switcher: the current one ticked), then the pages the tab bar leaves out, in the sidebar's groups, plus Search and Theme, as soft panels of rows (max 576px wide).
 - Navigation is data per domain (`frontend/src/components/domains.ts`): name, mark, groups, tabs.
 
 ## Elevation & Depth
@@ -187,14 +204,14 @@ Soft and round. Controls are fully rounded pills (9999px); list panels 18px; row
 ## Components
 
 ### Navigation
-- **Sidebar:** the domain switcher on top (a 22px round mark in the domain accent, the domain's name, a chevron; opens a menu of built domains), then the pages in groups. Items are mute at rest, ink on hover; the current one has the nav-on fill, semibold ink text and an accent icon. Footer: the theme switch and Search with its `Ctrl K` hint.
+- **Sidebar:** the domain switcher on top (a 22px round mark in the domain accent, the domain's name, a chevron; opens a menu of built domains: Finance and Health), then the pages in groups. Items are mute at rest, ink on hover; the current one has the nav-on fill, semibold ink text and an accent icon. Footer: the theme switch and Search with its `Ctrl K` hint.
 - **Tab bar:** icons over labels, faint at rest, the accent when current. More is current on any page not in the tabs.
 
 ### Segmented control
 - **Style:** a soft pill track (3px inset) of 28px buttons; the chosen one is soft-2 with semibold ink. Text segments for Mine / Household, 32px icon segments (moon, sun, monitor) for the theme. Each button reports `aria-pressed`.
 
 ### Page header
-- **Content:** title; on desktop the sync freshness ("Synced 21 minutes ago" with a good dot; a dashed ring when stale; "BPI needs a look" in bad, linking to Bank connections); Mine / Household on pages that sum money; the page's actions.
+- **Content:** title; on desktop, on Finance pages, the sync freshness ("Synced 21 minutes ago" with a good dot; a dashed ring when stale; "BPI needs a look" in bad, linking to Bank connections); Mine / Household on pages that sum money; the page's actions.
 
 ### List panels and rows
 - **Style:** soft panel, 18px radius, 6px inset; rows of chip, label and a trailing chevron or control, 14px radius, soft-2 on hover.
@@ -221,7 +238,7 @@ Soft and round. Controls are fully rounded pills (9999px); list panels 18px; row
 - **Do** use the shadcn tokens (`background`, `muted`, `surface`, `surface-2`, `primary`, `primary-soft`, `faint`, `good`, `destructive`) rather than raw colours.
 - **Do** keep copy to figures and short labels; put notes in a `title` tooltip if they must exist.
 - **Do** design every page for 375px and desktop together.
-- **Do** add a domain by adding an entry to `domains.ts`, with its own accent.
+- **Do** add a domain by adding an entry to `domains.ts` and an accent block in `index.css` keyed on its `data-domain`.
 
 ### Don't:
 - **Don't** add explanatory sentences under titles.
