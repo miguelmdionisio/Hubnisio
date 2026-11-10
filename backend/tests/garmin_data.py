@@ -315,6 +315,99 @@ def profile() -> dict[str, Any]:
     return {"displayName": "someone", "timeZone": TIME_ZONE, "measurementSystem": "metric"}
 
 
+# Activities
+
+
+@dataclass
+class FakeActivity:
+    """An activity the fake knows: its summary is made from these, its file is `file`."""
+
+    activity_id: int
+    sport: str  # Garmin's type key
+    start: datetime
+    seconds: int
+    distance: float = 0.0
+    file: bytes | None = None
+    is_parent: bool = False
+    child_ids: list[int] = field(default_factory=list[int])
+    listed: bool = True  # in the search (a leg the search leaves out: False)
+    manual: bool = False
+
+
+def activity_summary(activity: FakeActivity) -> dict[str, Any]:
+    """A search item, as in the probe's `activities` shape."""
+    start = activity.start.astimezone(UTC).replace(tzinfo=None)
+    return {
+        "activityId": activity.activity_id,
+        "activityName": f"Invented {activity.sport}",
+        "activityType": {"typeId": 1, "typeKey": activity.sport, "parentTypeId": 17},
+        "eventType": {"typeId": 9, "typeKey": "uncategorized"},
+        "startTimeGMT": start.isoformat(sep=" "),
+        "startTimeLocal": start.isoformat(sep=" "),
+        "beginTimestamp": ms(activity.start),
+        "duration": float(activity.seconds),
+        "elapsedDuration": float(activity.seconds + 5),
+        "movingDuration": float(activity.seconds - 5),
+        "distance": activity.distance,
+        "elevationGain": 12.0,
+        "elevationLoss": 11.0,
+        "averageHR": 150.0,
+        "maxHR": 171.0,
+        "averageSpeed": activity.distance / activity.seconds if activity.seconds else 0.0,
+        "avgPower": 250.0,
+        "normPower": 255.0,
+        "averageRunningCadenceInStepsPerMinute": 171.0,
+        "activityTrainingLoad": 61.5,
+        "aerobicTrainingEffect": 3.1,
+        "anaerobicTrainingEffect": 0.4,
+        "trainingEffectLabel": "TEMPO",
+        "hrTimeInZone_1": 10.0,
+        "hrTimeInZone_2": 20.0,
+        "hrTimeInZone_3": 30.0,
+        "hrTimeInZone_4": 40.0,
+        "hrTimeInZone_5": 0.0,
+        "avgGroundContactTime": 250.0,
+        "avgVerticalOscillation": 8.0,
+        "avgStrideLength": 105.0,
+        "fastestSplit_1000": 300.0,
+        "fastestSplit_400": 120.0,
+        "lapCount": 1,
+        "isParent": activity.is_parent,
+        "parent": activity.is_parent,
+        "manualActivity": activity.manual,
+        "poolLength": 2500.0 if activity.sport == "lap_swimming" else None,
+        "unitOfPoolLength": {"unitKey": "meter"},
+    }
+
+
+def activity_detail(activity: FakeActivity) -> dict[str, Any]:
+    """A detail, as in the probe's `activity_detail` shape."""
+    start = activity.start.astimezone(UTC).replace(tzinfo=None)
+    return {
+        "activityId": activity.activity_id,
+        "activityName": f"Invented {activity.sport}",
+        "activityTypeDTO": {"typeId": 1, "typeKey": activity.sport, "parentTypeId": 17},
+        "eventTypeDTO": {"typeId": 9, "typeKey": "uncategorized"},
+        "isMultiSportParent": activity.is_parent,
+        "timeZoneUnitDTO": {"timeZone": TIME_ZONE},
+        "metadataDTO": {
+            "childIds": activity.child_ids,
+            "lapCount": 1,
+            "manualActivity": activity.manual,
+        },
+        "summaryDTO": {
+            "startTimeGMT": start.isoformat(),
+            "startTimeLocal": start.isoformat(),
+            "duration": float(activity.seconds),
+            "distance": activity.distance,
+            "averageHR": 149.0,  # the search says 150: the search wins
+            "minHR": 90.0,
+            "averagePower": 250.0,
+            "recoveryHeartRate": 120,
+        },
+    }
+
+
 Handler = Callable[[httpx.Request], httpx.Response]
 
 
@@ -331,6 +424,12 @@ class FakeGarmin:
     queued: list[httpx.Response] = field(default_factory=list[httpx.Response])
     requests: list[httpx.Request] = field(default_factory=list[httpx.Request])
     tokens: list[str] = field(default_factory=list[str])
+    activities: list[FakeActivity] = field(default_factory=list[FakeActivity])
+    # Activities whose file download is answered with this status.
+    fail_files: dict[int, int] = field(default_factory=dict[int, int])
+
+    def activity(self, activity_id: int) -> FakeActivity | None:
+        return next((a for a in self.activities if a.activity_id == activity_id), None)
 
     def __call__(self, request: httpx.Request) -> httpx.Response:
         self.requests.append(request)
@@ -345,6 +444,19 @@ class FakeGarmin:
             return httpx.Response(200, text=token, headers={"content-type": "text/plain"})
         if not self.tokens or auth != f"Bearer {self.tokens[-1]}":
             return httpx.Response(401)
+        if match := re.search(r"/download-service/files/activity/(\d+)$", request.url.path):
+            if "accept" in request.headers and request.headers["accept"] != "*/*":
+                return httpx.Response(406)
+            activity = self.activity(int(match[1]))
+            if activity is None or activity.file is None:
+                return httpx.Response(404)
+            if activity.activity_id in self.fail_files:
+                return httpx.Response(self.fail_files[activity.activity_id])
+            return httpx.Response(
+                200,
+                content=activity.file,
+                headers={"content-type": "application/x-zip-compressed"},
+            )
         kind, body = self.route(request)
         if kind in self.fail:
             return httpx.Response(self.fail[kind], json={"message": "invented failure"})
@@ -396,6 +508,19 @@ class FakeGarmin:
                 else []
             )
             return "weight_goal", {"userGoals": goals, "userGoalRanges": None}
+        if path.endswith("/activities/search/activities"):
+            first, last = span()[0], span()[-1]
+            found = sorted(
+                (a for a in self.activities if a.listed and first <= a.start.date() <= last),
+                key=lambda a: a.start,
+            )
+            start, limit = int(params["start"]), int(params["limit"])
+            return "activities", [activity_summary(a) for a in found[start : start + limit]]
+        if match := re.search(r"/activity-service/activity/(\d+)$", path):
+            activity = self.activity(int(match[1]))
+            if activity is None:
+                return "activity_detail", None
+            return "activity_detail", activity_detail(activity)
         raise AssertionError(f"No fake route for {path}")
 
     def calls(self, fragment: str) -> list[httpx.Request]:

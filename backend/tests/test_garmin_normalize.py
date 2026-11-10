@@ -144,3 +144,51 @@ def test_unexpected_replies_give_nothing() -> None:
             assert not (records.daily or records.sleeps or records.hrv or records.samples)
             assert not (records.weights or records.zones)
     assert normalize("unknown_kind", {"a": 1}, DAY).daily == []
+
+
+# Activities
+
+RUN = g.FakeActivity(9001, "running", datetime(2026, 3, 4, 7, 30, tzinfo=UTC), 1800, 6000.0)
+
+
+def test_an_activity_summary() -> None:
+    (row,) = normalize("activities", [g.activity_summary(RUN)], None).activities
+    assert row["activity_id"] == 9001 and row["sport"] == "running"
+    assert row["started_at"] == datetime(2026, 3, 4, 7, 30, tzinfo=UTC)
+    assert row["start_local"] == datetime(2026, 3, 4, 7, 30)
+    assert row["duration_s"] == Decimal("1800.0") and row["moving_s"] == Decimal("1795.0")
+    assert row["distance_m"] == Decimal("6000.0")
+    assert row["avg_hr"] == 150 and row["norm_power"] == 255
+    assert row["avg_cadence"] == Decimal("171.0")
+    assert row["garmin_load"] == Decimal("61.5") and row["te_label"] == "TEMPO"
+    assert row["hr_zone_s"] == [10, 20, 30, 40, 0] and row["power_zone_s"] is None
+    assert row["fastest_splits"] == {"1000": 300.0, "400": 120.0}
+    assert row["is_parent"] is False and row["child_ids"] is None
+    assert row["pool_length_m"] is None
+    assert row["raw"]["activityId"] == 9001
+
+
+def test_a_pool_length_in_centimetres() -> None:
+    swim = g.FakeActivity(9002, "lap_swimming", RUN.start, 1800, 1500.0)
+    (row,) = normalize("activities", [g.activity_summary(swim)], None).activities
+    assert row["pool_length_m"] == Decimal("25.0")
+
+
+def test_an_activity_detail_fills_and_names_the_legs() -> None:
+    parent = g.FakeActivity(9100, "multi_sport", RUN.start, 7200, is_parent=True)
+    parent.child_ids = [9101, 9102]
+    (row,) = normalize("activity_detail", g.activity_detail(parent), None).activity_fill
+    assert row["activity_id"] == 9100 and row["is_parent"] is True
+    assert row["child_ids"] == [9101, 9102]
+    assert row["time_zone"] == g.TIME_ZONE
+    assert row["avg_hr"] == 149 and row["lap_count"] == 1
+    # The same columns as a search row, so both upsert alike.
+    (search,) = normalize("activities", [g.activity_summary(RUN)], None).activities
+    assert row.keys() == search.keys()
+
+
+def test_an_activity_without_an_id_or_type_is_skipped() -> None:
+    item = g.activity_summary(RUN)
+    del item["activityType"]
+    assert normalize("activities", [item, "nonsense"], None).activities == []
+    assert normalize("activity_detail", {"activityId": 1}, None).activity_fill == []

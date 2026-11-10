@@ -42,6 +42,12 @@ TOKEN_PATH = "/personalapitoken-service/personal-api/personal-api-key/token"  # 
 USER_AGENT = "Hubnisio/0.1 (self-hosted personal hub)"
 
 PAUSE = 0.5  # seconds between two calls
+FILE_PAUSE = 2.0  # seconds before an activity file's download, the heavy call
+ACTIVITY_PAGE = 100  # activities per search page (Garmin's default is 99; 100 works)
+MAX_FILE_BYTES = 32 * 1024 * 1024  # an activity's zip is a few hundred KB
+SEARCH_PATH = "/activitylist-service/activities/search/activities"
+DETAIL_PATH = "/activity-service/activity/{activity_id}"
+DOWNLOAD_PATH = "/download-service/files/activity/{activity_id}"
 MAX_ATTEMPTS = 5  # per call, while answered 429
 MIN_BACKOFF = 5.0  # seconds after the first 429, doubling, when Retry-After doesn't say
 MAX_WAIT = 300.0  # never wait longer than this at once
@@ -217,13 +223,64 @@ class GarminClient:
     async def get_profile(self) -> Fetched:
         return await self.fetch("profile", date.today())
 
+    # Activities
+
+    async def search_activities(self, first: date, last: date, start: int = 0) -> Fetched:
+        """One page of the activities that started from `first` to `last`, oldest first.
+        Multisport legs are listed too (`excludeChildren=false`)."""
+        params = {
+            "startDate": first.isoformat(),
+            "endDate": last.isoformat(),
+            "start": str(start),
+            "limit": str(ACTIVITY_PAGE),
+            "sortOrder": "asc",
+            "excludeChildren": "false",
+        }
+        raw = await self.get_json(SEARCH_PATH, params)
+        request: dict[str, Any] = {"method": "GET", "path": SEARCH_PATH, "params": params}
+        return Fetched("activities", request, raw, first, last)
+
+    async def activity_detail(self, activity_id: int) -> Fetched:
+        path = DETAIL_PATH.format(activity_id=activity_id)
+        raw = await self.get_json(path)
+        return Fetched("activity_detail", {"method": "GET", "path": path}, raw)
+
+    async def download_activity(self, activity_id: int) -> tuple[bytes, str | None]:
+        """The activity's original file as Garmin sends it (a zip holding one .FIT) and its
+        content type. Paced more slowly than the other calls; no Accept header either."""
+        path = DOWNLOAD_PATH.format(activity_id=activity_id)
+        response = await self._get(path, pause=FILE_PAUSE)
+        if response.is_error:
+            raise error_for(response.status_code)
+        if not response.content:
+            raise GarminError(code="EMPTY_FILE")
+        if len(response.content) > MAX_FILE_BYTES:
+            raise GarminError(code="FILE_TOO_LARGE")
+        return response.content, response.headers.get("content-type")
+
     async def get_json(self, path: str, params: Mapping[str, str] | None = None) -> Any:
         """GET a path: the parsed JSON, or None when the reply has no body."""
+        response = await self._get(path, params)
+        if response.is_error:
+            raise error_for(response.status_code)
+        if not response.content.strip():
+            return None
+        try:
+            return response.json()
+        except ValueError:
+            raise GarminError(code="UNEXPECTED_RESPONSE") from None
+
+    async def _get(
+        self, path: str, params: Mapping[str, str] | None = None, *, pause: float | None = None
+    ) -> httpx.Response:
+        """GET with the token: exchanges the key again once on 401, backs off on 429."""
         refreshed = False
         attempts = 0
         while True:
             token = await self._valid_token()
-            response = await self._call("GET", path, params=params, auth=f"Bearer {token}")
+            response = await self._call(
+                "GET", path, params=params, auth=f"Bearer {token}", pause=pause
+            )
             if response.status_code == httpx.codes.UNAUTHORIZED and not refreshed:
                 # The token lapsed early or was revoked: exchange the key once more.
                 refreshed = True
@@ -235,15 +292,7 @@ class GarminClient:
                     raise RateLimited()
                 await self._back_off(response, attempts)
                 continue
-            break
-        if response.is_error:
-            raise error_for(response.status_code)
-        if not response.content.strip():
-            return None
-        try:
-            return response.json()
-        except ValueError:
-            raise GarminError(code="UNEXPECTED_RESPONSE") from None
+            return response
 
     # Plumbing
 
@@ -279,10 +328,17 @@ class GarminClient:
         return token
 
     async def _call(
-        self, method: str, path: str, *, auth: str, params: Mapping[str, str] | None = None
+        self,
+        method: str,
+        path: str,
+        *,
+        auth: str,
+        params: Mapping[str, str] | None = None,
+        pause: float | None = None,
     ) -> httpx.Response:
         if self._last_call is not None:
-            delay = self._last_call + self._pause - self._clock()
+            wait = self._pause if pause is None else max(pause, self._pause)
+            delay = self._last_call + wait - self._clock()
             if delay > 0:
                 await self._sleep(delay)
         try:

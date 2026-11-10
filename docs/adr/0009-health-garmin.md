@@ -122,6 +122,45 @@
 | A cursor per kind, less two days (chosen) | Resumes after a failure; a skipped kind catches up alone | One more table |
 | One date per connection | Simple | A failure in one kind re-reads, or loses, the others |
 
+### The .FIT parser (H2)
+
+| Option | Pros | Cons |
+|---|---|---|
+| Garmin's `garmin-fit-sdk` (chosen, pinned `21.218.0`, released 2026-10-06) | Official, follows each FIT profile release; typed stubs; decodes developer fields and expands components; has an encoder, so tests write synthetic files | Large generated profile module; releases every few weeks, so the pin needs bumping by hand |
+| `fitdecode` | Small, streaming | One release since 2021 (0.11.0); profile lags new message types; no encoder |
+
+## As built in H2 (Activities and .FIT files)
+
+Migration 0019. Activities belong to one member like everything else; every query goes through `scoping.py`.
+
+| Table | Key | What |
+|---|---|---|
+| `activities` | `(user_id, activity_id)` (Garmin's id) | the search summary: sport (type key), start (UTC and local), durations, distance, elevation, heart rate, speed and Garmin's graded speed, power, cadence, calories, Garmin's load and training effects, time in Garmin's heart-rate and power zones, running dynamics, swim fields (pool length, lengths, strokes, SWOLF), fastest splits, `is_parent` / `child_ids` / `parent_id`, `raw` |
+| `activity_files` | `(user_id, activity_id)` | the download as received (a zip holding one `.FIT`), status `stored` / `none` / `failed`, `attempts`, `error_code`. Raw, like `provider_payloads`: never rebuilt, no foreign key to `activities` |
+| `activity_streams` | `(user_id, activity_id)` | one row per activity, an array per column, all as long as `time_s` (seconds from the start): distance, heart rate, speed, altitude, cadence, power, lat / lon (degrees), vertical oscillation, ground contact, step length, vertical ratio; a column the activity lacks is null |
+| `activity_laps` | `(user_id, activity_id, lap_index)` | the file's laps |
+| `activity_lengths` | `(user_id, activity_id, length_index)` | a pool swim's lengths, swum or rest, with stroke, strokes and SWOLF |
+| `activity_derived` | `(user_id, activity_id)` | Hubnisio's results (below), rebuilt by `renormalize` |
+
+- **The file:** records come about once a second (fewer with smart recording, none while paused); the run sample had no developer fields. Speed and altitude are the `enhanced_` fields; positions are semicircles, stored as degrees; a run's cadence is stored as steps per minute (twice the file's strides plus its fraction). The session's `time_in_zone` gives the watch's threshold, maximum and resting heart rate.
+- **Multisport:** the search is asked for legs too (`excludeChildren=false`). A parent (`is_parent`) gets its detail but no file; its `childIds` link the legs (`parent_id`), and a leg the search left out is created from its own detail. Each leg's file is parsed for the session starting closest to the leg's start, so a shared file gives each leg its part. Totals count legs, never the parent. Manual activities have no file.
+- **Sync:** `activities` is a kind with a cursor. Summaries are searched in 90-day windows, 100 per page, oldest first (cursor less two days, or from 2025-02-01). Then each activity without a stored file, oldest first: its detail (stored as an `activity_detail` payload; it only fills what the search left empty), then its file, downloaded at most one every 2 seconds, stored, then parsed and derived in its own transaction. A failed call or a file that won't parse is that activity's alone: recorded on its `activity_files` row, `activity_files` added to the run's `skipped`, and the run goes on; a failed call is tried again by the next syncs, three times in all. A rejected key or a rate limit still ends the run, which resumes where it stopped.
+- **Commands:** `cli garmin-backfill --kind activities [--since YYYY-MM-DD]` reads the summaries again and fetches what's missing; `cli garmin-renormalize` also parses every stored file again. Counts per table (`activities`, `activity_streams`, …, `activity_files`) join `GET /api/health/connection`'s `counts`; no other API yet.
+
+### Derived per activity (`health/insights/`, pure)
+
+All on a one-second grid of moving time (`series.moving`): gaps up to 5 s are filled, longer ones too when the distance shows movement at 0.5 m/s or more (smart recording, up to 5 min); other gaps are pauses and are cut out.
+
+- **Reference** (`load.heart_rate_reference`): the member's zones for the sport (`RUNNING`, `CYCLING`, `SWIMMING`), else `DEFAULT`; a value missing there comes from the file; then threshold ≈ 0.89 × max, max ≈ threshold / 0.89; resting heart rate from the zones, else the member's latest daily resting heart rate up to that day, else the file, else 60. No threshold and no maximum: no load.
+- **Load** (`load.hr_load`), hrTSS-style: `100 × TRIMP / (60 × w(threshold))`, with Banister's `TRIMP = Σ (1/60) × w(HR)` per second and `w(HR) = r × 0.64 × e^(1.92 r)`, `r = (HR − rest) / (max − rest)` held to 0…1. One hour at threshold scores 100 in every sport.
+- **Time in zones** (`load.time_in_zones`): seconds below zone 1 and in zones 1–5, by the member's zone floors, else 70 / 85 / 90 / 95 / 100 % of threshold.
+- **Mean-maximal curves** (`curves.mean_max`) of power, heart rate and speed over 1, 5, 10, 15, 30 s, 1, 2, 5, 10, 20, 30 min, 1, 1.5, 2 h; a window must have a value every second.
+- **Best efforts** (`curves.best_efforts`, `curves.swim_best_efforts`): runs over 400 m, 1 km, 1 mile, 5 km, 10 km, half and marathon, the stretch's start interpolated between samples; pool swims over 100, 200, 400, 800, 1500 m from the lengths, within unbroken runs of swum lengths; open water from the distance.
+- **Graded pace** (`running`): Minetti's cost of running `C(i) = 155.4i⁵ − 30.4i⁴ − 43.3i³ + 46.3i² + 19.5i + 3.6` (grade over ±10 s, at least 10 m run, held to ±45 %); graded speed = speed × C(i) / C(0); normalized graded speed = the fourth-power mean of its 30 s rolling average.
+- **Efficiency and decoupling** (`durability`), for 20 minutes or more with heart rate: EF = output / heart rate (runs: normalized graded speed in m/min; rides: normalized power, else speed); decoupling = (EF first half − EF second half) / EF first half × 100. `steady` when the 30 s rolling output's coefficient of variation is at most 0.15.
+- **Estimated VO2max** (`running.estimated_vo2max`), Runalyze's "effective VO2max": Daniels and Gilbert's oxygen cost of the average graded speed v (m/min), `−4.60 + 0.182258 v + 0.000104 v²`, over the share of VO2max implied by average heart rate / max by Swain, `(%HRmax − 0.2812) / 0.7303`. Graded speed is the elevation correction (in place of Runalyze's fixed metres per metre climbed). Runs of 10 minutes or more at 60–100 % of max only; not calibrated against races.
+- **Climbing speed** (`climbs`), rides: a climb runs from a low to the highest point after it until the road drops 10 m below that peak; it counts with 50 m gained over 5 minutes at 3 % or more; VAM = metres gained per hour. `best_vam` is the fastest.
+
 ## As built in H4 (Recovery)
 
 `GET /api/health/recovery?days=30|90|365` (`health/recovery_api.py`) returns what `health/insights/recovery.py` computes from the member's own rows (`recovery_loader.py`, through `scoping.py`). A day without data is a gap, never a zero.
@@ -135,7 +174,7 @@
 
 - **Easier:** later slices read typed rows through `scoping.py`; a normalizer fix is a `garmin-renormalize` away; a new endpoint is one line in `ENDPOINTS` and one normalizer.
 - **Harder:** an unofficial-feeling API with unknown limits; per-day calls make the first backfill slow; the key needs replacing yearly, by hand.
-- **Revisit:** the windows and pause once the rate limits are known; the stage timeline if an endpoint gives it; the weight entries' fields once a weigh-in is seen.
+- **Revisit:** the windows and pause once the rate limits are known; the stage timeline if an endpoint gives it; the weight entries' fields once a weigh-in is seen; whether a multisport leg's download is the whole race's file or its own (both parse); the activity files' size in the database (a few hundred KB each) if it grows.
 
 ## Action Items
 

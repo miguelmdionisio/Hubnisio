@@ -48,6 +48,10 @@ class Records:
     weight_goal: Row | None = None
     clear_weight_goal: bool = False
     time_zone: str | None = None
+    # Activities from the search: a value given replaces what's stored.
+    activities: list[Row] = field(default_factory=list[Row])
+    # Activities from their detail: only fill what the search left empty.
+    activity_fill: list[Row] = field(default_factory=list[Row])
 
 
 def normalize(kind: str, raw: Any, day_from: date | None) -> Records:
@@ -404,6 +408,181 @@ def _weight_goal(raw: Any, _day: date | None) -> Records:
     return Records(clear_weight_goal=True)
 
 
+# Activities
+
+# Each column: the keys holding it in a search item, then in a detail's summaryDTO.
+_ACTIVITY_NUMBERS: tuple[tuple[str, tuple[str, ...], int | None], ...] = (
+    # (column, keys, decimal places; None: an integer)
+    ("duration_s", ("duration",), 1),
+    ("elapsed_s", ("elapsedDuration",), 1),
+    ("moving_s", ("movingDuration",), 1),
+    ("distance_m", ("distance",), 1),
+    ("elevation_gain_m", ("elevationGain",), 1),
+    ("elevation_loss_m", ("elevationLoss",), 1),
+    ("min_elevation_m", ("minElevation",), 1),
+    ("max_elevation_m", ("maxElevation",), 1),
+    ("avg_hr", ("averageHR",), None),
+    ("max_hr", ("maxHR",), None),
+    ("avg_speed", ("averageSpeed",), 3),
+    ("max_speed", ("maxSpeed",), 3),
+    ("avg_gap_speed", ("avgGradeAdjustedSpeed",), 3),
+    ("avg_power", ("avgPower", "averagePower"), None),
+    ("max_power", ("maxPower",), None),
+    ("norm_power", ("normPower", "normalizedPower"), None),
+    (
+        "avg_cadence",
+        (
+            "averageRunningCadenceInStepsPerMinute",
+            "averageRunCadence",
+            "averageBikingCadenceInRevPerMinute",
+            "averageBikeCadence",
+            "averageSwimCadenceInStrokesPerMinute",
+            "averageSwimCadence",
+        ),
+        1,
+    ),
+    (
+        "max_cadence",
+        (
+            "maxRunningCadenceInStepsPerMinute",
+            "maxRunCadence",
+            "maxBikingCadenceInRevPerMinute",
+            "maxBikeCadence",
+            "maxSwimCadenceInStrokesPerMinute",
+            "maxSwimCadence",
+        ),
+        1,
+    ),
+    ("calories", ("calories",), None),
+    ("steps", ("steps",), None),
+    ("garmin_load", ("activityTrainingLoad",), 1),
+    ("aerobic_te", ("aerobicTrainingEffect", "trainingEffect"), 1),
+    ("anaerobic_te", ("anaerobicTrainingEffect",), 1),
+    ("moderate_minutes", ("moderateIntensityMinutes",), None),
+    ("vigorous_minutes", ("vigorousIntensityMinutes",), None),
+    ("body_battery_change", ("differenceBodyBattery",), None),
+    ("ground_contact_ms", ("avgGroundContactTime", "groundContactTime"), 1),
+    ("vertical_oscillation_cm", ("avgVerticalOscillation", "verticalOscillation"), 1),
+    ("vertical_ratio_pct", ("avgVerticalRatio", "verticalRatio"), 1),
+    ("stride_length_cm", ("avgStrideLength", "strideLength"), 1),
+    ("active_lengths", ("activeLengths",), None),
+    ("strokes", ("strokes",), None),
+    ("avg_strokes", ("avgStrokes",), 1),
+    ("avg_swolf", ("averageSwolf",), 1),
+    ("avg_stroke_distance_m", ("avgStrokeDistance",), 2),
+    ("lap_count", ("lapCount",), None),
+)
+_ZONES = 5
+
+
+def _activities(raw: Any, _day: date | None) -> Records:
+    """A page of the activity search: a list of summaries."""
+    rows = [
+        row for item in _dicts(raw) if (row := _activity_row(item, item, None, item)) is not None
+    ]
+    return Records(activities=rows)
+
+
+def _activity_detail(raw: Any, _day: date | None) -> Records:
+    """One activity's detail: fills what the search left out, and creates the activity when
+    the search never listed it (a multisport leg)."""
+    if not isinstance(raw, dict):
+        return Records()
+    detail = cast(dict[str, Any], raw)
+    summary = detail.get("summaryDTO")
+    metadata = detail.get("metadataDTO")
+    if not isinstance(summary, dict):
+        return Records()
+    meta = cast(dict[str, Any], metadata) if isinstance(metadata, dict) else {}
+    row = _activity_row(detail, cast(dict[str, Any], summary), meta, detail)
+    return Records(activity_fill=[row] if row is not None else [])
+
+
+def _activity_row(
+    top: dict[str, Any],
+    numbers: dict[str, Any],
+    meta: dict[str, Any] | None,
+    raw: dict[str, Any],
+) -> Row | None:
+    """A row for `activities` from a search item (`top`, `numbers` and `raw` the item, no
+    `meta`) or a detail (`numbers` its summaryDTO, `meta` its metadataDTO)."""
+    activity_id = _number(top.get("activityId"))
+    activity_type = _dict(top.get("activityType")) or _dict(top.get("activityTypeDTO"))
+    sport = activity_type.get("typeKey")
+    started_at = _from_iso(_str(numbers.get("startTimeGMT")) or _str(top.get("startTimeGMT")))
+    if activity_id is None or not isinstance(sport, str) or started_at is None:
+        return None
+    event_type = _dict(top.get("eventType")) or _dict(top.get("eventTypeDTO"))
+    meta = meta or {}
+    local = _str(numbers.get("startTimeLocal")) or _str(top.get("startTimeLocal"))
+    local_at = _from_iso(local)
+    child_ids = [int(child) for child in meta.get("childIds") or [] if _number(child) is not None]
+    row: Row = {
+        "activity_id": int(activity_id),
+        "name": _str(top.get("activityName"), 200),
+        "sport": sport[:48],
+        "event_type": _str(event_type.get("typeKey"), 32),
+        "started_at": started_at,
+        "start_local": local_at.replace(tzinfo=None) if local_at else None,
+        "time_zone": _str(_dict(top.get("timeZoneUnitDTO")).get("timeZone"), 64),
+        "te_label": _str(numbers.get("trainingEffectLabel"), 32),
+        "hr_zone_s": _zone_seconds(numbers, "hrTimeInZone_"),
+        "power_zone_s": _zone_seconds(numbers, "powerTimeInZone_"),
+        "pool_length_m": _pool_length(numbers),
+        "fastest_splits": {
+            key.removeprefix("fastestSplit_"): value
+            for key, item in numbers.items()
+            if key.startswith("fastestSplit_") and (value := _number(item)) is not None
+        }
+        or None,
+        "manual": _bool(top.get("manualActivity"), meta.get("manualActivity")),
+        "is_parent": bool(
+            _bool(top.get("isParent"), top.get("parent"), top.get("isMultiSportParent"))
+        ),
+        "parent_id": _int(_number(top.get("parentId"))),
+        "child_ids": child_ids or None,
+        "raw": raw,
+    }
+    for column, keys, places in _ACTIVITY_NUMBERS:
+        value = next((v for key in keys if (v := _number(numbers.get(key))) is not None), None)
+        if column == "lap_count" and value is None:
+            value = _number(meta.get("lapCount"))
+        row[column] = _int(value) if places is None else _dec(value, places)
+    return row
+
+
+def _zone_seconds(item: dict[str, Any], prefix: str) -> list[int | None] | None:
+    seconds = [_int(_number(item.get(f"{prefix}{zone}"))) for zone in range(1, _ZONES + 1)]
+    return seconds if any(value is not None for value in seconds) else None
+
+
+def _pool_length(item: dict[str, Any]) -> Decimal | None:
+    """Garmin's pool length, in metres: some replies give it in centimetres, some in yards."""
+    length = _number(item.get("poolLength"))
+    if length is None or length <= 0:
+        return None
+    unit = _dict(item.get("unitOfPoolLength")).get("unitKey")
+    if length > 100:
+        length /= 100  # centimetres
+    if unit == "yard":
+        length *= 0.9144
+    return _dec(length, 1)
+
+
+def _dict(value: Any) -> dict[str, Any]:
+    return cast(dict[str, Any], value) if isinstance(value, dict) else {}
+
+
+def _str(value: Any, limit: int | None = None) -> str | None:
+    if not isinstance(value, str) or not value:
+        return None
+    return value[:limit] if limit else value
+
+
+def _bool(*values: Any) -> bool | None:
+    return next((value for value in values if isinstance(value, bool)), None)
+
+
 NORMALIZERS: dict[str, Callable[[Any, date | None], Records]] = {
     "profile": _profile,
     "hr_zones": _hr_zones,
@@ -419,6 +598,8 @@ NORMALIZERS: dict[str, Callable[[Any, date | None], Records]] = {
     "spo2": _spo2,
     "fitness_age": _fitness_age,
     "weight_goal": _weight_goal,
+    "activities": _activities,
+    "activity_detail": _activity_detail,
 }
 
 

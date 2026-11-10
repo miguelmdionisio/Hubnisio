@@ -404,7 +404,11 @@ async def garmin_renormalize(email: str | None) -> int:
     for user_id in sorted({user_id for _, user_id in connections}):
         async with get_sessionmaker()() as session, session.begin():
             result = await renormalize_member(session, user_id)
-        print(f"Member {user_id}: replayed {result.payloads} replies.")
+        failed = f", {result.failed_files} failed" if result.failed_files else ""
+        print(
+            f"Member {user_id}: replayed {result.payloads} replies, "
+            f"parsed {result.files} activity files{failed}."
+        )
         for name, count in result.counts.items():
             print(f"  {name}: {count}")
     return 0
@@ -596,7 +600,9 @@ def main(argv: list[str] | None = None) -> int:
     garmin_sync_parser.add_argument("--email", help="one member (default: every linked member)")
 
     garmin_backfill_parser = commands.add_parser(
-        "garmin-backfill", help="read Garmin's daily data again from a day, whatever was synced"
+        "garmin-backfill",
+        help="read Garmin's data again from a day, whatever was synced (activities: their "
+        "summaries, then the detail and file of each activity not stored yet)",
     )
     garmin_backfill_parser.add_argument("--email", help="one member (default: every linked member)")
     garmin_backfill_parser.add_argument(
@@ -614,7 +620,9 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     garmin_renormalize_parser = commands.add_parser(
-        "garmin-renormalize", help="rebuild health rows from the stored Garmin replies"
+        "garmin-renormalize",
+        help="rebuild health rows from the stored Garmin replies, and parse the stored "
+        "activity files again (streams, laps, lengths, derived results)",
     )
     garmin_renormalize_parser.add_argument(
         "--email", help="one member (default: every linked member)"

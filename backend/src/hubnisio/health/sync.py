@@ -5,6 +5,11 @@ each day-range kind in windows no longer than its endpoint allows; then the kind
 at a time (the night's HRV readings, the day's heart rate, SpO2); then fitness age and the
 weight goal as of today.
 
+Activities (H2) are a kind too: their summaries are searched in windows of `ACTIVITY_WINDOW`
+days, a page at a time, and the cursor moves per window. Then each activity without its file
+gets its detail and its file (paced more slowly), parsed and derived at once. One activity's
+failure is that activity's alone (`_activity_files`).
+
 Each kind starts a little before the last day it was synced through (`OVERLAP`, since today's
 reply is partial and Garmin fills in last night later), or on `BACKFILL_START` the first time.
 Every reply is stored in its own transaction before it's applied; a window that applies moves
@@ -23,14 +28,16 @@ from datetime import UTC, date, datetime, timedelta
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import httpx
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hubnisio.core.db import get_sessionmaker
 from hubnisio.core.settings import get_settings
-from hubnisio.health.ingest import apply
+from hubnisio.health.ingest import FileStatus, apply, ingest_activity_file
 from hubnisio.health.models import (
+    Activity,
+    ActivityFile,
     Connection,
     ConnectionStatus,
     ProviderPayload,
@@ -38,9 +45,16 @@ from hubnisio.health.models import (
     SyncRun,
     SyncStatus,
 )
-from hubnisio.health.providers.garmin.client import ENDPOINTS, Fetched, GarminClient, windows
+from hubnisio.health.providers.garmin.client import (
+    ACTIVITY_PAGE,
+    ENDPOINTS,
+    Fetched,
+    GarminClient,
+    windows,
+)
 from hubnisio.health.providers.garmin.errors import GarminError, KeyRejected, RateLimited
 from hubnisio.health.providers.garmin.normalize import Records
+from hubnisio.health.scoping import of_member
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +64,12 @@ OVERLAP = timedelta(days=2)
 RANGE_KINDS = ("daily_summaries", "sleep", "hrv", "body_battery", "stress", "steps", "weight")
 # Read one day per call: the night's detail and the day's heart rate.
 DAY_KINDS = ("hrv_readings", "heart_rate", "spo2")
-SYNCED_KINDS = (*RANGE_KINDS, *DAY_KINDS)
+ACTIVITIES = "activities"  # summaries by search, then each new activity's detail and file
+SYNCED_KINDS = (*RANGE_KINDS, *DAY_KINDS, ACTIVITIES)
+ACTIVITY_WINDOW = 90  # days per activity search, paged within
+ACTIVITY_FILES = "activity_files"  # in a run's `skipped` when an activity's calls failed
+MAX_FILE_ATTEMPTS = 3  # a failing activity is tried again by this many syncs, then left
+PENDING_BATCH = 50  # activities looked up at a time for their detail and file
 OPTIONAL = frozenset({"weight", "weight_goal", "fitness_age"})
 APPLY_FAILED = "APPLY_FAILED"
 
@@ -192,6 +211,9 @@ class _Sync:
             if kinds is not None and kind not in kinds:
                 continue
             start = since or (cursors[kind] - OVERLAP if kind in cursors else BACKFILL_START)
+            if kind == ACTIVITIES:
+                await self._activities(client, start, today)
+                continue
             size = ENDPOINTS[kind].window or 1
             for first, last in windows(start, today, size):
                 if not await self._window(client, kind, first, last):
@@ -226,14 +248,187 @@ class _Sync:
             logger.warning("Skipped Garmin %s from %s: %s.", kind, first, _error_code(exc))
             self.skipped.add(kind)
             return None
+        return await self._keep(fetched)
+
+    async def _keep(self, fetched: Fetched, *, critical: bool = True) -> Records | None:
+        """Store a reply, then apply it. None when its rows couldn't be applied, which fails
+        the run unless the reply isn't `critical` (one activity's detail)."""
         payload_id = await self._store(fetched)
         try:
             async with get_sessionmaker()() as session, session.begin():
-                return await apply(session, self.user_id, kind, fetched.raw, fetched.day_from)
+                return await apply(
+                    session, self.user_id, fetched.kind, fetched.raw, fetched.day_from
+                )
         except Exception:
-            logger.exception("Applying Garmin %s reply %s failed.", kind, payload_id)
-            self.apply_failed = True
+            logger.exception("Applying Garmin %s reply %s failed.", fetched.kind, payload_id)
+            if critical:
+                self.apply_failed = True
             return None
+
+    # Activities
+
+    async def _activities(self, client: GarminClient, start: date, today: date) -> None:
+        """The summaries of activities started since `start`, a window and a page at a time,
+        then the detail and file of each activity that has none yet."""
+        for first, last in windows(start, today, ACTIVITY_WINDOW):
+            offset = 0
+            while True:
+                fetched = await client.search_activities(first, last, offset)
+                if await self._keep(fetched) is None:
+                    return
+                page = len(fetched.raw) if isinstance(fetched.raw, list) else 0
+                if page < ACTIVITY_PAGE:
+                    break
+                offset += page
+            async with get_sessionmaker()() as session, session.begin():
+                await _advance(session, self.connection_id, ACTIVITIES, last)
+        await self._activity_files(client)
+
+    async def _activity_files(self, client: GarminClient) -> None:
+        """Each activity without its file yet, oldest first: detail, then file, parsed and
+        derived. A failure is the activity's alone: recorded on its `activity_files` row, tried
+        again by later syncs up to `MAX_FILE_ATTEMPTS`, and the run goes on. Only a rejected
+        key or a rate limit ends the run."""
+        tried: set[int] = set()
+        looked_up: set[int] = set()  # legs whose detail was asked for
+        while True:
+            for leg in await self._missing_legs(looked_up):
+                looked_up.add(leg)
+                await self._activity_detail(client, leg)
+            pending = await self._pending(tried)
+            if not pending:
+                return
+            for activity_id in pending:
+                tried.add(activity_id)
+                await self._activity(client, activity_id, detail=activity_id not in looked_up)
+
+    async def _pending(self, tried: set[int]) -> list[int]:
+        async with get_sessionmaker()() as session:
+            query = (
+                select(Activity.activity_id)
+                .outerjoin(
+                    ActivityFile,
+                    (ActivityFile.user_id == Activity.user_id)
+                    & (ActivityFile.activity_id == Activity.activity_id),
+                )
+                .where(
+                    of_member(Activity, self.user_id),
+                    or_(
+                        ActivityFile.activity_id.is_(None),
+                        (ActivityFile.status == FileStatus.FAILED)
+                        & (ActivityFile.attempts < MAX_FILE_ATTEMPTS),
+                    ),
+                )
+                .order_by(Activity.started_at, Activity.activity_id)
+                .limit(PENDING_BATCH)
+            )
+            if tried:
+                query = query.where(Activity.activity_id.not_in(tried))
+            return list(await session.scalars(query))
+
+    async def _missing_legs(self, tried: set[int]) -> list[int]:
+        """Legs a multisport parent names that the search never listed."""
+        async with get_sessionmaker()() as session:
+            legs = (
+                select(func.unnest(Activity.child_ids).label("leg"))
+                .where(of_member(Activity, self.user_id), Activity.child_ids.is_not(None))
+                .subquery()
+            )
+            known = select(Activity.activity_id).where(of_member(Activity, self.user_id))
+            rows = await session.scalars(select(legs.c.leg).where(legs.c.leg.not_in(known)))
+            return [int(leg) for leg in rows if int(leg) not in tried]
+
+    async def _activity_detail(self, client: GarminClient, activity_id: int) -> bool:
+        try:
+            fetched = await client.activity_detail(activity_id)
+        except KeyRejected, RateLimited:
+            raise
+        except (GarminError, httpx.HTTPError) as exc:
+            await self._activity_failed(activity_id, _error_code(exc))
+            return False
+        if await self._keep(fetched, critical=False) is None:
+            await self._activity_failed(activity_id, APPLY_FAILED)
+            return False
+        return True
+
+    async def _activity(self, client: GarminClient, activity_id: int, *, detail: bool) -> None:
+        if detail and not await self._activity_detail(client, activity_id):
+            return
+        async with get_sessionmaker()() as session:
+            activity = await session.get(Activity, (self.user_id, activity_id))
+        if activity is None:
+            return
+        if activity.is_parent or activity.manual:
+            await self._record_file(activity_id, FileStatus.NONE)
+            return
+        try:
+            data, content_type = await client.download_activity(activity_id)
+        except KeyRejected, RateLimited:
+            raise
+        except (GarminError, httpx.HTTPError) as exc:
+            await self._activity_failed(activity_id, _error_code(exc))
+            return
+        await self._record_file(activity_id, FileStatus.STORED, data, content_type)
+        try:
+            async with get_sessionmaker()() as session, session.begin():
+                await ingest_activity_file(session, self.user_id, activity_id, data)
+        except Exception:
+            # The file is kept: a fix to the parser and a renormalize recover it.
+            logger.exception("Parsing the file of activity %s failed.", activity_id)
+            self.skipped.add(ACTIVITY_FILES)
+            async with get_sessionmaker()() as session, session.begin():
+                await session.execute(
+                    update(ActivityFile)
+                    .where(
+                        of_member(ActivityFile, self.user_id),
+                        ActivityFile.activity_id == activity_id,
+                    )
+                    .values(error_code="PARSE_FAILED")
+                )
+
+    async def _activity_failed(self, activity_id: int, code: str) -> None:
+        logger.warning("Skipped Garmin activity %s: %s.", activity_id, code)
+        self.skipped.add(ACTIVITY_FILES)
+        await self._record_file(activity_id, FileStatus.FAILED, error_code=code)
+
+    async def _record_file(
+        self,
+        activity_id: int,
+        status: FileStatus,
+        data: bytes | None = None,
+        content_type: str | None = None,
+        error_code: str | None = None,
+    ) -> None:
+        async with get_sessionmaker()() as session, session.begin():
+            statement = insert(ActivityFile).values(
+                user_id=self.user_id,
+                activity_id=activity_id,
+                status=status,
+                data=data,
+                content_type=content_type[:64] if content_type else None,
+                size=len(data) if data is not None else None,
+                attempts=1 if status is FileStatus.FAILED else 0,
+                error_code=error_code,
+                fetched_at=datetime.now(UTC),
+            )
+            new = statement.excluded
+            attempts = (
+                ActivityFile.attempts + 1 if status is FileStatus.FAILED else ActivityFile.attempts
+            )
+            await session.execute(
+                statement.on_conflict_do_update(
+                    index_elements=["user_id", "activity_id"],
+                    set_={
+                        "status": new.status,
+                        "data": new.data,
+                        "content_type": new.content_type,
+                        "size": new.size,
+                        "attempts": attempts,
+                        "error_code": new.error_code,
+                        "fetched_at": new.fetched_at,
+                    },
+                )
+            )
 
     async def _store(self, fetched: Fetched) -> uuid.UUID:
         async with get_sessionmaker()() as session, session.begin():

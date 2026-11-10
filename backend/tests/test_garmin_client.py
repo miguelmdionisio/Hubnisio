@@ -1,15 +1,16 @@
 """The Garmin client against a fake API: the key file, the token exchange (plain text), the
 Bearer token and its reuse, a 401 retried once, 429 back-off, and windows."""
 
-from datetime import date
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 import httpx
 import pytest
-from garmin_data import KEY, TOKEN_PATH, FakeGarmin, jwt
+from garmin_data import KEY, TOKEN_PATH, FakeActivity, FakeGarmin, jwt
 
 from hubnisio.health.providers.garmin.client import (
     ENDPOINTS,
+    FILE_PAUSE,
     MAX_ATTEMPTS,
     MIN_BACKOFF,
     PAUSE,
@@ -190,6 +191,38 @@ async def test_calls_are_spaced_by_a_pause() -> None:
         await client.fetch("stress", DAY)
 
     assert clock.slept == [PAUSE, PAUSE]  # before the first GET, and before the second
+
+
+async def test_activity_search_detail_and_file() -> None:
+    clock = Clock()
+    start = datetime(2026, 3, 4, 7, tzinfo=UTC)
+    api = FakeGarmin(
+        now=clock,
+        activities=[FakeActivity(11, "running", start, 600, 1800.0, file=b"PK zip bytes")],
+    )
+    async with client_for(api, clock) as client:
+        page = await client.search_activities(DAY, DAY)
+        detail = await client.activity_detail(11)
+        data, content_type = await client.download_activity(11)
+        with pytest.raises(GarminError) as missing:
+            await client.download_activity(12)
+
+    assert [item["activityId"] for item in page.raw] == [11]
+    assert page.kind == "activities" and (page.day_from, page.day_to) == (DAY, DAY)
+    assert page.request["params"] == {
+        "startDate": "2026-03-04",
+        "endDate": "2026-03-04",
+        "start": "0",
+        "limit": "100",
+        "sortOrder": "asc",
+        "excludeChildren": "false",
+    }
+    assert detail.kind == "activity_detail" and detail.raw["activityId"] == 11
+    assert (data, content_type) == (b"PK zip bytes", "application/x-zip-compressed")
+    assert missing.value.code == "HTTP_404"
+    # The downloads wait longer; nothing asks for JSON (Garmin answers that 406).
+    assert clock.slept == [PAUSE, PAUSE, FILE_PAUSE, FILE_PAUSE]
+    assert all(request.headers.get("accept") in (None, "*/*") for request in api.requests)
 
 
 async def test_errors_carry_their_status_and_an_empty_body_is_none() -> None:
