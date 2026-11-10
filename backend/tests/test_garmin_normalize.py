@@ -192,3 +192,13 @@ def test_an_activity_without_an_id_or_type_is_skipped() -> None:
     del item["activityType"]
     assert normalize("activities", [item, "nonsense"], None).activities == []
     assert normalize("activity_detail", {"activityId": 1}, None).activity_fill == []
+
+
+def test_stroke_distance_is_metres_whether_garmin_sent_metres_or_centimetres() -> None:
+    start = datetime(2026, 5, 2, 8, 0, tzinfo=UTC)
+    pool = g.activity_summary(g.FakeActivity(1, "lap_swimming", start, 1800, 1500.0))
+    sea = g.activity_summary(g.FakeActivity(2, "open_water_swimming", start, 1800, 1500.0))
+    pool["avgStrokeDistance"] = 2.31
+    sea["avgStrokeDistance"] = 118.0  # open water arrives in centimetres
+    rows = normalize("activities", [pool, sea], None).activities
+    assert [row["avg_stroke_distance_m"] for row in rows] == [Decimal("2.31"), Decimal("1.18")]

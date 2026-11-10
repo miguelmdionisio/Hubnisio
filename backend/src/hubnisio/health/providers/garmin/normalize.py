@@ -473,6 +473,8 @@ _ACTIVITY_NUMBERS: tuple[tuple[str, tuple[str, ...], int | None], ...] = (
     ("lap_count", ("lapCount",), None),
 )
 _ZONES = 5
+# No stroke covers 10 m: a stroke distance at or above this is in centimetres.
+_STROKE_CM_FROM = 10
 
 
 def _activities(raw: Any, _day: date | None) -> Records:
@@ -547,6 +549,8 @@ def _activity_row(
         value = next((v for key in keys if (v := _number(numbers.get(key))) is not None), None)
         if column == "lap_count" and value is None:
             value = _number(meta.get("lapCount"))
+        if column == "avg_stroke_distance_m" and value is not None and value >= _STROKE_CM_FROM:
+            value = value / 100  # open-water swims arrive in centimetres, pool swims in metres
         row[column] = _int(value) if places is None else _dec(value, places)
     return row
 
