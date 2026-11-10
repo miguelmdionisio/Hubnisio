@@ -8,6 +8,8 @@ from fastapi import APIRouter
 from hubnisio.health.api import CurrentPrincipal, DbSession
 from hubnisio.health.insights.recovery import Recovery, recovery
 from hubnisio.health.insights.recovery_loader import load_recovery_facts
+from hubnisio.health.insights.training import current_form
+from hubnisio.health.insights.training_loader import load_activity_rows
 from hubnisio.health.scoping import own_connection
 from hubnisio.health.sync import today_in
 
@@ -28,5 +30,5 @@ async def get_recovery(
     connection = await own_connection(session, principal)
     today = today_in(connection.time_zone if connection else None)
     facts = await load_recovery_facts(session, principal, today, days.value)
-    # Training form joins the signals when the Training page exists (H6).
-    return recovery(facts, today, days.value)
+    form = current_form(await load_activity_rows(session, principal), today)
+    return recovery(facts, today, days.value, form)

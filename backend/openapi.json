@@ -2334,7 +2334,7 @@
             "in": "query",
             "required": false,
             "schema": {
-              "$ref": "#/components/schemas/Period",
+              "$ref": "#/components/schemas/hubnisio__health__recovery_api__Period",
               "default": 90
             }
           }
@@ -2440,6 +2440,49 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SleepTrends"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/health/training": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Get Training",
+        "description": "The member's training over the period ending today; fitness is computed over all\nhistory, the period only crops what is returned.",
+        "operationId": "getTraining",
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/hubnisio__health__training_api__Period",
+              "default": "90"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Training"
                 }
               }
             }
@@ -5190,15 +5233,6 @@
         "title": "Overspend",
         "description": "What overspending a budget does to the next month (ADR-0007, \"Budgets\")."
       },
-      "Period": {
-        "type": "integer",
-        "enum": [
-          30,
-          90,
-          365
-        ],
-        "title": "Period"
-      },
       "ProviderName": {
         "type": "string",
         "enum": [
@@ -7010,6 +7044,407 @@
         ],
         "title": "SyncStatus"
       },
+      "Training": {
+        "properties": {
+          "period": {
+            "type": "string",
+            "title": "Period"
+          },
+          "first_day": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Day"
+          },
+          "last_day": {
+            "type": "string",
+            "format": "date",
+            "title": "Last Day"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/TrainingSummary"
+          },
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/TrainingPoint"
+            },
+            "type": "array",
+            "title": "Points"
+          },
+          "weeks": {
+            "items": {
+              "$ref": "#/components/schemas/TrainingWeek"
+            },
+            "type": "array",
+            "title": "Weeks"
+          },
+          "average_week_hours": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Average Week Hours"
+          },
+          "intensity": {
+            "items": {
+              "$ref": "#/components/schemas/TrainingIntensity"
+            },
+            "type": "array",
+            "title": "Intensity"
+          },
+          "months": {
+            "items": {
+              "$ref": "#/components/schemas/TrainingMonth"
+            },
+            "type": "array",
+            "title": "Months"
+          }
+        },
+        "type": "object",
+        "required": [
+          "period",
+          "first_day",
+          "last_day",
+          "summary",
+          "points",
+          "weeks",
+          "average_week_hours",
+          "intensity",
+          "months"
+        ],
+        "title": "Training"
+      },
+      "TrainingIntensity": {
+        "properties": {
+          "sport": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "swim",
+                  "bike",
+                  "run",
+                  "strength",
+                  "other"
+                ]
+              },
+              {
+                "type": "string",
+                "const": "all"
+              }
+            ],
+            "title": "Sport"
+          },
+          "z12_s": {
+            "type": "integer",
+            "title": "Z12 S"
+          },
+          "z3_s": {
+            "type": "integer",
+            "title": "Z3 S"
+          },
+          "z45_s": {
+            "type": "integer",
+            "title": "Z45 S"
+          },
+          "z12_share": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Z12 Share"
+          },
+          "z3_share": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Z3 Share"
+          },
+          "z45_share": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Z45 Share"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sport",
+          "z12_s",
+          "z3_s",
+          "z45_s",
+          "z12_share",
+          "z3_share",
+          "z45_share"
+        ],
+        "title": "TrainingIntensity",
+        "description": "Seconds in heart-rate zones for one sport, grouped; shares of `total_s`."
+      },
+      "TrainingMonth": {
+        "properties": {
+          "month": {
+            "type": "string",
+            "format": "date",
+            "title": "Month"
+          },
+          "swim_m": {
+            "type": "number",
+            "title": "Swim M"
+          },
+          "bike_m": {
+            "type": "number",
+            "title": "Bike M"
+          },
+          "run_m": {
+            "type": "number",
+            "title": "Run M"
+          },
+          "hours": {
+            "type": "number",
+            "title": "Hours"
+          },
+          "load": {
+            "type": "number",
+            "title": "Load"
+          },
+          "climb_m": {
+            "type": "number",
+            "title": "Climb M"
+          },
+          "sessions": {
+            "type": "integer",
+            "title": "Sessions"
+          },
+          "partial": {
+            "type": "boolean",
+            "title": "Partial"
+          }
+        },
+        "type": "object",
+        "required": [
+          "month",
+          "swim_m",
+          "bike_m",
+          "run_m",
+          "hours",
+          "load",
+          "climb_m",
+          "sessions",
+          "partial"
+        ],
+        "title": "TrainingMonth"
+      },
+      "TrainingPoint": {
+        "properties": {
+          "day": {
+            "type": "string",
+            "format": "date",
+            "title": "Day"
+          },
+          "load": {
+            "type": "number",
+            "title": "Load"
+          },
+          "fitness": {
+            "type": "number",
+            "title": "Fitness"
+          },
+          "fatigue": {
+            "type": "number",
+            "title": "Fatigue"
+          },
+          "form": {
+            "type": "number",
+            "title": "Form"
+          },
+          "band": {
+            "type": "string",
+            "enum": [
+              "fresh",
+              "neutral",
+              "optimal",
+              "high_risk"
+            ],
+            "title": "Band"
+          }
+        },
+        "type": "object",
+        "required": [
+          "day",
+          "load",
+          "fitness",
+          "fatigue",
+          "form",
+          "band"
+        ],
+        "title": "TrainingPoint"
+      },
+      "TrainingSummary": {
+        "properties": {
+          "fitness": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fitness"
+          },
+          "fatigue": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fatigue"
+          },
+          "form": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Form"
+          },
+          "band": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "fresh",
+                  "neutral",
+                  "optimal",
+                  "high_risk"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Band"
+          },
+          "fitness_change": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fitness Change"
+          },
+          "ramp_per_week": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ramp Per Week"
+          },
+          "ramp_safe": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ramp Safe"
+          }
+        },
+        "type": "object",
+        "required": [
+          "fitness",
+          "fatigue",
+          "form",
+          "band",
+          "fitness_change",
+          "ramp_per_week",
+          "ramp_safe"
+        ],
+        "title": "TrainingSummary"
+      },
+      "TrainingWeek": {
+        "properties": {
+          "week_start": {
+            "type": "string",
+            "format": "date",
+            "title": "Week Start"
+          },
+          "swim": {
+            "type": "number",
+            "title": "Swim"
+          },
+          "bike": {
+            "type": "number",
+            "title": "Bike"
+          },
+          "run": {
+            "type": "number",
+            "title": "Run"
+          },
+          "strength": {
+            "type": "number",
+            "title": "Strength"
+          },
+          "other": {
+            "type": "number",
+            "title": "Other"
+          },
+          "partial": {
+            "type": "boolean",
+            "title": "Partial"
+          }
+        },
+        "type": "object",
+        "required": [
+          "week_start",
+          "swim",
+          "bike",
+          "run",
+          "strength",
+          "other",
+          "partial"
+        ],
+        "title": "TrainingWeek"
+      },
       "TransactionCategory": {
         "properties": {
           "id": {
@@ -7686,6 +8121,25 @@
           "expired"
         ],
         "title": "ConnectionStatus"
+      },
+      "hubnisio__health__recovery_api__Period": {
+        "type": "integer",
+        "enum": [
+          30,
+          90,
+          365
+        ],
+        "title": "Period"
+      },
+      "hubnisio__health__training_api__Period": {
+        "type": "string",
+        "enum": [
+          "90",
+          "180",
+          "365",
+          "all"
+        ],
+        "title": "Period"
       }
     }
   }

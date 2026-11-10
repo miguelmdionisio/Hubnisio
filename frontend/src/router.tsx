@@ -30,6 +30,7 @@ import { validateRecoverySearch } from './routes/health/recovery/search';
 import { validateSleepSearch } from './routes/health/sleep/search';
 import { SleepPage } from './routes/health/sleep/sleep';
 import { TodayPage } from './routes/health/today/today';
+import { validateTrainingSearch } from './routes/health/training/search';
 import { TrainingPage } from './routes/health/training/training';
 import { HomePage } from './routes/home';
 
@@ -118,6 +119,7 @@ const routeTree = rootRoute.addChildren([
     getParentRoute: () => rootRoute,
     path: '/health/training',
     component: TrainingPage,
+    validateSearch: validateTrainingSearch,
   }),
   createRoute({
     getParentRoute: () => rootRoute,
