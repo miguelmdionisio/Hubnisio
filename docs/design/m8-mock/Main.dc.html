@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Health: Today</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0d0e13}
+*{box-sizing:border-box}
+.app{font-family:'Figtree',system-ui,sans-serif;color:#eef0f4;background:#0d0e13;display:flex;flex-wrap:wrap;min-height:100vh;font-size:14px;line-height:1.45}
+.side{flex:1 1 200px;max-width:200px;background:#0a0b0f;border-right:1px solid #22242c;padding:12px 10px;display:flex;flex-direction:column;gap:2px}
+.dom{display:flex;align-items:center;gap:9px;background:none;border:0;color:#eef0f4;font:600 14px 'Figtree',sans-serif;padding:7px 9px;margin-bottom:8px;cursor:pointer}
+.mark{width:22px;height:22px;border-radius:50%;background:#ff9f5a;flex:none}
+.grp{font-size:11.5px;font-weight:600;color:#8a909a;margin:14px 9px 4px}
+.ni{display:flex;align-items:center;gap:10px;padding:7px 9px;border-radius:8px;color:#9aa0ab;text-decoration:none;font-size:13.5px}
+.ni:hover{color:#eef0f4}
+.ni.on{background:#1d2029;color:#eef0f4;font-weight:600}
+.ni svg{width:16px;height:16px;flex:none}
+.ni.on svg{color:#ff9f5a}
+.main{flex:999 1 560px;min-width:0}
+.hdr{min-height:58px;display:flex;align-items:center;gap:12px;padding:10px 28px;border-bottom:1px solid #22242c;flex-wrap:wrap}
+.ttl{font-size:18px;font-weight:700;margin:0}
+.sync{margin-left:auto;font-size:13px;color:#9aa0ab;display:flex;align-items:center;gap:8px}
+.dot{width:8px;height:8px;border-radius:50%;background:#4cc283}
+.wrap{padding:24px 28px 56px;display:flex;flex-direction:column;gap:20px;max-width:1240px}
+.g4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.g2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
+.card{background:#181a21;border-radius:18px;padding:18px 20px;min-width:0;text-decoration:none;color:inherit;display:block}
+.ch{display:flex;align-items:baseline;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.h2{font-size:15px;font-weight:650;margin:0}
+.lbl{font-size:13px;color:#9aa0ab;margin:0}
+.fig{font-size:34px;font-weight:750;letter-spacing:-.02em;font-variant-numeric:tabular-nums;margin:2px 0;line-height:1.15}
+.fig small{font-size:16px;font-weight:600;color:#9aa0ab;margin-left:3px}
+.sub{font-size:13px;color:#9aa0ab;margin:0}
+.good{color:#4cc283}.bad{color:#f2675d}
+.leg{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:#9aa0ab;margin-left:auto}
+.leg i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
+svg.chart{width:100%;height:auto;display:block;overflow:visible}
+svg.chart text{fill:#8a909a;font:11px 'Figtree',sans-serif}
+.rows{background:#181a21;border-radius:18px;padding:6px}
+.row{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:14px;text-decoration:none;color:#eef0f4}
+.row:hover{background:#23262f}
+.chip{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;flex:none}
+.chip svg{width:18px;height:18px}
+.grow{flex:1;min-width:0}
+.t2{font-size:12.5px;color:#9aa0ab}
+.num{font-variant-numeric:tabular-nums;text-align:right;min-width:72px}
+.bar{display:flex;height:10px;border-radius:999px;overflow:hidden;gap:2px}
+.pill{height:36px;padding:0 14px;border-radius:999px;border:0;background:#181a21;color:#eef0f4;font:600 13.5px 'Figtree',sans-serif;display:inline-flex;align-items:center;gap:8px;text-decoration:none}
+@media(max-width:900px){.g4{grid-template-columns:repeat(2,minmax(0,1fr))}.g2{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:760px){.side{max-width:none;flex-basis:100%;flex-direction:row;flex-wrap:wrap;border-right:0;border-bottom:1px solid #22242c}.grp{display:none}.hdr,.wrap{padding-left:16px;padding-right:16px}}
+</style>
+</helmet>
+<div class="app">
+<nav class="side" aria-label="Health pages">
+<button class="dom" type="button"><span class="mark"></span>Health<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8a909a" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></button>
+<sc-for list="{{nav}}" as="n" hint-placeholder-count="9">
+<sc-if value="{{n.group}}" hint-placeholder-val="{{false}}"><p class="grp">{{n.label}}</p></sc-if>
+<sc-if value="{{n.on}}" hint-placeholder-val="{{false}}"><a class="ni on" href="{{n.href}}" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{n.d}}"></path></svg>{{n.label}}</a></sc-if>
+<sc-if value="{{n.off}}" hint-placeholder-val="{{true}}"><a class="ni" href="{{n.href}}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{n.d}}"></path></svg>{{n.label}}</a></sc-if>
+</sc-for>
+</nav>
+<main class="main">
+<header class="hdr">
+<h1 class="ttl">Today</h1>
+<span class="sync"><span class="dot"></span>Garmin synced 12 minutes ago</span>
+</header>
+<div class="wrap">
+
+<div class="g4">
+<a class="card" href="Training.dc.html"><p class="lbl">Form</p><p class="fig">{{formTxt}}</p><p class="sub">{{formWord}} · fitness {{fit}}</p></a>
+<a class="card" href="Sleep.dc.html"><p class="lbl">Last night</p><p class="fig">{{sleptTxt}}</p><p class="sub">Score 84 · need 8h 10</p></a>
+<a class="card" href="Recovery.dc.html"><p class="lbl">HRV</p><p class="fig">58<small>ms</small></p><p class="sub good">In range 52–66</p></a>
+<a class="card" href="Recovery.dc.html"><p class="lbl">Resting HR</p><p class="fig">46<small>bpm</small></p><p class="sub good">▼ 2 vs 7-day</p></a>
+</div>
+
+<div class="g2">
+<a class="card" href="Training.dc.html">
+<div class="ch"><h2 class="h2">Fitness, 90 days</h2><div class="leg"><span><i style="background:#ff9f5a"></i>Fitness</span><span><i style="background:#9aa0ab"></i>Fatigue</span><span><i style="background:#4cc283"></i>Form</span></div></div>
+<svg class="chart" viewBox="0 0 600 210" role="img" aria-label="Fitness, fatigue and form over 90 days">
+<path d="{{atlD}}" fill="none" stroke="#9aa0ab" stroke-width="1.5" opacity=".7"></path>
+<path d="{{ctlD}}" fill="none" stroke="#ff9f5a" stroke-width="2.5"></path>
+<text x="566" y="{{ctlY}}">{{fit}}</text>
+<line x1="0" x2="560" y1="175" y2="175" stroke="#2c2f39"></line>
+<sc-for list="{{formBars}}" as="b" hint-placeholder-count="90"><rect x="{{b.x}}" y="{{b.y}}" width="4" height="{{b.h}}" rx="1" fill="{{b.c}}"></rect></sc-for>
+<text x="566" y="179">Form</text>
+<text x="0" y="207">Aug</text><text x="185" y="207">Sep</text><text x="370" y="207">Oct</text><text x="530" y="207">Nov</text>
+</svg>
+</a>
+<div class="card">
+<div class="ch"><h2 class="h2">Last 7 days</h2><span class="sub">{{weekTxt}}</span><div class="leg"><span><i style="background:#4fb3ff"></i>Swim</span><span><i style="background:#b38cff"></i>Bike</span><span><i style="background:#ffd166"></i>Run</span><span><i style="background:#8a909a"></i>Strength</span></div></div>
+<svg class="chart" viewBox="0 0 600 210" role="img" aria-label="Hours per day by sport, last 7 days">
+<line x1="0" x2="600" y1="{{avgY}}" y2="{{avgY}}" stroke="#8a909a" stroke-dasharray="4 4"></line>
+<text x="600" y="{{avgLblY}}" text-anchor="end">avg {{avgTxt}}</text>
+<sc-for list="{{weekBars}}" as="b" hint-placeholder-count="8"><rect x="{{b.x}}" y="{{b.y}}" width="52" height="{{b.h}}" rx="4" fill="{{b.c}}"></rect></sc-for>
+<sc-for list="{{weekDays}}" as="d" hint-placeholder-count="7"><text x="{{d.x}}" y="205" text-anchor="middle">{{d.l}}</text></sc-for>
+</svg>
+</div>
+</div>
+
+<div class="g2">
+<a class="card" href="Sleep.dc.html">
+<div class="ch"><h2 class="h2">Last night</h2><span class="sub">23:41 – 07:17</span></div>
+<svg class="chart" viewBox="0 0 600 150" role="img" aria-label="Sleep stages through the night">
+<text x="0" y="24">Awake</text><text x="0" y="59">REM</text><text x="0" y="94">Light</text><text x="0" y="129">Deep</text>
+<sc-for list="{{hyp}}" as="s" hint-placeholder-count="30"><rect x="{{s.x}}" y="{{s.y}}" width="{{s.w}}" height="22" rx="3" fill="{{s.c}}"></rect></sc-for>
+</svg>
+<div class="bar" style="margin-top:14px"><sc-for list="{{stages}}" as="s" hint-placeholder-count="4"><span style="{{s.style}}"></span></sc-for></div>
+<div class="leg" style="margin:10px 0 0 0"><sc-for list="{{stages}}" as="s" hint-placeholder-count="4"><span><i style="{{s.dot}}"></i>{{s.name}} {{s.txt}}</span></sc-for></div>
+</a>
+<a class="card" href="Recovery.dc.html">
+<div class="ch"><h2 class="h2">HRV, 30 nights</h2><span class="sub">7-day 58 ms</span><div class="leg"><span><i style="background:#2b3a2f"></i>Normal range</span><span><i style="background:#ff9f5a"></i>7-day</span></div></div>
+<svg class="chart" viewBox="0 0 600 190" role="img" aria-label="Nightly HRV against the normal range">
+<rect x="0" y="{{bandY}}" width="560" height="{{bandH}}" fill="#4cc283" opacity=".12" rx="4"></rect>
+<sc-for list="{{hrvDots}}" as="p" hint-placeholder-count="30"><circle cx="{{p.x}}" cy="{{p.y}}" r="3.5" fill="#eef0f4" opacity=".85"></circle></sc-for>
+<path d="{{hrvAvgD}}" fill="none" stroke="#ff9f5a" stroke-width="2.5"></path>
+<text x="566" y="{{bandTopY}}">66</text><text x="566" y="{{bandBotY}}">52</text>
+<text x="0" y="186">11 Oct</text><text x="560" y="186" text-anchor="end">10 Nov</text>
+</svg>
+</a>
+</div>
+
+<div>
+<div class="ch"><h2 class="h2">Recent activities</h2><a class="pill" href="Activity.dc.html" style="margin-left:auto;height:32px">All activities</a></div>
+<div class="rows">
+<sc-for list="{{acts}}" as="a" hint-placeholder-count="5">
+<a class="row" href="{{a.href}}">
+<span class="chip" style="{{a.bg}}"><svg viewBox="0 0 24 24" fill="none" stroke="#14161c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{a.icon}}"></path></svg></span>
+<span class="grow"><span style="display:block;font-weight:600">{{a.name}}</span><span class="t2">{{a.when}}</span></span>
+<span class="num">{{a.dist}}</span><span class="num t2">{{a.time}}</span><span class="num t2">load {{a.load}}</span>
+</a>
+</sc-for>
+</div>
+</div>
+
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1250}}'>
+class Component extends DCLogic {
+  rng(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+  path(v,x0,W,top,H,lo,hi){var n=v.length;return v.map(function(y,i){return (i?'L':'M')+(x0+i*W/(n-1)).toFixed(1)+' '+(top+H-(y-lo)/(hi-lo)*H).toFixed(1);}).join(' ');}
+  nav(active){
+    var I={Today:'M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4M8 12a4 4 0 1 0 8 0a4 4 0 1 0-8 0',Activities:'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01',Training:'M22 7l-8.5 8.5-5-5L2 17M16 7h6v6',Performance:'M13 2 3 14h9l-1 8 10-12h-9l1-8z',Recovery:'M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2-1.5-1.5-2.7-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7z',Sleep:'M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z',Body:'M16 21v-2a4 4 0 0 0-8 0v2M8 7a4 4 0 1 0 8 0a4 4 0 1 0-8 0',Garmin:'M12 9v3l1.5 1.5M16.5 6.5 16 2H8l-.5 4.5M7.5 17.5 8 22h8l.5-4.5M6 12a6 6 0 1 0 12 0a6 6 0 1 0-12 0'};
+    var H={Today:'Main.dc.html',Activities:'Activity.dc.html',Training:'Training.dc.html',Performance:'Performance.dc.html',Recovery:'Recovery.dc.html',Sleep:'Sleep.dc.html',Body:'#',Garmin:'#'};
+    var items=['Today','Activities','#Analyse','Training','Performance','Recovery','Sleep','Body','#Sources','Garmin'];
+    return items.map(function(k){if(k[0]==='#')return {group:true,on:false,off:false,label:k.slice(1)};return {group:false,on:k===active,off:k!==active,label:k,d:I[k],href:H[k]};});
+  }
+  pmc(n,seed){var r=this.rng(seed),ctl=50,atl=52,C=[],A=[],F=[];for(var i=0;i<n;i++){var dow=i%7;var base=[45,95,60,115,0,185,75][dow];var load=dow===4?0:base*(0.7+0.6*r())*(1+i/n*0.3);F.push(ctl-atl);ctl+=(load-ctl)/42;atl+=(load-atl)/7;C.push(ctl);A.push(atl);}return {ctl:C,atl:A,form:F};}
+  hyp(){var seq=[];var push=function(s,n){for(var i=0;i<n;i++)seq.push(s);};push(0,2);[[3,6,4,2],[2,5,4,3],[3,3,5,4],[4,1,4,5],[4,0,3,6]].forEach(function(p,c){push(2,p[0]);push(3,p[1]);push(2,p[2]);push(1,p[3]);if(c===1||c===3)push(0,1);});push(0,1);return seq;}
+  renderVals(){
+    var self=this;
+    var p=this.pmc(180,7),c=p.ctl.slice(90),a=p.atl.slice(90),f=p.form.slice(90);
+    var lo=Math.min.apply(null,c.concat(a))-5,hi=Math.max.apply(null,c.concat(a))+5;
+    var fit=Math.round(c[c.length-1]),form=Math.round(f[f.length-1]);
+    var formBars=f.map(function(v,i){var h=Math.min(28,Math.abs(v)*1.1);return {x:(i*560/90).toFixed(1),y:v>=0?175-h:175,h:Math.max(1,h).toFixed(1),c:v>=0?'#4cc283':'#5a5f6b'};});
+    var ctlY=(140-(c[c.length-1]-lo)/(hi-lo)*140+4).toFixed(1);
+    var S={swim:'#4fb3ff',bike:'#b38cff',run:'#ffd166',str:'#8a909a'};
+    var days=[['Wed',[['bike',1.5]]],['Thu',[['run',0.97]]],['Fri',[['str',0.75]]],['Sat',[['bike',3.2]]],['Sun',[['run',1.87]]],['Mon',[['swim',1.07]]],['Tue',[]]];
+    var weekBars=[],weekDays=[],tot=0,sc=170/3.5;
+    days.forEach(function(d,i){var x=i*(600/7)+16,y=180;d[1].forEach(function(s){var h=s[1]*sc;y-=h;tot+=s[1];weekBars.push({x:x,y:y.toFixed(1),h:h.toFixed(1),c:S[s[0]]});});weekDays.push({x:x+26,l:d[0]});});
+    var hm=function(h){var m=Math.round(h*60);return Math.floor(m/60)+'h '+String(m%60).padStart(2,'0');};
+    var avg=1.31,avgY=180-avg*sc;
+    var seq=this.hyp(),n=seq.length,ew=540/n,hyp=[],i0=0;
+    var SC=['#ff9f5a','#c58cff','#8fa3ff','#4e5bd6'],SY=[8,43,78,113];
+    for(var i=1;i<=n;i++){if(i===n||seq[i]!==seq[i0]){hyp.push({x:(56+i0*ew).toFixed(1),y:SY[seq[i0]],w:Math.max(2,(i-i0)*ew-1).toFixed(1),c:SC[seq[i0]]});i0=i;}}
+    var cnt=[0,0,0,0];seq.forEach(function(s){cnt[s]++;});
+    var mins=cnt.map(function(k){return k*6;}),asleep=(n-cnt[0])*6;
+    var names=['Awake','REM','Light','Deep'],order=[3,2,1,0];
+    var stages=order.map(function(k){var m=mins[k];return {name:names[k],txt:(m>=60?Math.floor(m/60)+'h '+String(m%60).padStart(2,'0'):m+'m'),style:'flex:'+m+';background:'+SC[k],dot:'background:'+SC[k]};});
+    var r=this.rng(3),hv=[];for(var j=0;j<30;j++){hv.push(58+Math.round((r()-0.5)*14+Math.sin(j/4)*2));}hv[29]=58;
+    var hl=40,hh=75,yv=function(v){return 160-(v-hl)/(hh-hl)*150;};
+    var hrvDots=hv.map(function(v,j){return {x:(j*560/29).toFixed(1),y:yv(v).toFixed(1)};});
+    var av=hv.map(function(v,j){var s=hv.slice(Math.max(0,j-6),j+1);return s.reduce(function(x,y){return x+y;},0)/s.length;});
+    var I={swim:'M2 12c2 0 2-2 4-2s2 2 4 2 2-2 4-2 2 2 4 2 2-2 4-2M2 18c2 0 2-2 4-2s2 2 4 2 2-2 4-2 2 2 4 2 2-2 4-2',bike:'M2 17.5a3.5 3.5 0 1 0 7 0a3.5 3.5 0 1 0-7 0M15 17.5a3.5 3.5 0 1 0 7 0a3.5 3.5 0 1 0-7 0M5.5 17.5 9 10h6l3.5 7.5M9 10 8 6H6M12 17.5 15 10',run:'M13 4a2 2 0 1 0 4 0a2 2 0 1 0-4 0M4 17l4 1 2.5-4.5M7 10l3-3 4 2 2 3h3M10 13.5l3 2.5-1 5',str:'M6 7v10M18 7v10M3 10v4M21 10v4M6 12h12'};
+    var acts=[['swim','Pool swim · 8×400','Mon 9 Nov','3.2 km','1:04','64','#'],['run','Long run','Sun 8 Nov','21.4 km','1:52','182','Activity.dc.html'],['bike','Endurance ride','Sat 7 Nov','96 km','3:12','168','#'],['str','Strength','Fri 6 Nov','','0:45','28','#'],['run','Tempo run · 3×10 min','Thu 5 Nov','12.1 km','0:58','96','#']].map(function(x){return {icon:I[x[0]],bg:'background:'+S[x[0]],name:x[1],when:x[2],dist:x[3],time:x[4],load:x[5],href:x[6]};});
+    return {
+      nav:this.nav('Today'),fit:fit,formTxt:(form>0?'+':'')+form,formWord:form>5?'Fresh':form>-10?'Neutral':form>-30?'Optimal':'Overreaching',
+      sleptTxt:Math.floor(asleep/60)+'h '+String(asleep%60).padStart(2,'0'),
+      ctlD:this.path(c,0,560,0,140,lo,hi),atlD:this.path(a,0,560,0,140,lo,hi),ctlY:ctlY,formBars:formBars,
+      weekBars:weekBars,weekDays:weekDays,weekTxt:hm(tot),avgY:avgY.toFixed(1),avgLblY:(avgY-6).toFixed(1),avgTxt:hm(avg),
+      hyp:hyp,stages:stages,
+      bandY:yv(66).toFixed(1),bandH:(yv(52)-yv(66)).toFixed(1),bandTopY:(yv(66)+4).toFixed(1),bandBotY:(yv(52)+4).toFixed(1),
+      hrvDots:hrvDots,hrvAvgD:this.path(av,0,560,10,150,hl,hh),
+      acts:acts
+    };
+  }
+}
+</script>
+</body>
+</html>

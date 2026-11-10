@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Health: Recovery</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0d0e13}
+*{box-sizing:border-box}
+.app{font-family:'Figtree',system-ui,sans-serif;color:#eef0f4;background:#0d0e13;display:flex;flex-wrap:wrap;min-height:100vh;font-size:14px;line-height:1.45}
+.side{flex:1 1 200px;max-width:200px;background:#0a0b0f;border-right:1px solid #22242c;padding:12px 10px;display:flex;flex-direction:column;gap:2px}
+.dom{display:flex;align-items:center;gap:9px;background:none;border:0;color:#eef0f4;font:600 14px 'Figtree',sans-serif;padding:7px 9px;margin-bottom:8px;cursor:pointer}
+.mark{width:22px;height:22px;border-radius:50%;background:#ff9f5a;flex:none}
+.grp{font-size:11.5px;font-weight:600;color:#8a909a;margin:14px 9px 4px}
+.ni{display:flex;align-items:center;gap:10px;padding:7px 9px;border-radius:8px;color:#9aa0ab;text-decoration:none;font-size:13.5px}
+.ni:hover{color:#eef0f4}
+.ni.on{background:#1d2029;color:#eef0f4;font-weight:600}
+.ni svg{width:16px;height:16px;flex:none}
+.ni.on svg{color:#ff9f5a}
+.main{flex:999 1 560px;min-width:0}
+.hdr{min-height:58px;display:flex;align-items:center;gap:12px;padding:10px 28px;border-bottom:1px solid #22242c;flex-wrap:wrap}
+.ttl{font-size:18px;font-weight:700;margin:0}
+.sync{margin-left:auto;font-size:13px;color:#9aa0ab;display:flex;align-items:center;gap:8px}
+.dot{width:8px;height:8px;border-radius:50%;background:#4cc283}
+.wrap{padding:24px 28px 56px;display:flex;flex-direction:column;gap:20px;max-width:1240px}
+.g4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.g2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
+.card{background:#181a21;border-radius:18px;padding:18px 20px;min-width:0}
+.ch{display:flex;align-items:baseline;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.h2{font-size:15px;font-weight:650;margin:0}
+.lbl{font-size:13px;color:#9aa0ab;margin:0}
+.fig{font-size:34px;font-weight:750;letter-spacing:-.02em;font-variant-numeric:tabular-nums;margin:2px 0;line-height:1.15}
+.fig small{font-size:16px;font-weight:600;color:#9aa0ab;margin-left:3px}
+.sub{font-size:13px;color:#9aa0ab;margin:0}
+.good{color:#4cc283}.bad{color:#f2675d}
+.leg{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:#9aa0ab;margin-left:auto}
+.leg i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
+.seg{display:inline-flex;background:#181a21;border-radius:999px;padding:3px;gap:2px}
+.seg button{height:28px;padding:0 12px;border:0;border-radius:999px;background:none;color:#9aa0ab;font:500 13px 'Figtree',sans-serif;cursor:pointer}
+.seg button.on{background:#23262f;color:#eef0f4;font-weight:600}
+svg.chart{width:100%;height:auto;display:block;overflow:visible}
+svg.chart text{fill:#8a909a;font:11px 'Figtree',sans-serif}
+.sig{display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:12px;align-items:center;padding:10px 4px}
+.tick{width:24px;height:24px;border-radius:50%;display:grid;place-items:center}
+@media(max-width:900px){.g4{grid-template-columns:repeat(2,minmax(0,1fr))}.g2{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:760px){.side{max-width:none;flex-basis:100%;flex-direction:row;flex-wrap:wrap;border-right:0;border-bottom:1px solid #22242c}.grp{display:none}.hdr,.wrap{padding-left:16px;padding-right:16px}}
+</style>
+</helmet>
+<div class="app">
+<nav class="side" aria-label="Health pages">
+<button class="dom" type="button"><span class="mark"></span>Health<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8a909a" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></button>
+<sc-for list="{{nav}}" as="n" hint-placeholder-count="9">
+<sc-if value="{{n.group}}" hint-placeholder-val="{{false}}"><p class="grp">{{n.label}}</p></sc-if>
+<sc-if value="{{n.on}}" hint-placeholder-val="{{false}}"><a class="ni on" href="{{n.href}}" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{n.d}}"></path></svg>{{n.label}}</a></sc-if>
+<sc-if value="{{n.off}}" hint-placeholder-val="{{true}}"><a class="ni" href="{{n.href}}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{n.d}}"></path></svg>{{n.label}}</a></sc-if>
+</sc-for>
+</nav>
+<main class="main">
+<header class="hdr">
+<h1 class="ttl">Recovery</h1>
+<div class="seg" role="group" aria-label="Period"><button type="button" aria-pressed="false">30 days</button><button type="button" class="on" aria-pressed="true">90 days</button><button type="button" aria-pressed="false">1 year</button></div>
+<span class="sync"><span class="dot"></span>Garmin synced 12 minutes ago</span>
+</header>
+<div class="wrap">
+
+<div class="g4">
+<div class="card"><p class="lbl">HRV, 7-day</p><p class="fig">58<small>ms</small></p><p class="sub good">In range 52–66</p></div>
+<div class="card"><p class="lbl">Night-to-night swing</p><p class="fig">6.2<small>%</small></p><p class="sub">Stable · 90-day 7.1%</p></div>
+<div class="card"><p class="lbl">Resting HR</p><p class="fig">46<small>bpm</small></p><p class="sub good">▼ 2 vs 7-day</p></div>
+<div class="card"><p class="lbl">Body Battery at wake</p><p class="fig">82</p><p class="sub">Charged +61 overnight</p></div>
+</div>
+
+<div class="g2" style="grid-template-columns:minmax(0,2fr) minmax(0,1fr)">
+<div class="card">
+<div class="ch"><h2 class="h2">HRV against your normal</h2><div class="leg"><span><i style="background:#2f5a43"></i>Normal range (60 days)</span><span><i style="background:#eef0f4"></i>Night</span><span><i style="background:#ff9f5a"></i>7-day</span></div></div>
+<svg class="chart" viewBox="0 0 800 300" role="img" aria-label="Nightly HRV, its 7-day average and the normal range over 90 days">
+<path d="{{bandD}}" fill="#4cc283" opacity=".13"></path>
+<sc-for list="{{dots}}" as="p" hint-placeholder-count="90"><circle cx="{{p.x}}" cy="{{p.y}}" r="2.6" fill="{{p.c}}"></circle></sc-for>
+<path d="{{avgD}}" fill="none" stroke="#ff9f5a" stroke-width="2.6"></path>
+<sc-for list="{{yt}}" as="t" hint-placeholder-count="3"><text x="796" y="{{t.y}}" text-anchor="end">{{t.l}}</text></sc-for>
+<text x="0" y="296">12 Aug</text><text x="380" y="296" text-anchor="middle">26 Sep</text><text x="760" y="296" text-anchor="end">10 Nov</text>
+</svg>
+<p class="sub" style="margin-top:6px">Below range 4 nights · all after races or travel</p>
+</div>
+<div class="card">
+<div class="ch"><h2 class="h2">Signals today</h2></div>
+<sc-for list="{{signals}}" as="s" hint-placeholder-count="5">
+<div class="sig"><span class="tick" style="{{s.bg}}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#14161c" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="{{s.icon}}"></path></svg></span><span><span style="display:block;font-weight:600">{{s.name}}</span><span class="sub">{{s.note}}</span></span><span style="font-variant-numeric:tabular-nums;font-weight:600">{{s.v}}</span></div>
+</sc-for>
+<p class="sub" style="margin-top:8px">4 of 5 green · ready for intensity</p>
+</div>
+</div>
+
+<div class="g2">
+<div class="card">
+<div class="ch"><h2 class="h2">Resting heart rate</h2><span class="sub">90-day 47.3</span></div>
+<svg class="chart" viewBox="0 0 600 200" role="img" aria-label="Resting heart rate over 90 days">
+<path d="{{rhrD}}" fill="none" stroke="#9aa0ab" stroke-width="1.4" opacity=".6"></path>
+<path d="{{rhrAvgD}}" fill="none" stroke="#f2675d" stroke-width="2.6"></path>
+<text x="600" y="14" text-anchor="end">52</text><text x="600" y="186" text-anchor="end">42</text>
+</svg>
+</div>
+<div class="card">
+<div class="ch"><h2 class="h2">Body Battery, 30 days</h2><div class="leg"><span><i style="background:#4cc283"></i>Charged</span><span><i style="background:#5a5f6b"></i>Drained</span></div></div>
+<svg class="chart" viewBox="0 0 600 200" role="img" aria-label="Body Battery charged and drained per day">
+<line x1="0" x2="600" y1="100" y2="100" stroke="#2c2f39"></line>
+<sc-for list="{{bb}}" as="b" hint-placeholder-count="60"><rect x="{{b.x}}" y="{{b.y}}" width="12" height="{{b.h}}" rx="3" fill="{{b.c}}"></rect></sc-for>
+<text x="0" y="196">11 Oct</text><text x="600" y="196" text-anchor="end">10 Nov</text>
+</svg>
+</div>
+</div>
+
+<div class="card">
+<div class="ch"><h2 class="h2">Stress by day</h2><span class="sub">avg 27 · high 41 min/day</span><div class="leg"><span><i style="background:#4fb3ff"></i>Rest</span><span><i style="background:#ffd166"></i>Low</span><span><i style="background:#ff9f5a"></i>Medium</span><span><i style="background:#f2675d"></i>High</span></div></div>
+<svg class="chart" viewBox="0 0 1000 170" role="img" aria-label="Minutes of rest, low, medium and high stress per day">
+<sc-for list="{{stress}}" as="b" hint-placeholder-count="120"><rect x="{{b.x}}" y="{{b.y}}" width="24" height="{{b.h}}" fill="{{b.c}}"></rect></sc-for>
+<text x="0" y="166">11 Oct</text><text x="1000" y="166" text-anchor="end">10 Nov</text>
+</svg>
+</div>
+
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1400}}'>
+class Component extends DCLogic {
+  rng(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+  path(v,x0,W,top,H,lo,hi){var n=v.length;return v.map(function(y,i){return (i?'L':'M')+(x0+i*W/(n-1)).toFixed(1)+' '+(top+H-(y-lo)/(hi-lo)*H).toFixed(1);}).join(' ');}
+  nav(active){
+    var I={Today:'M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4M8 12a4 4 0 1 0 8 0a4 4 0 1 0-8 0',Activities:'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01',Training:'M22 7l-8.5 8.5-5-5L2 17M16 7h6v6',Performance:'M13 2 3 14h9l-1 8 10-12h-9l1-8z',Recovery:'M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2-1.5-1.5-2.7-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7z',Sleep:'M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z',Body:'M16 21v-2a4 4 0 0 0-8 0v2M8 7a4 4 0 1 0 8 0a4 4 0 1 0-8 0',Garmin:'M12 9v3l1.5 1.5M16.5 6.5 16 2H8l-.5 4.5M7.5 17.5 8 22h8l.5-4.5M6 12a6 6 0 1 0 12 0a6 6 0 1 0-12 0'};
+    var H={Today:'Main.dc.html',Activities:'Activity.dc.html',Training:'Training.dc.html',Performance:'Performance.dc.html',Recovery:'Recovery.dc.html',Sleep:'Sleep.dc.html',Body:'#',Garmin:'#'};
+    var items=['Today','Activities','#Analyse','Training','Performance','Recovery','Sleep','Body','#Sources','Garmin'];
+    return items.map(function(k){if(k[0]==='#')return {group:true,on:false,off:false,label:k.slice(1)};return {group:false,on:k===active,off:k!==active,label:k,d:I[k],href:H[k]};});
+  }
+  renderVals(){
+    var r=this.rng(3),N=90,hv=[];
+    for(var i=0;i<N;i++){var v=54+i*0.05+Math.sin(i/5)*2.5+(r()-0.5)*10;if(i===23||i===24||i===61||i===62)v-=13;hv.push(v);}
+    hv[N-1]=58;
+    var lo=30,hi=80,y=function(v){return 270-(v-lo)/(hi-lo)*260;},x=function(i){return i*760/(N-1);};
+    var avg=hv.map(function(v,i){var s=hv.slice(Math.max(0,i-6),i+1);return s.reduce(function(a,b){return a+b;},0)/s.length;});
+    var up=[],dn=[];for(var i2=0;i2<N;i2++){var s=hv.slice(Math.max(0,i2-59),i2+1),m=s.reduce(function(a,b){return a+b;},0)/s.length,sd=Math.sqrt(s.reduce(function(a,b){return a+(b-m)*(b-m);},0)/s.length);up.push([x(i2),y(m+sd*0.8)]);dn.push([x(i2),y(m-sd*0.8)]);}
+    var bandD='M'+up.map(function(p){return p[0].toFixed(1)+' '+p[1].toFixed(1);}).join(' L')+' L'+dn.reverse().map(function(p){return p[0].toFixed(1)+' '+p[1].toFixed(1);}).join(' L')+' Z';
+    dn.reverse();
+    var dots=hv.map(function(v,i){var below=y(v)>dn[i][1];return {x:x(i).toFixed(1),y:y(v).toFixed(1),c:below?'#f2675d':'#eef0f4'};});
+    var yt=[40,60,80].map(function(t){return {y:(y(t)+4).toFixed(1),l:t+' ms'};});
+    var ok='M5 12l5 5L20 7',warn='M12 6v7M12 18h.01';
+    var signals=[['HRV','58 vs 52–66 normal','In range',1],['Resting HR','46 vs 48 baseline','▼ 2',1],['Sleep','7h 06 of 8h 10 need','87%',0],['Form','Training load balance','+4',1],['Body Battery','At wake','82',1]].map(function(s){return {name:s[0],note:s[1],v:s[2],icon:s[3]?ok:warn,bg:'background:'+(s[3]?'#4cc283':'#ffd166')};});
+    var rr=this.rng(8),rhr=[];for(var k=0;k<N;k++){rhr.push(48.5-k*0.03+(r()-0.5)*3+((k===24||k===62)?4:0));}
+    var ra=rhr.map(function(v,i){var s=rhr.slice(Math.max(0,i-6),i+1);return s.reduce(function(a,b){return a+b;},0)/s.length;});
+    var rb=this.rng(12),bb=[];for(var d=0;d<30;d++){var c=40+rb()*35,dr=45+rb()*30;bb.push({x:(d*20+4).toFixed(1),y:(100-c*1.1).toFixed(1),h:(c*1.1).toFixed(1),c:'#4cc283'});bb.push({x:(d*20+4).toFixed(1),y:'100',h:(dr*1.1).toFixed(1),c:'#5a5f6b'});}
+    var rs=this.rng(14),stress=[];for(var d2=0;d2<30;d2++){var parts=[[380+rs()*120,'#4fb3ff'],[300+rs()*100,'#ffd166'],[90+rs()*80,'#ff9f5a'],[20+rs()*60,'#f2675d']],yy=150;parts.forEach(function(p){var hh=p[0]*0.16;yy-=hh;stress.push({x:(d2*33.3+4).toFixed(1),y:yy.toFixed(1),h:hh.toFixed(1),c:p[1]});});}
+    return {nav:this.nav('Recovery'),bandD:bandD,dots:dots,avgD:this.path(avg,0,760,10,260,lo,hi),yt:yt,signals:signals,
+      rhrD:this.path(rhr,0,600,10,170,42,52),rhrAvgD:this.path(ra,0,600,10,170,42,52),bb:bb,stress:stress};
+  }
+}
+</script>
+</body>
+</html>

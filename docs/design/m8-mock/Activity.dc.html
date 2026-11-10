@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Health: Long run</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0d0e13}
+*{box-sizing:border-box}
+.app{font-family:'Figtree',system-ui,sans-serif;color:#eef0f4;background:#0d0e13;display:flex;flex-wrap:wrap;min-height:100vh;font-size:14px;line-height:1.45}
+.side{flex:1 1 200px;max-width:200px;background:#0a0b0f;border-right:1px solid #22242c;padding:12px 10px;display:flex;flex-direction:column;gap:2px}
+.dom{display:flex;align-items:center;gap:9px;background:none;border:0;color:#eef0f4;font:600 14px 'Figtree',sans-serif;padding:7px 9px;margin-bottom:8px;cursor:pointer}
+.mark{width:22px;height:22px;border-radius:50%;background:#ff9f5a;flex:none}
+.grp{font-size:11.5px;font-weight:600;color:#8a909a;margin:14px 9px 4px}
+.ni{display:flex;align-items:center;gap:10px;padding:7px 9px;border-radius:8px;color:#9aa0ab;text-decoration:none;font-size:13.5px}
+.ni:hover{color:#eef0f4}
+.ni.on{background:#1d2029;color:#eef0f4;font-weight:600}
+.ni svg{width:16px;height:16px;flex:none}
+.ni.on svg{color:#ff9f5a}
+.main{flex:999 1 560px;min-width:0}
+.hdr{min-height:58px;display:flex;align-items:center;gap:12px;padding:10px 28px;border-bottom:1px solid #22242c;flex-wrap:wrap}
+.ttl{font-size:18px;font-weight:700;margin:0}
+.wrap{padding:24px 28px 56px;display:flex;flex-direction:column;gap:20px;max-width:1240px}
+.g6{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px}
+.g2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
+.g3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.card{background:#181a21;border-radius:18px;padding:18px 20px;min-width:0}
+.mini{background:#23262f;border-radius:14px;padding:12px 14px}
+.ch{display:flex;align-items:baseline;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.h2{font-size:15px;font-weight:650;margin:0}
+.lbl{font-size:13px;color:#9aa0ab;margin:0}
+.fig{font-size:28px;font-weight:750;letter-spacing:-.02em;font-variant-numeric:tabular-nums;margin:2px 0;line-height:1.15}
+.fig small{font-size:14px;font-weight:600;color:#9aa0ab;margin-left:3px}
+.fs{font-size:20px;font-weight:700;font-variant-numeric:tabular-nums;margin:2px 0}
+.fs small{font-size:12px;font-weight:600;color:#9aa0ab;margin-left:3px}
+.sub{font-size:13px;color:#9aa0ab;margin:0}
+.good{color:#4cc283}.bad{color:#f2675d}
+.leg{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:#9aa0ab;margin-left:auto}
+.leg i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
+.pill{height:36px;padding:0 14px;border-radius:999px;border:0;background:#181a21;color:#eef0f4;font:600 13.5px 'Figtree',sans-serif;display:inline-flex;align-items:center;gap:8px;text-decoration:none;cursor:pointer}
+svg.chart{width:100%;height:auto;display:block;overflow:visible}
+svg.chart text{fill:#8a909a;font:11px 'Figtree',sans-serif}
+.zrow{display:grid;grid-template-columns:34px minmax(0,1fr) 92px;gap:12px;align-items:center;padding:6px 0;font-size:13px;font-variant-numeric:tabular-nums}
+.ztrack{height:12px;background:#23262f;border-radius:999px;overflow:hidden}
+.half{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;font-size:13.5px;font-variant-numeric:tabular-nums;padding:8px 0}
+.half span:first-child{color:#9aa0ab}
+@media(max-width:1100px){.g6{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:900px){.g2{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:760px){.side{max-width:none;flex-basis:100%;flex-direction:row;flex-wrap:wrap;border-right:0;border-bottom:1px solid #22242c}.grp{display:none}.hdr,.wrap{padding-left:16px;padding-right:16px}.g6,.g3{grid-template-columns:repeat(2,minmax(0,1fr))}}
+</style>
+</helmet>
+<div class="app">
+<nav class="side" aria-label="Health pages">
+<button class="dom" type="button"><span class="mark"></span>Health<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8a909a" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></button>
+<sc-for list="{{nav}}" as="n" hint-placeholder-count="9">
+<sc-if value="{{n.group}}" hint-placeholder-val="{{false}}"><p class="grp">{{n.label}}</p></sc-if>
+<sc-if value="{{n.on}}" hint-placeholder-val="{{false}}"><a class="ni on" href="{{n.href}}" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{n.d}}"></path></svg>{{n.label}}</a></sc-if>
+<sc-if value="{{n.off}}" hint-placeholder-val="{{true}}"><a class="ni" href="{{n.href}}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{n.d}}"></path></svg>{{n.label}}</a></sc-if>
+</sc-for>
+</nav>
+<main class="main">
+<header class="hdr">
+<a class="pill" href="Main.dc.html" aria-label="Back to activities" style="width:36px;padding:0;justify-content:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m15 18-6-6 6-6"></path></svg></a>
+<span style="width:28px;height:28px;border-radius:50%;background:#ffd166;display:grid;place-items:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#14161c" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M13 4a2 2 0 1 0 4 0a2 2 0 1 0-4 0M4 17l4 1 2.5-4.5M7 10l3-3 4 2 2 3h3M10 13.5l3 2.5-1 5"></path></svg></span>
+<h1 class="ttl">Long run</h1>
+<span class="sub">Sun 8 Nov · 08:12</span>
+<button class="pill" type="button" style="margin-left:auto">Download .FIT</button>
+</header>
+<div class="wrap">
+
+<div class="g6">
+<div class="card"><p class="lbl">Distance</p><p class="fig">21.4<small>km</small></p></div>
+<div class="card"><p class="lbl">Time</p><p class="fig">1:52:10</p></div>
+<div class="card"><p class="lbl">Pace</p><p class="fig">5:14<small>/km</small></p><p class="sub">Graded 5:09</p></div>
+<div class="card"><p class="lbl">Heart rate</p><p class="fig">148<small>bpm</small></p><p class="sub">Max 167</p></div>
+<div class="card"><p class="lbl">Load</p><p class="fig">182</p><p class="sub">rTSS 141</p></div>
+<div class="card"><p class="lbl">Training effect</p><p class="fig">3.8</p><p class="sub">Aerobic · 0.9 anaerobic</p></div>
+</div>
+
+<div class="card">
+<div class="ch"><h2 class="h2">Through the run</h2><div class="leg"><span>by distance</span></div></div>
+<svg class="chart" viewBox="0 0 1000 470" role="img" aria-label="Pace, heart rate, elevation and cadence over distance">
+<sc-for list="{{tracks}}" as="t" hint-placeholder-count="4">
+<text x="0" y="{{t.ly}}" style="font-weight:600">{{t.name}}</text>
+<text x="1000" y="{{t.ly}}" text-anchor="end">{{t.avg}}</text>
+<path d="{{t.area}}" fill="{{t.c}}" opacity=".12"></path>
+<path d="{{t.d}}" fill="none" stroke="{{t.c}}" stroke-width="1.8"></path>
+</sc-for>
+<sc-for list="{{kms}}" as="k" hint-placeholder-count="5"><text x="{{k.x}}" y="466" text-anchor="middle">{{k.l}}</text></sc-for>
+</svg>
+</div>
+
+<div class="g2">
+<div class="card">
+<div class="ch"><h2 class="h2">Splits</h2><div class="leg"><span><i style="background:#ffd166"></i>Pace</span><span><i style="background:#f2675d"></i>Heart rate</span></div></div>
+<svg class="chart" viewBox="0 0 600 230" role="img" aria-label="Pace and heart rate per kilometre">
+<sc-for list="{{splits}}" as="s" hint-placeholder-count="21"><rect x="{{s.x}}" y="{{s.y}}" width="20" height="{{s.h}}" rx="3" fill="#ffd166" opacity=".85"></rect><circle cx="{{s.cx}}" cy="{{s.hy}}" r="3" fill="#f2675d"></circle></sc-for>
+<text x="0" y="226">1</text><text x="290" y="226" text-anchor="middle">11</text><text x="598" y="226" text-anchor="end">21 km</text>
+</svg>
+<p class="sub" style="margin-top:8px">Fastest km 4:58 · slowest 5:31 (km 14, +38 m)</p>
+</div>
+<div class="card">
+<div class="ch"><h2 class="h2">Route</h2><span class="sub">+212 m · −209 m</span></div>
+<svg class="chart" viewBox="0 0 600 260" role="img" aria-label="Route map">
+<rect x="0" y="0" width="600" height="260" rx="14" fill="#23262f"></rect>
+<path d="M40 210 C120 230 160 150 230 160 S330 230 380 180 S470 60 540 70 S560 160 500 190 S380 120 300 110 S140 60 90 110 S30 190 40 210" fill="none" stroke="#2f323d" stroke-width="10" stroke-linecap="round"></path>
+<path d="{{route}}" fill="none" stroke="#ff9f5a" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"></path>
+<circle cx="40" cy="210" r="6" fill="#4cc283"></circle>
+</svg>
+</div>
+</div>
+
+<div class="g2">
+<div class="card">
+<div class="ch"><h2 class="h2">Aerobic durability</h2></div>
+<div class="g3">
+<div class="mini"><p class="lbl">Decoupling</p><p class="fs good">3.1<small>%</small></p><p class="sub">Under 5 is steady</p></div>
+<div class="mini"><p class="lbl">Efficiency</p><p class="fs">1.25</p><p class="sub good">▲ vs 1.19 (90 days)</p></div>
+<div class="mini"><p class="lbl">Drift</p><p class="fs">+6<small>bpm</small></p><p class="sub">at even pace</p></div>
+</div>
+<div class="half" style="margin-top:10px"><span></span><span class="sub">Pace</span><span class="sub">HR</span><span class="sub">Efficiency</span></div>
+<div class="half"><span>First half</span><span>5:15</span><span>145</span><span>1.27</span></div>
+<div class="half"><span>Second half</span><span>5:13</span><span>151</span><span>1.23</span></div>
+</div>
+<div class="card">
+<div class="ch"><h2 class="h2">Heart-rate zones</h2><span class="sub">LTHR 171</span></div>
+<sc-for list="{{zones}}" as="z" hint-placeholder-count="5"><div class="zrow"><span style="font-weight:600">{{z.n}}</span><div class="ztrack"><div style="{{z.style}}"></div></div><span style="text-align:right;color:#9aa0ab">{{z.t}}</span></div></sc-for>
+</div>
+</div>
+
+<div class="card">
+<div class="ch"><h2 class="h2">Running form</h2><span class="sub">vs 90-day average</span></div>
+<div class="g6">
+<div class="mini"><p class="lbl">Cadence</p><p class="fs">176<small>spm</small></p><p class="sub">± 0</p></div>
+<div class="mini"><p class="lbl">Stride</p><p class="fs">1.09<small>m</small></p><p class="sub good">▲ 0.02</p></div>
+<div class="mini"><p class="lbl">Ground contact</p><p class="fs">238<small>ms</small></p><p class="sub good">▼ 4</p></div>
+<div class="mini"><p class="lbl">Vertical oscillation</p><p class="fs">8.4<small>cm</small></p><p class="sub">± 0.1</p></div>
+<div class="mini"><p class="lbl">Vertical ratio</p><p class="fs">7.6<small>%</small></p><p class="sub good">▼ 0.2</p></div>
+<div class="mini"><p class="lbl">Power</p><p class="fs">268<small>W</small></p><p class="sub">3.7 W/kg</p></div>
+</div>
+</div>
+
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1250}}'>
+class Component extends DCLogic {
+  rng(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+  nav(active){
+    var I={Today:'M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4M8 12a4 4 0 1 0 8 0a4 4 0 1 0-8 0',Activities:'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01',Training:'M22 7l-8.5 8.5-5-5L2 17M16 7h6v6',Performance:'M13 2 3 14h9l-1 8 10-12h-9l1-8z',Recovery:'M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2-1.5-1.5-2.7-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7z',Sleep:'M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z',Body:'M16 21v-2a4 4 0 0 0-8 0v2M8 7a4 4 0 1 0 8 0a4 4 0 1 0-8 0',Garmin:'M12 9v3l1.5 1.5M16.5 6.5 16 2H8l-.5 4.5M7.5 17.5 8 22h8l.5-4.5M6 12a6 6 0 1 0 12 0a6 6 0 1 0-12 0'};
+    var H={Today:'Main.dc.html',Activities:'Activity.dc.html',Training:'Training.dc.html',Performance:'Performance.dc.html',Recovery:'Recovery.dc.html',Sleep:'Sleep.dc.html',Body:'#',Garmin:'#'};
+    var items=['Today','Activities','#Analyse','Training','Performance','Recovery','Sleep','Body','#Sources','Garmin'];
+    return items.map(function(k){if(k[0]==='#')return {group:true,on:false,off:false,label:k.slice(1)};return {group:false,on:k===active,off:k!==active,label:k,d:I[k],href:H[k]};});
+  }
+  renderVals(){
+    var r=this.rng(5),N=214,el=[],hr=[],pace=[],cad=[],e=40;
+    for(var i=0;i<N;i++){var x=i/N;e+=Math.sin(x*18)*1.6+Math.sin(x*5)*1.1+(r()-0.5)*0.8;el.push(e);}
+    for(var i=0;i<N;i++){var x=i/N,g=i?el[i]-el[i-1]:0;pace.push(314+g*9+(r()-0.5)*10+Math.sin(x*40)*3);hr.push(138+x*14+g*1.6+(r()-0.5)*3+(i<8?(i-8)*2:0));cad.push(176+(r()-0.5)*4-g*0.8);}
+    var mk=function(v,top,H,lo,hi,inv){var pts=v.map(function(y,i){var t=(y-lo)/(hi-lo);if(inv)t=1-t;return [(i*1000/(N-1)).toFixed(1),(top+H-t*H).toFixed(1)];});var d=pts.map(function(p,i){return (i?'L':'M')+p[0]+' '+p[1];}).join(' ');return {d:d,area:d+' L1000 '+(top+H)+' L0 '+(top+H)+' Z'};};
+    var mm=function(v){return [Math.min.apply(null,v),Math.max.apply(null,v)];};
+    var defs=[['Pace','#ffd166',pace,true,'avg 5:14 /km'],['Heart rate','#f2675d',hr,false,'avg 148 bpm'],['Elevation','#9aa0ab',el,false,'+212 m'],['Cadence','#b38cff',cad,false,'avg 176 spm']];
+    var tracks=defs.map(function(d,j){var b=mm(d[2]),top=j*112+22,o=mk(d[2],top,80,b[0]-(b[1]-b[0])*0.1,b[1]+(b[1]-b[0])*0.1,d[3]);return {name:d[0],c:d[1],avg:d[4],ly:top-6,d:o.d,area:o.area};});
+    var kms=[0,5,10,15,20].map(function(k){return {x:(k/21.4*1000).toFixed(0),l:k?k+' km':'0'};});
+    var splits=[];for(var k=0;k<21;k++){var sl=pace.slice(k*10,k*10+10),p=sl.reduce(function(a,b){return a+b;},0)/sl.length,hs=hr.slice(k*10,k*10+10),h=hs.reduce(function(a,b){return a+b;},0)/hs.length;var bh=(360-p)*2.6;splits.push({x:(k*28.4+2).toFixed(1),y:(205-bh).toFixed(1),h:bh.toFixed(1),cx:(k*28.4+12).toFixed(1),hy:(205-(h-120)*3.4).toFixed(1)});}
+    var route=[],cx=[[40,210],[120,230],[160,150],[230,160],[300,170],[330,230],[380,180],[430,130],[470,60],[540,70],[580,80],[560,160],[500,190],[440,220],[380,120],[300,110],[220,100],[140,60],[90,110],[50,150],[30,190],[40,210]];
+    var d='M'+cx[0][0]+' '+cx[0][1];for(var q=1;q<cx.length;q++){d+=' L'+cx[q][0]+' '+cx[q][1];}
+    var zones=[['Z1','5m',4],['Z2','64m',57],['Z3','35m',31],['Z4','8m',8],['Z5','0m',0]].map(function(z,i){var col=['#4fb3ff','#4cc283','#ffd166','#ff9f5a','#f2675d'][i];return {n:z[0],t:z[1]+' · '+z[2]+'%',style:'height:100%;width:'+z[2]+'%;background:'+col+';border-radius:999px'};});
+    return {nav:this.nav('Activities'),tracks:tracks,kms:kms,splits:splits,route:d,zones:zones};
+  }
+}
+</script>
+</body>
+</html>

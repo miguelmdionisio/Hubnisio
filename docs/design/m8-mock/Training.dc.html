@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Health: Training</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0d0e13}
+*{box-sizing:border-box}
+.app{font-family:'Figtree',system-ui,sans-serif;color:#eef0f4;background:#0d0e13;display:flex;flex-wrap:wrap;min-height:100vh;font-size:14px;line-height:1.45}
+.side{flex:1 1 200px;max-width:200px;background:#0a0b0f;border-right:1px solid #22242c;padding:12px 10px;display:flex;flex-direction:column;gap:2px}
+.dom{display:flex;align-items:center;gap:9px;background:none;border:0;color:#eef0f4;font:600 14px 'Figtree',sans-serif;padding:7px 9px;margin-bottom:8px;cursor:pointer}
+.mark{width:22px;height:22px;border-radius:50%;background:#ff9f5a;flex:none}
+.grp{font-size:11.5px;font-weight:600;color:#8a909a;margin:14px 9px 4px}
+.ni{display:flex;align-items:center;gap:10px;padding:7px 9px;border-radius:8px;color:#9aa0ab;text-decoration:none;font-size:13.5px}
+.ni:hover{color:#eef0f4}
+.ni.on{background:#1d2029;color:#eef0f4;font-weight:600}
+.ni svg{width:16px;height:16px;flex:none}
+.ni.on svg{color:#ff9f5a}
+.main{flex:999 1 560px;min-width:0}
+.hdr{min-height:58px;display:flex;align-items:center;gap:12px;padding:10px 28px;border-bottom:1px solid #22242c;flex-wrap:wrap}
+.ttl{font-size:18px;font-weight:700;margin:0}
+.sync{margin-left:auto;font-size:13px;color:#9aa0ab;display:flex;align-items:center;gap:8px}
+.dot{width:8px;height:8px;border-radius:50%;background:#4cc283}
+.wrap{padding:24px 28px 56px;display:flex;flex-direction:column;gap:20px;max-width:1240px}
+.g4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.g2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
+.card{background:#181a21;border-radius:18px;padding:18px 20px;min-width:0}
+.ch{display:flex;align-items:baseline;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.h2{font-size:15px;font-weight:650;margin:0}
+.lbl{font-size:13px;color:#9aa0ab;margin:0}
+.fig{font-size:34px;font-weight:750;letter-spacing:-.02em;font-variant-numeric:tabular-nums;margin:2px 0;line-height:1.15}
+.fig small{font-size:16px;font-weight:600;color:#9aa0ab;margin-left:3px}
+.sub{font-size:13px;color:#9aa0ab;margin:0}
+.good{color:#4cc283}.bad{color:#f2675d}
+.leg{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:#9aa0ab;margin-left:auto}
+.leg i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
+.seg{display:inline-flex;background:#181a21;border-radius:999px;padding:3px;gap:2px}
+.seg button{height:28px;padding:0 12px;border:0;border-radius:999px;background:none;color:#9aa0ab;font:500 13px 'Figtree',sans-serif;cursor:pointer}
+.seg button.on{background:#23262f;color:#eef0f4;font-weight:600}
+svg.chart{width:100%;height:auto;display:block;overflow:visible}
+svg.chart text{fill:#8a909a;font:11px 'Figtree',sans-serif}
+.bar{display:flex;height:12px;border-radius:999px;overflow:hidden;gap:2px}
+.irow{display:grid;grid-template-columns:70px minmax(0,1fr) 110px;gap:12px;align-items:center;padding:8px 0;font-size:13.5px}
+.tw{overflow-x:auto}
+table.t{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:13.5px;min-width:560px}
+table.t th{font-weight:500;color:#8a909a;text-align:right;padding:6px 10px;font-size:12px}
+table.t td{padding:9px 10px;text-align:right}
+table.t th:first-child,table.t td:first-child{text-align:left}
+table.t tr.cur td{color:#9aa0ab}
+@media(max-width:900px){.g4{grid-template-columns:repeat(2,minmax(0,1fr))}.g2{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:760px){.side{max-width:none;flex-basis:100%;flex-direction:row;flex-wrap:wrap;border-right:0;border-bottom:1px solid #22242c}.grp{display:none}.hdr,.wrap{padding-left:16px;padding-right:16px}}
+</style>
+</helmet>
+<div class="app">
+<nav class="side" aria-label="Health pages">
+<button class="dom" type="button"><span class="mark"></span>Health<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8a909a" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></button>
+<sc-for list="{{nav}}" as="n" hint-placeholder-count="9">
+<sc-if value="{{n.group}}" hint-placeholder-val="{{false}}"><p class="grp">{{n.label}}</p></sc-if>
+<sc-if value="{{n.on}}" hint-placeholder-val="{{false}}"><a class="ni on" href="{{n.href}}" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{n.d}}"></path></svg>{{n.label}}</a></sc-if>
+<sc-if value="{{n.off}}" hint-placeholder-val="{{true}}"><a class="ni" href="{{n.href}}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{n.d}}"></path></svg>{{n.label}}</a></sc-if>
+</sc-for>
+</nav>
+<main class="main">
+<header class="hdr">
+<h1 class="ttl">Training</h1>
+<div class="seg" role="group" aria-label="Period"><button type="button" aria-pressed="false">90 days</button><button type="button" class="on" aria-pressed="true">6 months</button><button type="button" aria-pressed="false">1 year</button><button type="button" aria-pressed="false">All</button></div>
+<span class="sync"><span class="dot"></span>Garmin synced 12 minutes ago</span>
+</header>
+<div class="wrap">
+
+<div class="g4">
+<div class="card"><p class="lbl">Fitness</p><p class="fig">{{fit}}</p><p class="sub good">▲ {{fitUp}} in 6 weeks</p></div>
+<div class="card"><p class="lbl">Fatigue</p><p class="fig">{{fat}}</p><p class="sub">7-day load</p></div>
+<div class="card"><p class="lbl">Form</p><p class="fig">{{formTxt}}</p><p class="sub">{{formWord}}</p></div>
+<div class="card"><p class="lbl">Ramp</p><p class="fig">+{{ramp}}<small>/ week</small></p><p class="sub">Safe under 6</p></div>
+</div>
+
+<div class="card">
+<div class="ch"><h2 class="h2">Fitness, fatigue and form</h2><div class="leg"><span><i style="background:#ff9f5a"></i>Fitness (42-day)</span><span><i style="background:#9aa0ab"></i>Fatigue (7-day)</span><span><i style="background:#eef0f4"></i>Form</span></div></div>
+<svg class="chart" viewBox="0 0 1000 330" role="img" aria-label="Fitness, fatigue and form over six months">
+<sc-for list="{{loadBars}}" as="b" hint-placeholder-count="180"><rect x="{{b.x}}" y="{{b.y}}" width="3" height="{{b.h}}" fill="#2a2d37"></rect></sc-for>
+<path d="{{atlD}}" fill="none" stroke="#9aa0ab" stroke-width="1.5" opacity=".75"></path>
+<path d="{{ctlD}}" fill="none" stroke="#ff9f5a" stroke-width="3"></path>
+<text x="948" y="{{ctlY}}">Fitness {{fit}}</text>
+<rect x="0" y="{{zFresh}}" width="940" height="{{zFreshH}}" fill="#4fb3ff" opacity=".08"></rect>
+<rect x="0" y="{{zOpt}}" width="940" height="{{zOptH}}" fill="#4cc283" opacity=".1"></rect>
+<rect x="0" y="{{zRisk}}" width="940" height="{{zRiskH}}" fill="#f2675d" opacity=".1"></rect>
+<line x1="0" x2="940" y1="{{zero}}" y2="{{zero}}" stroke="#3a3d48" stroke-dasharray="3 4"></line>
+<path d="{{formD}}" fill="none" stroke="#eef0f4" stroke-width="2"></path>
+<text x="948" y="{{lFresh}}">Fresh</text><text x="948" y="{{lZero}}">0</text><text x="948" y="{{lOpt}}">Optimal</text><text x="948" y="{{lRisk}}">High risk</text>
+<sc-for list="{{months}}" as="m" hint-placeholder-count="6"><text x="{{m.x}}" y="326">{{m.l}}</text></sc-for>
+</svg>
+</div>
+
+<div class="g2">
+<div class="card">
+<div class="ch"><h2 class="h2">Hours per week</h2><span class="sub">avg {{wkAvg}}</span><div class="leg"><span><i style="background:#4fb3ff"></i>Swim</span><span><i style="background:#b38cff"></i>Bike</span><span><i style="background:#ffd166"></i>Run</span><span><i style="background:#8a909a"></i>Strength</span></div></div>
+<svg class="chart" viewBox="0 0 600 230" role="img" aria-label="Hours per week by sport, 16 weeks">
+<line x1="0" x2="600" y1="{{wkAvgY}}" y2="{{wkAvgY}}" stroke="#8a909a" stroke-dasharray="4 4"></line>
+<sc-for list="{{wkBars}}" as="b" hint-placeholder-count="50"><rect x="{{b.x}}" y="{{b.y}}" width="26" height="{{b.h}}" rx="2" fill="{{b.c}}"></rect></sc-for>
+<text x="0" y="226">Jul 20</text><text x="600" y="226" text-anchor="end">Nov 9</text>
+</svg>
+</div>
+<div class="card">
+<div class="ch"><h2 class="h2">Intensity</h2><span class="sub">time in heart-rate zones</span><div class="leg"><span><i style="background:#4cc283"></i>Z1–2</span><span><i style="background:#ffd166"></i>Z3</span><span><i style="background:#f2675d"></i>Z4–5</span></div></div>
+<sc-for list="{{intens}}" as="r" hint-placeholder-count="4">
+<div class="irow"><span style="font-weight:600">{{r.name}}</span><div class="bar"><span style="{{r.a}}"></span><span style="{{r.b}}"></span><span style="{{r.c}}"></span></div><span style="color:#9aa0ab;font-variant-numeric:tabular-nums;text-align:right">{{r.txt}}</span></div>
+</sc-for>
+<p class="sub" style="margin-top:10px">Polarised · 80 / 20 target</p>
+</div>
+</div>
+
+<div class="card">
+<div class="ch"><h2 class="h2">Months</h2></div>
+<div class="tw"><table class="t">
+<thead><tr><th>Month</th><th>Swim</th><th>Bike</th><th>Run</th><th>Hours</th><th>Load</th><th>Climb</th><th>Sessions</th></tr></thead>
+<tbody>
+<sc-for list="{{monthsT}}" as="m" hint-placeholder-count="6"><tr><td>{{m.0}}</td><td>{{m.1}}</td><td>{{m.2}}</td><td>{{m.3}}</td><td>{{m.4}}</td><td>{{m.5}}</td><td>{{m.6}}</td><td>{{m.7}}</td></tr></sc-for>
+</tbody>
+</table></div>
+</div>
+
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1250}}'>
+class Component extends DCLogic {
+  rng(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+  path(v,x0,W,top,H,lo,hi){var n=v.length;return v.map(function(y,i){return (i?'L':'M')+(x0+i*W/(n-1)).toFixed(1)+' '+(top+H-(y-lo)/(hi-lo)*H).toFixed(1);}).join(' ');}
+  nav(active){
+    var I={Today:'M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4M8 12a4 4 0 1 0 8 0a4 4 0 1 0-8 0',Activities:'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01',Training:'M22 7l-8.5 8.5-5-5L2 17M16 7h6v6',Performance:'M13 2 3 14h9l-1 8 10-12h-9l1-8z',Recovery:'M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2-1.5-1.5-2.7-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7z',Sleep:'M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z',Body:'M16 21v-2a4 4 0 0 0-8 0v2M8 7a4 4 0 1 0 8 0a4 4 0 1 0-8 0',Garmin:'M12 9v3l1.5 1.5M16.5 6.5 16 2H8l-.5 4.5M7.5 17.5 8 22h8l.5-4.5M6 12a6 6 0 1 0 12 0a6 6 0 1 0-12 0'};
+    var H={Today:'Main.dc.html',Activities:'Activity.dc.html',Training:'Training.dc.html',Performance:'Performance.dc.html',Recovery:'Recovery.dc.html',Sleep:'Sleep.dc.html',Body:'#',Garmin:'#'};
+    var items=['Today','Activities','#Analyse','Training','Performance','Recovery','Sleep','Body','#Sources','Garmin'];
+    return items.map(function(k){if(k[0]==='#')return {group:true,on:false,off:false,label:k.slice(1)};return {group:false,on:k===active,off:k!==active,label:k,d:I[k],href:H[k]};});
+  }
+  renderVals(){
+    var r=this.rng(7),ctl=50,atl=52,C=[],A=[],F=[],L=[],n=360;
+    for(var i=0;i<n;i++){var dow=i%7;var base=[45,95,60,115,0,185,75][dow];var load=dow===4?0:base*(0.7+0.6*r())*(1+i/n*0.3);F.push(ctl-atl);L.push(load);ctl+=(load-ctl)/42;atl+=(load-atl)/7;C.push(ctl);A.push(atl);}
+    var c=C.slice(180),a=A.slice(180),f=F.slice(180),l=L.slice(180),m=c.length;
+    var lo=Math.min.apply(null,c.concat(a))-8,hi=Math.max.apply(null,c.concat(a))+8;
+    var fit=Math.round(c[m-1]),fat=Math.round(a[m-1]),form=Math.round(f[m-1]);
+    var fy=function(v){return 255-v*1.6;};
+    var loadBars=l.map(function(v,i){var h=v*0.45;return {x:(i*940/m).toFixed(1),y:(180-h).toFixed(1),h:h.toFixed(1)};});
+    var months=['May','Jun','Jul','Aug','Sep','Oct','Nov'].map(function(x,i){return {x:Math.min(900,i*940/6.1).toFixed(0),l:x};});
+    var rows=[['Swim',64,22,14],['Bike',81,11,8],['Run',76,12,12],['All',77,13,10]];
+    var intens=rows.map(function(x){return {name:x[0],a:'flex:'+x[1]+';background:#4cc283',b:'flex:'+x[2]+';background:#ffd166',c:'flex:'+x[3]+';background:#f2675d',txt:x[1]+' / '+x[2]+' / '+x[3]};});
+    var S=['#4fb3ff','#b38cff','#ffd166','#8a909a'],wkBars=[],tot=0,rw=this.rng(11),sc=200/14;
+    for(var w=0;w<16;w++){var k=(w%4===3)?0.6:1+(w/40);var hrs=[1.6+rw()*1.2,3.5+rw()*2.5,2.4+rw()*1.6,0.5+rw()*0.6].map(function(h){return h*k;});var y=210;hrs.forEach(function(h,j){var hh=h*sc;y-=hh;tot+=h;wkBars.push({x:(w*37.5+5).toFixed(1),y:y.toFixed(1),h:hh.toFixed(1),c:S[j]});});}
+    var avg=tot/16,hm=function(h){var mm=Math.round(h*60);return Math.floor(mm/60)+'h '+String(mm%60).padStart(2,'0');};
+    var monthsT=[['November (so far)','8.1 km','251 km','62 km','21h 40','905','1,820 m','14'],['October','17.6 km','812 km','168 km','58h 10','2,742','6,410 m','36'],['September','19.2 km','744 km','151 km','55h 25','2,598','5,980 m','35'],['August','14.8 km','901 km','132 km','57h 50','2,610','8,240 m','33'],['July','12.0 km','688 km','140 km','49h 05','2,214','5,120 m','31'],['June','9.4 km','602 km','121 km','42h 30','1,905','4,360 m','28']];
+    return {
+      nav:this.nav('Training'),fit:fit,fat:fat,fitUp:Math.round(c[m-1]-c[m-43]),ramp:((c[m-1]-c[m-29])/4).toFixed(1),
+      formTxt:(form>0?'+':'')+form,formWord:form>5?'Fresh':form>-10?'Neutral':form>-30?'Optimal':'High risk',
+      loadBars:loadBars,ctlD:this.path(c,0,940,0,180,lo,hi),atlD:this.path(a,0,940,0,180,lo,hi),ctlY:(180-(c[m-1]-lo)/(hi-lo)*180+4).toFixed(1),
+      formD:this.path(f.map(function(v){return Math.max(-40,Math.min(25,v));}),0,940,fy(25),fy(-40)-fy(25),-40,25),
+      zero:fy(0),zFresh:fy(25),zFreshH:fy(5)-fy(25),zOpt:fy(-10),zOptH:fy(-30)-fy(-10),zRisk:fy(-30),zRiskH:fy(-40)-fy(-30),
+      lFresh:fy(15)+4,lZero:fy(0)+4,lOpt:fy(-20)+4,lRisk:fy(-35)+4,months:months,
+      intens:intens,wkBars:wkBars,wkAvg:hm(avg),wkAvgY:(210-avg*sc).toFixed(1),monthsT:monthsT
+    };
+  }
+}
+</script>
+</body>
+</html>

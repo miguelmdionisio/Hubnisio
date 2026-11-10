@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Health: Performance</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0d0e13}
+*{box-sizing:border-box}
+.app{font-family:'Figtree',system-ui,sans-serif;color:#eef0f4;background:#0d0e13;display:flex;flex-wrap:wrap;min-height:100vh;font-size:14px;line-height:1.45}
+.side{flex:1 1 200px;max-width:200px;background:#0a0b0f;border-right:1px solid #22242c;padding:12px 10px;display:flex;flex-direction:column;gap:2px}
+.dom{display:flex;align-items:center;gap:9px;background:none;border:0;color:#eef0f4;font:600 14px 'Figtree',sans-serif;padding:7px 9px;margin-bottom:8px;cursor:pointer}
+.mark{width:22px;height:22px;border-radius:50%;background:#ff9f5a;flex:none}
+.grp{font-size:11.5px;font-weight:600;color:#8a909a;margin:14px 9px 4px}
+.ni{display:flex;align-items:center;gap:10px;padding:7px 9px;border-radius:8px;color:#9aa0ab;text-decoration:none;font-size:13.5px}
+.ni:hover{color:#eef0f4}
+.ni.on{background:#1d2029;color:#eef0f4;font-weight:600}
+.ni svg{width:16px;height:16px;flex:none}
+.ni.on svg{color:#ff9f5a}
+.main{flex:999 1 560px;min-width:0}
+.hdr{min-height:58px;display:flex;align-items:center;gap:12px;padding:10px 28px;border-bottom:1px solid #22242c;flex-wrap:wrap}
+.ttl{font-size:18px;font-weight:700;margin:0}
+.sync{margin-left:auto;font-size:13px;color:#9aa0ab;display:flex;align-items:center;gap:8px}
+.dot{width:8px;height:8px;border-radius:50%;background:#4cc283}
+.wrap{padding:24px 28px 56px;display:flex;flex-direction:column;gap:20px;max-width:1240px}
+.g4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.g2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
+.g3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
+.card{background:#181a21;border-radius:18px;padding:18px 20px;min-width:0}
+.ch{display:flex;align-items:baseline;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.h2{font-size:15px;font-weight:650;margin:0}
+.lbl{font-size:13px;color:#9aa0ab;margin:0}
+.fig{font-size:34px;font-weight:750;letter-spacing:-.02em;font-variant-numeric:tabular-nums;margin:2px 0;line-height:1.15}
+.fig small{font-size:16px;font-weight:600;color:#9aa0ab;margin-left:3px}
+.sub{font-size:13px;color:#9aa0ab;margin:0}
+.good{color:#4cc283}.bad{color:#f2675d}
+.leg{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:#9aa0ab;margin-left:auto}
+.leg i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
+.seg{display:inline-flex;background:#181a21;border-radius:999px;padding:3px;gap:2px}
+.seg button{height:28px;padding:0 12px;border:0;border-radius:999px;background:none;color:#9aa0ab;font:500 13px 'Figtree',sans-serif;cursor:pointer}
+.seg button.on{background:#23262f;color:#eef0f4;font-weight:600}
+svg.chart{width:100%;height:auto;display:block;overflow:visible}
+svg.chart text{fill:#8a909a;font:11px 'Figtree',sans-serif}
+.lr{display:flex;align-items:baseline;gap:10px;padding:8px 0;font-size:13.5px;font-variant-numeric:tabular-nums}
+.lr span:first-child{flex:1;color:#9aa0ab}
+.lr b{font-weight:650}
+.shape{height:10px;background:#23262f;border-radius:999px;overflow:hidden;margin:6px 0 4px}
+@media(max-width:1000px){.g3{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:900px){.g4{grid-template-columns:repeat(2,minmax(0,1fr))}.g2{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:760px){.side{max-width:none;flex-basis:100%;flex-direction:row;flex-wrap:wrap;border-right:0;border-bottom:1px solid #22242c}.grp{display:none}.hdr,.wrap{padding-left:16px;padding-right:16px}}
+</style>
+</helmet>
+<div class="app">
+<nav class="side" aria-label="Health pages">
+<button class="dom" type="button"><span class="mark"></span>Health<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8a909a" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></button>
+<sc-for list="{{nav}}" as="n" hint-placeholder-count="9">
+<sc-if value="{{n.group}}" hint-placeholder-val="{{false}}"><p class="grp">{{n.label}}</p></sc-if>
+<sc-if value="{{n.on}}" hint-placeholder-val="{{false}}"><a class="ni on" href="{{n.href}}" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{n.d}}"></path></svg>{{n.label}}</a></sc-if>
+<sc-if value="{{n.off}}" hint-placeholder-val="{{true}}"><a class="ni" href="{{n.href}}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{n.d}}"></path></svg>{{n.label}}</a></sc-if>
+</sc-for>
+</nav>
+<main class="main">
+<header class="hdr">
+<h1 class="ttl">Performance</h1>
+<div class="seg" role="group" aria-label="Compare"><button type="button" class="on" aria-pressed="true">This season</button><button type="button" aria-pressed="false">Last 90 days</button><button type="button" aria-pressed="false">All time</button></div>
+<span class="sync"><span class="dot"></span>Garmin synced 12 minutes ago</span>
+</header>
+<div class="wrap">
+
+<div class="g4">
+<div class="card"><p class="lbl">Bike threshold</p><p class="fig">262<small>W</small></p><p class="sub good">3.6 W/kg · ▲ 9 vs spring</p></div>
+<div class="card"><p class="lbl">Critical power</p><p class="fig">268<small>W</small></p><p class="sub">W′ 18.4 kJ</p></div>
+<div class="card"><p class="lbl">Run VO2max</p><p class="fig">52.1</p><p class="sub good">▲ 1.4 in 3 months</p></div>
+<div class="card"><p class="lbl">Swim threshold</p><p class="fig">1:38<small>/100 m</small></p><p class="sub">From 400 m and 200 m bests</p></div>
+</div>
+
+<div class="g2">
+<div class="card">
+<div class="ch"><h2 class="h2">Power curve</h2><div class="leg"><span><i style="background:#b38cff"></i>This season</span><span><i style="background:#8a909a"></i>Last season</span><span><i style="background:#ff9f5a"></i>CP model</span></div></div>
+<svg class="chart" viewBox="0 0 600 260" role="img" aria-label="Best power for each duration, this season against last">
+<sc-for list="{{pGrid}}" as="g" hint-placeholder-count="4"><line x1="0" x2="560" y1="{{g.y}}" y2="{{g.y}}" stroke="#23262f"></line><text x="566" y="{{g.ty}}">{{g.l}}</text></sc-for>
+<path d="{{pLast}}" fill="none" stroke="#8a909a" stroke-width="1.8" stroke-dasharray="5 4"></path>
+<path d="{{pModel}}" fill="none" stroke="#ff9f5a" stroke-width="2" stroke-dasharray="2 4"></path>
+<path d="{{pNow}}" fill="none" stroke="#b38cff" stroke-width="2.8"></path>
+<sc-for list="{{pDots}}" as="p" hint-placeholder-count="12"><circle cx="{{p.x}}" cy="{{p.y}}" r="3" fill="#b38cff"></circle></sc-for>
+<sc-for list="{{pX}}" as="t" hint-placeholder-count="7"><text x="{{t.x}}" y="256" text-anchor="middle">{{t.l}}</text></sc-for>
+</svg>
+</div>
+<div class="card">
+<div class="ch"><h2 class="h2">Run pace curve</h2><div class="leg"><span><i style="background:#ffd166"></i>This season</span><span><i style="background:#8a909a"></i>Last season</span></div></div>
+<svg class="chart" viewBox="0 0 600 260" role="img" aria-label="Best running pace for each duration, this season against last">
+<sc-for list="{{rGrid}}" as="g" hint-placeholder-count="4"><line x1="0" x2="560" y1="{{g.y}}" y2="{{g.y}}" stroke="#23262f"></line><text x="566" y="{{g.ty}}">{{g.l}}</text></sc-for>
+<path d="{{rLast}}" fill="none" stroke="#8a909a" stroke-width="1.8" stroke-dasharray="5 4"></path>
+<path d="{{rNow}}" fill="none" stroke="#ffd166" stroke-width="2.8"></path>
+<sc-for list="{{rDots}}" as="p" hint-placeholder-count="9"><circle cx="{{p.x}}" cy="{{p.y}}" r="3" fill="#ffd166"></circle></sc-for>
+<sc-for list="{{rX}}" as="t" hint-placeholder-count="6"><text x="{{t.x}}" y="256" text-anchor="middle">{{t.l}}</text></sc-for>
+</svg>
+</div>
+</div>
+
+<div class="g3">
+<div class="card">
+<div class="ch"><h2 class="h2">Run VO2max</h2><span class="sub">per run, 12 months</span></div>
+<svg class="chart" viewBox="0 0 400 220" role="img" aria-label="Estimated VO2max per run over 12 months">
+<sc-for list="{{vDots}}" as="p" hint-placeholder-count="120"><circle cx="{{p.x}}" cy="{{p.y}}" r="2.4" fill="#eef0f4" opacity=".45"></circle></sc-for>
+<path d="{{vLine}}" fill="none" stroke="#ff9f5a" stroke-width="2.6"></path>
+<text x="400" y="{{vLblY}}" text-anchor="end">52.1</text>
+<text x="0" y="216">Nov 25</text><text x="400" y="216" text-anchor="end">Nov 26</text>
+</svg>
+</div>
+<div class="card">
+<div class="ch"><h2 class="h2">Race predictions</h2><span class="sub">from VO2max</span></div>
+<div class="lr"><span>5 km</span><b>21:10</b><span class="sub">4:14 /km</span></div>
+<div class="lr"><span>10 km</span><b>44:05</b><span class="sub">4:25 /km</span></div>
+<div class="lr"><span>Half marathon</span><b>1:38:20</b><span class="sub">4:40 /km</span></div>
+<div class="lr"><span>Marathon</span><b>3:38:40</b><span class="sub">5:11 /km</span></div>
+<p class="lbl" style="margin-top:12px">Marathon shape 71%</p>
+<div class="shape"><div style="width:71%;height:100%;background:#ff9f5a;border-radius:999px"></div></div>
+<p class="sub">Half needs 43% · long runs short for the marathon</p>
+</div>
+<div class="card">
+<div class="ch"><h2 class="h2">Easy-run efficiency</h2><span class="sub">pace per heartbeat</span></div>
+<svg class="chart" viewBox="0 0 400 220" role="img" aria-label="Efficiency factor of easy runs over six months">
+<sc-for list="{{eDots}}" as="p" hint-placeholder-count="50"><circle cx="{{p.x}}" cy="{{p.y}}" r="3" fill="#4cc283" opacity=".55"></circle></sc-for>
+<path d="{{eLine}}" fill="none" stroke="#4cc283" stroke-width="2.6"></path>
+<text x="0" y="216">May</text><text x="400" y="216" text-anchor="end">Nov</text>
+</svg>
+<p class="sub good" style="margin-top:6px">▲ 5% in 6 months</p>
+</div>
+</div>
+
+<div class="card">
+<div class="ch"><h2 class="h2">Records</h2><span class="sub">this season · all-time in brackets</span></div>
+<div class="g3" style="gap:28px">
+<div><p class="lbl" style="font-weight:600;color:#ffd166">Run</p>
+<div class="lr"><span>1 km</span><b>3:41</b><span class="sub">(3:38)</span></div>
+<div class="lr"><span>5 km</span><b>20:52</b><span class="sub">2 Oct</span></div>
+<div class="lr"><span>10 km</span><b>44:30</b><span class="sub">(43:58)</span></div>
+<div class="lr"><span>Half marathon</span><b>1:41:12</b><span class="sub">14 Sep</span></div></div>
+<div><p class="lbl" style="font-weight:600;color:#b38cff">Bike</p>
+<div class="lr"><span>5 s</span><b>924 W</b><span class="sub">(951)</span></div>
+<div class="lr"><span>1 min</span><b>421 W</b><span class="sub">21 Aug</span></div>
+<div class="lr"><span>5 min</span><b>312 W</b><span class="sub">9 Oct</span></div>
+<div class="lr"><span>20 min</span><b>276 W</b><span class="sub">9 Oct</span></div></div>
+<div><p class="lbl" style="font-weight:600;color:#4fb3ff">Swim</p>
+<div class="lr"><span>100 m</span><b>1:26</b><span class="sub">pool</span></div>
+<div class="lr"><span>400 m</span><b>6:22</b><span class="sub">pool</span></div>
+<div class="lr"><span>1500 m</span><b>25:40</b><span class="sub">open water</span></div>
+<div class="lr"><span>Olympic triathlon</span><b>2:31:04</b><span class="sub">13 Sep</span></div></div>
+</div>
+</div>
+
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1400}}'>
+class Component extends DCLogic {
+  rng(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+  path(v,x0,W,top,H,lo,hi){var n=v.length;return v.map(function(y,i){return (i?'L':'M')+(x0+i*W/(n-1)).toFixed(1)+' '+(top+H-(y-lo)/(hi-lo)*H).toFixed(1);}).join(' ');}
+  nav(active){
+    var I={Today:'M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4M8 12a4 4 0 1 0 8 0a4 4 0 1 0-8 0',Activities:'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01',Training:'M22 7l-8.5 8.5-5-5L2 17M16 7h6v6',Performance:'M13 2 3 14h9l-1 8 10-12h-9l1-8z',Recovery:'M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2-1.5-1.5-2.7-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7z',Sleep:'M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z',Body:'M16 21v-2a4 4 0 0 0-8 0v2M8 7a4 4 0 1 0 8 0a4 4 0 1 0-8 0',Garmin:'M12 9v3l1.5 1.5M16.5 6.5 16 2H8l-.5 4.5M7.5 17.5 8 22h8l.5-4.5M6 12a6 6 0 1 0 12 0a6 6 0 1 0-12 0'};
+    var H={Today:'Main.dc.html',Activities:'Activity.dc.html',Training:'Training.dc.html',Performance:'Performance.dc.html',Recovery:'Recovery.dc.html',Sleep:'Sleep.dc.html',Body:'#',Garmin:'#'};
+    var items=['Today','Activities','#Analyse','Training','Performance','Recovery','Sleep','Body','#Sources','Garmin'];
+    return items.map(function(k){if(k[0]==='#')return {group:true,on:false,off:false,label:k.slice(1)};return {group:false,on:k===active,off:k!==active,label:k,d:I[k],href:H[k]};});
+  }
+  renderVals(){
+    var lx=function(t,t0,t1){return (Math.log(t)-Math.log(t0))/(Math.log(t1)-Math.log(t0))*560;};
+    var line=function(pts){return pts.map(function(p,i){return (i?'L':'M')+p[0].toFixed(1)+' '+p[1].toFixed(1);}).join(' ');};
+    var T=[5,15,30,60,120,300,600,1200,1800,3600,5400,7200],P=[924,720,560,421,352,312,291,276,268,257,242,231],PL=P.map(function(p,i){return p*(0.93+i*0.004);});
+    var py=function(w){return 235-(w-180)/(1000-180)*225;};
+    var pNow=T.map(function(t,i){return [lx(t,5,7200),py(P[i])];}),pLast=T.map(function(t,i){return [lx(t,5,7200),py(PL[i])];});
+    var model=[];for(var t=120;t<=3600;t*=1.15){model.push([lx(t,5,7200),py(268+18400/t)]);}
+    var pX=[[5,'5 s'],[30,'30 s'],[60,'1 min'],[300,'5 min'],[1200,'20 min'],[3600,'1 h'],[7200,'2 h']].map(function(q){return {x:lx(q[0],5,7200).toFixed(0),l:q[1]};});
+    var pGrid=[200,400,600,800].map(function(w){return {y:py(w).toFixed(1),ty:(py(w)+4).toFixed(1),l:w+' W'};});
+    var RT=[60,120,300,600,1200,1800,3600,5400,7200],R=[205,222,238,248,256,261,274,298,310],RL=R.map(function(s,i){return s+5+i;});
+    var ry=function(s){return 10+(s-190)/(340-190)*225;};
+    var rNow=RT.map(function(t,i){return [lx(t,60,7200),ry(R[i])];}),rLast=RT.map(function(t,i){return [lx(t,60,7200),ry(RL[i])];});
+    var mmss=function(s){return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');};
+    var rGrid=[210,240,270,300,330].map(function(s){return {y:ry(s).toFixed(1),ty:(ry(s)+4).toFixed(1),l:mmss(s)+' /km'};});
+    var rX=[[60,'1 min'],[300,'5 min'],[600,'10 min'],[1800,'30 min'],[3600,'1 h'],[7200,'2 h']].map(function(q){return {x:lx(q[0],60,7200).toFixed(0),l:q[1]};});
+    var r=this.rng(17),vd=[],vs=[];for(var i=0;i<120;i++){var base=49.2+i/119*2.9+Math.sin(i/14)*0.4;vs.push(base);vd.push(base+(r()-0.5)*2.6);}
+    var vy=function(v){return 200-(v-46)/(56-46)*190;};
+    var vDots=vd.map(function(v,i){return {x:(i*400/119).toFixed(1),y:vy(v).toFixed(1)};});
+    var re=this.rng(19),ed=[],es=[];for(var k=0;k<50;k++){var b=1.12+k/49*0.06;es.push(b);ed.push(b+(re()-0.5)*0.05);}
+    var ey=function(v){return 200-(v-1.05)/(1.25-1.05)*190;};
+    var eDots=ed.map(function(v,k){return {x:(k*400/49).toFixed(1),y:ey(v).toFixed(1)};});
+    return {nav:this.nav('Performance'),
+      pNow:line(pNow),pLast:line(pLast),pModel:line(model),pDots:pNow.map(function(p){return {x:p[0].toFixed(1),y:p[1].toFixed(1)};}),pX:pX,pGrid:pGrid,
+      rNow:line(rNow),rLast:line(rLast),rDots:rNow.map(function(p){return {x:p[0].toFixed(1),y:p[1].toFixed(1)};}),rX:rX,rGrid:rGrid,
+      vDots:vDots,vLine:this.path(vs,0,400,10,190,46,56),vLblY:(vy(vs[119])-8).toFixed(1),
+      eDots:eDots,eLine:this.path(es,0,400,10,190,1.05,1.25)};
+  }
+}
+</script>
+</body>
+</html>
