@@ -14,7 +14,7 @@ afterEach(() => {
 test('the Health sidebar lists its pages in groups', async () => {
   const calls = mockApi({});
 
-  renderAt('/health/sleep');
+  renderAt('/health/body');
 
   const sidebar = within(await screen.findByRole('navigation', { name: 'Health' }));
   expect(screen.getByRole('button', { name: 'Domain: Health' })).toBeDefined();
@@ -23,7 +23,7 @@ test('the Health sidebar lists its pages in groups', async () => {
   );
   expect(sidebar.getByText('Analyse')).toBeDefined();
   expect(sidebar.getByText('Sources')).toBeDefined();
-  expect(sidebar.getByRole('link', { name: 'Sleep' }).getAttribute('aria-current')).toBe('page');
+  expect(sidebar.getByRole('link', { name: 'Body' }).getAttribute('aria-current')).toBe('page');
   expect(sidebar.getByRole('link', { name: 'Today' }).getAttribute('aria-current')).toBeNull();
   // No Finance bank sync, no household view, no API calls at all.
   expect(screen.queryByRole('group', { name: 'View' })).toBeNull();
@@ -62,8 +62,9 @@ test('the switcher moves between Finance and Health', async () => {
   expect(screen.getByRole('navigation', { name: 'Health' })).toBeDefined();
 });
 
-// Recovery has its own tests (routes/health/recovery).
-test.each(HEALTH_PAGES.filter((page) => page.title !== 'Recovery'))(
+// Pages with their own tests are left out as their slices fill them.
+const FILLED = new Set(['Recovery', 'Sleep']);
+test.each(HEALTH_PAGES.filter((page) => !FILLED.has(page.title)))(
   '$title renders its title and an honest gap',
   async ({ to, title }) => {
     mockApi({});

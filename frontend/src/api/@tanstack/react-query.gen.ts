@@ -3,8 +3,8 @@
 import { type DefaultError, type InfiniteData, infiniteQueryOptions, queryOptions, type UseMutationOptions } from '@tanstack/react-query';
 
 import { client } from '../client.gen';
-import { approveSuggestions, completeConnection, createCategory, createCounterparty, createRule, deleteAccount, deleteBudget, deleteCategory, deleteConnection, deleteOverallBudget, deleteRule, getCashFlow, getHealth, getHealthConnection, getInvestmentReturns, getInvestments, getNetWorth, getRecovery, getSpending, getSpendingMonth, linkTransfer, listAccounts, listBanks, listBudgets, listCategories, listConnections, listCounterparties, listRecurring, listRules, listTransactions, listUpcomingPayments, mergeCounterparty, type Options, previewRule, reorderRules, runRules, setBudget, setOverallBudget, startConnection, syncConnection, syncHealth, unlinkTransfer, updateAccount, updateCategory, updateCounterparty, updateRecurring, updateRule, updateTransaction } from '../sdk.gen';
-import type { ApproveSuggestionsData, ApproveSuggestionsError, ApproveSuggestionsResponse, CompleteConnectionData, CompleteConnectionError, CompleteConnectionResponse, CreateCategoryData, CreateCategoryError, CreateCategoryResponse, CreateCounterpartyData, CreateCounterpartyError, CreateCounterpartyResponse, CreateRuleData, CreateRuleError, CreateRuleResponse, DeleteAccountData, DeleteAccountError, DeleteAccountResponse, DeleteBudgetData, DeleteBudgetError, DeleteBudgetResponse, DeleteCategoryData, DeleteCategoryError, DeleteCategoryResponse, DeleteConnectionData, DeleteConnectionError, DeleteConnectionResponse, DeleteOverallBudgetData, DeleteOverallBudgetResponse, DeleteRuleData, DeleteRuleError, DeleteRuleResponse, GetCashFlowData, GetCashFlowError, GetCashFlowResponse, GetHealthConnectionData, GetHealthConnectionResponse, GetHealthData, GetHealthError, GetHealthResponse, GetInvestmentReturnsData, GetInvestmentReturnsError, GetInvestmentReturnsResponse, GetInvestmentsData, GetInvestmentsError, GetInvestmentsResponse, GetNetWorthData, GetNetWorthError, GetNetWorthResponse, GetRecoveryData, GetRecoveryError, GetRecoveryResponse, GetSpendingData, GetSpendingError, GetSpendingMonthData, GetSpendingMonthError, GetSpendingMonthResponse, GetSpendingResponse, LinkTransferData, LinkTransferError, LinkTransferResponse, ListAccountsData, ListAccountsError, ListAccountsResponse, ListBanksData, ListBanksError, ListBanksResponse, ListBudgetsData, ListBudgetsError, ListBudgetsResponse, ListCategoriesData, ListCategoriesResponse, ListConnectionsData, ListConnectionsResponse, ListCounterpartiesData, ListCounterpartiesError, ListCounterpartiesResponse, ListRecurringData, ListRecurringError, ListRecurringResponse, ListRulesData, ListRulesResponse, ListTransactionsData, ListTransactionsError, ListTransactionsResponse, ListUpcomingPaymentsData, ListUpcomingPaymentsError, ListUpcomingPaymentsResponse, MergeCounterpartyData, MergeCounterpartyError, MergeCounterpartyResponse, PreviewRuleData, PreviewRuleError, PreviewRuleResponse, ReorderRulesData, ReorderRulesError, ReorderRulesResponse, RunRulesData, RunRulesResponse, SetBudgetData, SetBudgetError, SetBudgetResponse, SetOverallBudgetData, SetOverallBudgetError, SetOverallBudgetResponse, StartConnectionData, StartConnectionError, StartConnectionResponse, SyncConnectionData, SyncConnectionError, SyncConnectionResponse, SyncHealthData, SyncHealthResponse, UnlinkTransferData, UnlinkTransferError, UnlinkTransferResponse, UpdateAccountData, UpdateAccountError, UpdateAccountResponse, UpdateCategoryData, UpdateCategoryError, UpdateCategoryResponse, UpdateCounterpartyData, UpdateCounterpartyError, UpdateCounterpartyResponse, UpdateRecurringData, UpdateRecurringError, UpdateRecurringResponse, UpdateRuleData, UpdateRuleError, UpdateRuleResponse, UpdateTransactionData, UpdateTransactionError, UpdateTransactionResponse } from '../types.gen';
+import { approveSuggestions, completeConnection, createCategory, createCounterparty, createRule, deleteAccount, deleteBudget, deleteCategory, deleteConnection, deleteOverallBudget, deleteRule, getCashFlow, getHealth, getHealthConnection, getInvestmentReturns, getInvestments, getNetWorth, getRecovery, getSleepNight, getSleepTrends, getSpending, getSpendingMonth, linkTransfer, listAccounts, listBanks, listBudgets, listCategories, listConnections, listCounterparties, listRecurring, listRules, listTransactions, listUpcomingPayments, mergeCounterparty, type Options, previewRule, reorderRules, runRules, setBudget, setOverallBudget, startConnection, syncConnection, syncHealth, unlinkTransfer, updateAccount, updateCategory, updateCounterparty, updateRecurring, updateRule, updateTransaction } from '../sdk.gen';
+import type { ApproveSuggestionsData, ApproveSuggestionsError, ApproveSuggestionsResponse, CompleteConnectionData, CompleteConnectionError, CompleteConnectionResponse, CreateCategoryData, CreateCategoryError, CreateCategoryResponse, CreateCounterpartyData, CreateCounterpartyError, CreateCounterpartyResponse, CreateRuleData, CreateRuleError, CreateRuleResponse, DeleteAccountData, DeleteAccountError, DeleteAccountResponse, DeleteBudgetData, DeleteBudgetError, DeleteBudgetResponse, DeleteCategoryData, DeleteCategoryError, DeleteCategoryResponse, DeleteConnectionData, DeleteConnectionError, DeleteConnectionResponse, DeleteOverallBudgetData, DeleteOverallBudgetResponse, DeleteRuleData, DeleteRuleError, DeleteRuleResponse, GetCashFlowData, GetCashFlowError, GetCashFlowResponse, GetHealthConnectionData, GetHealthConnectionResponse, GetHealthData, GetHealthError, GetHealthResponse, GetInvestmentReturnsData, GetInvestmentReturnsError, GetInvestmentReturnsResponse, GetInvestmentsData, GetInvestmentsError, GetInvestmentsResponse, GetNetWorthData, GetNetWorthError, GetNetWorthResponse, GetRecoveryData, GetRecoveryError, GetRecoveryResponse, GetSleepNightData, GetSleepNightError, GetSleepNightResponse, GetSleepTrendsData, GetSleepTrendsError, GetSleepTrendsResponse, GetSpendingData, GetSpendingError, GetSpendingMonthData, GetSpendingMonthError, GetSpendingMonthResponse, GetSpendingResponse, LinkTransferData, LinkTransferError, LinkTransferResponse, ListAccountsData, ListAccountsError, ListAccountsResponse, ListBanksData, ListBanksError, ListBanksResponse, ListBudgetsData, ListBudgetsError, ListBudgetsResponse, ListCategoriesData, ListCategoriesResponse, ListConnectionsData, ListConnectionsResponse, ListCounterpartiesData, ListCounterpartiesError, ListCounterpartiesResponse, ListRecurringData, ListRecurringError, ListRecurringResponse, ListRulesData, ListRulesResponse, ListTransactionsData, ListTransactionsError, ListTransactionsResponse, ListUpcomingPaymentsData, ListUpcomingPaymentsError, ListUpcomingPaymentsResponse, MergeCounterpartyData, MergeCounterpartyError, MergeCounterpartyResponse, PreviewRuleData, PreviewRuleError, PreviewRuleResponse, ReorderRulesData, ReorderRulesError, ReorderRulesResponse, RunRulesData, RunRulesResponse, SetBudgetData, SetBudgetError, SetBudgetResponse, SetOverallBudgetData, SetOverallBudgetError, SetOverallBudgetResponse, StartConnectionData, StartConnectionError, StartConnectionResponse, SyncConnectionData, SyncConnectionError, SyncConnectionResponse, SyncHealthData, SyncHealthResponse, UnlinkTransferData, UnlinkTransferError, UnlinkTransferResponse, UpdateAccountData, UpdateAccountError, UpdateAccountResponse, UpdateCategoryData, UpdateCategoryError, UpdateCategoryResponse, UpdateCounterpartyData, UpdateCounterpartyError, UpdateCounterpartyResponse, UpdateRecurringData, UpdateRecurringError, UpdateRecurringResponse, UpdateRuleData, UpdateRuleError, UpdateRuleResponse, UpdateTransactionData, UpdateTransactionError, UpdateTransactionResponse } from '../types.gen';
 
 export type QueryKey<TOptions extends Options> = [
     Pick<TOptions, 'baseUrl' | 'body' | 'headers' | 'path' | 'query'> & {
@@ -1015,4 +1015,46 @@ export const getRecoveryOptions = (options?: Options<GetRecoveryData>) => queryO
         return data;
     },
     queryKey: getRecoveryQueryKey(options)
+});
+
+export const getSleepNightQueryKey = (options?: Options<GetSleepNightData>) => createQueryKey('getSleepNight', options);
+
+/**
+ * Get Sleep Night
+ *
+ * The night ending on `date` (default: the latest), with the nights before and after it.
+ */
+export const getSleepNightOptions = (options?: Options<GetSleepNightData>) => queryOptions<GetSleepNightResponse, GetSleepNightError, GetSleepNightResponse, ReturnType<typeof getSleepNightQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getSleepNight({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getSleepNightQueryKey(options)
+});
+
+export const getSleepTrendsQueryKey = (options?: Options<GetSleepTrendsData>) => createQueryKey('getSleepTrends', options);
+
+/**
+ * Get Sleep Trends
+ *
+ * The last `nights` days up to the latest night: stages and need per night, the schedule,
+ * sleep against the next morning's HRV, and the score by weekday. Gaps are nights the watch
+ * wasn't worn.
+ */
+export const getSleepTrendsOptions = (options?: Options<GetSleepTrendsData>) => queryOptions<GetSleepTrendsResponse, GetSleepTrendsError, GetSleepTrendsResponse, ReturnType<typeof getSleepTrendsQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getSleepTrends({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getSleepTrendsQueryKey(options)
 });
