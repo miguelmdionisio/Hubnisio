@@ -580,6 +580,28 @@ export type ConnectionOut = {
 };
 
 /**
+ * CorrelationOut
+ */
+export type CorrelationOut = {
+    /**
+     * Pairs
+     */
+    pairs: Array<HrvPairOut>;
+    /**
+     * Slope
+     */
+    slope: number | null;
+    /**
+     * Intercept
+     */
+    intercept: number | null;
+    /**
+     * R
+     */
+    r: number | null;
+};
+
+/**
  * CounterpartyCreate
  */
 export type CounterpartyCreate = {
@@ -641,6 +663,32 @@ export type CounterpartyUpdate = {
      * Default Category Id
      */
     default_category_id?: string | null;
+};
+
+/**
+ * DebtOut
+ */
+export type DebtOut = {
+    /**
+     * Nights
+     */
+    nights: number;
+    /**
+     * Missing
+     */
+    missing: number;
+    /**
+     * Need Minutes
+     */
+    need_minutes: number;
+    /**
+     * Slept Minutes
+     */
+    slept_minutes: number;
+    /**
+     * Debt Minutes
+     */
+    debt_minutes: number;
 };
 
 /**
@@ -759,6 +807,24 @@ export type Holding = {
      * Weight
      */
     weight: string | null;
+};
+
+/**
+ * HrvPairOut
+ */
+export type HrvPairOut = {
+    /**
+     * Day
+     */
+    day: string;
+    /**
+     * Hours
+     */
+    hours: number;
+    /**
+     * Hrv
+     */
+    hrv: number;
 };
 
 /**
@@ -1023,6 +1089,128 @@ export type NetWorthPoint = {
 };
 
 /**
+ * NightOut
+ */
+export type NightOut = {
+    /**
+     * Day
+     */
+    day: string;
+    /**
+     * Started At
+     */
+    started_at: string;
+    /**
+     * Ended At
+     */
+    ended_at: string;
+    /**
+     * Bed Min
+     */
+    bed_min: number;
+    /**
+     * Wake Min
+     */
+    wake_min: number;
+    /**
+     * Score
+     */
+    score: number | null;
+    /**
+     * Score Qualifier
+     */
+    score_qualifier: string | null;
+    /**
+     * Score Vs Baseline
+     */
+    score_vs_baseline: number | null;
+    /**
+     * Slept S
+     */
+    slept_s: number | null;
+    /**
+     * Need Minutes
+     */
+    need_minutes: number | null;
+    /**
+     * In Bed S
+     */
+    in_bed_s: number;
+    /**
+     * Awake Count
+     */
+    awake_count: number | null;
+    /**
+     * Stages
+     */
+    stages: Array<StageShareOut>;
+    /**
+     * Average Slept Minutes
+     */
+    average_slept_minutes: number | null;
+    debt: DebtOut;
+    heart_rate: ReadingOut;
+    hrv: ReadingOut;
+    respiration: ReadingOut;
+    spo2: ReadingOut;
+};
+
+/**
+ * NightPointOut
+ */
+export type NightPointOut = {
+    /**
+     * Day
+     */
+    day: string;
+    /**
+     * Worn
+     */
+    worn: boolean;
+    /**
+     * Slept S
+     */
+    slept_s: number | null;
+    /**
+     * Deep S
+     */
+    deep_s: number | null;
+    /**
+     * Light S
+     */
+    light_s: number | null;
+    /**
+     * Rem S
+     */
+    rem_s: number | null;
+    /**
+     * Awake S
+     */
+    awake_s: number | null;
+    /**
+     * Need Minutes
+     */
+    need_minutes: number | null;
+    /**
+     * Score
+     */
+    score: number | null;
+    /**
+     * Bed Min
+     */
+    bed_min: number | null;
+    /**
+     * Wake Min
+     */
+    wake_min: number | null;
+};
+
+/**
+ * Nights
+ */
+export type Nights = 30 | 90 | 365;
+
+/**
  * OverallBudgetOut
  *
  * The cap on all spending, uncategorized included: cash flow's figure for the month.
@@ -1070,6 +1258,36 @@ export type Overspend = 'forgive' | 'carry';
  * ProviderName
  */
 export type ProviderName = 'enable_banking' | 'trading212';
+
+/**
+ * ReadingOut
+ */
+export type ReadingOut = {
+    /**
+     * Avg
+     */
+    avg: number | null;
+    /**
+     * Low
+     */
+    low: number | null;
+    /**
+     * Low At
+     */
+    low_at: number | null;
+    /**
+     * High
+     */
+    high: number | null;
+    /**
+     * High At
+     */
+    high_at: number | null;
+    /**
+     * Series
+     */
+    series: Array<SeriesPointOut>;
+};
 
 /**
  * RecurringOut
@@ -1332,6 +1550,20 @@ export type RunResult = {
 };
 
 /**
+ * SeriesPointOut
+ */
+export type SeriesPointOut = {
+    /**
+     * T
+     */
+    t: number;
+    /**
+     * V
+     */
+    v: number;
+};
+
+/**
  * SetCategory
  */
 export type SetCategory = {
@@ -1368,6 +1600,68 @@ export type SetKind = {
      */
     type: 'set_kind';
     kind: TransactionKind;
+};
+
+/**
+ * SleepNight
+ *
+ * A night and the nearest nights either side of it. `night` is none when the member has no
+ * night on that day (or none at all).
+ */
+export type SleepNight = {
+    /**
+     * Day
+     */
+    day: string | null;
+    night: NightOut | null;
+    /**
+     * Previous Day
+     */
+    previous_day: string | null;
+    /**
+     * Next Day
+     */
+    next_day: string | null;
+};
+
+/**
+ * SleepTrends
+ */
+export type SleepTrends = {
+    /**
+     * Nights
+     */
+    nights: number;
+    /**
+     * Start
+     */
+    start: string;
+    /**
+     * End
+     */
+    end: string;
+    /**
+     * Points
+     */
+    points: Array<NightPointOut>;
+    /**
+     * Nights Worn
+     */
+    nights_worn: number;
+    /**
+     * Average Slept Minutes
+     */
+    average_slept_minutes: number | null;
+    /**
+     * Average Need Minutes
+     */
+    average_need_minutes: number | null;
+    schedule: SpreadOut;
+    correlation: CorrelationOut;
+    /**
+     * Weekday Scores
+     */
+    weekday_scores: Array<WeekdayScoreOut>;
 };
 
 /**
@@ -1571,6 +1865,74 @@ export type SpendingRank = {
      * Share
      */
     share: string;
+};
+
+/**
+ * SpreadOut
+ */
+export type SpreadOut = {
+    /**
+     * Nights
+     */
+    nights: number;
+    /**
+     * Bed Avg
+     */
+    bed_avg: number | null;
+    /**
+     * Bed Sd
+     */
+    bed_sd: number | null;
+    /**
+     * Wake Avg
+     */
+    wake_avg: number | null;
+    /**
+     * Wake Sd
+     */
+    wake_sd: number | null;
+    /**
+     * Weekday Bed Avg
+     */
+    weekday_bed_avg: number | null;
+    /**
+     * Weekday Wake Avg
+     */
+    weekday_wake_avg: number | null;
+    /**
+     * Weekend Bed Avg
+     */
+    weekend_bed_avg: number | null;
+    /**
+     * Weekend Wake Avg
+     */
+    weekend_wake_avg: number | null;
+};
+
+/**
+ * StageShareOut
+ */
+export type StageShareOut = {
+    /**
+     * Stage
+     */
+    stage: 'deep' | 'light' | 'rem' | 'awake';
+    /**
+     * Seconds
+     */
+    seconds: number;
+    /**
+     * Share
+     */
+    share: number;
+    /**
+     * Typical Low
+     */
+    typical_low: number | null;
+    /**
+     * Typical High
+     */
+    typical_high: number | null;
 };
 
 /**
@@ -1966,6 +2328,24 @@ export type ValuePoint = {
      * Net Deposits
      */
     net_deposits: string;
+};
+
+/**
+ * WeekdayScoreOut
+ */
+export type WeekdayScoreOut = {
+    /**
+     * Weekday
+     */
+    weekday: number;
+    /**
+     * Nights
+     */
+    nights: number;
+    /**
+     * Score
+     */
+    score: number | null;
 };
 
 /**
@@ -3325,3 +3705,60 @@ export type SyncHealthResponses = {
 };
 
 export type SyncHealthResponse = SyncHealthResponses[keyof SyncHealthResponses];
+
+export type GetSleepNightData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Date
+         */
+        date?: string | null;
+    };
+    url: '/api/health/sleep/night';
+};
+
+export type GetSleepNightErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetSleepNightError = GetSleepNightErrors[keyof GetSleepNightErrors];
+
+export type GetSleepNightResponses = {
+    /**
+     * Successful Response
+     */
+    200: SleepNight;
+};
+
+export type GetSleepNightResponse = GetSleepNightResponses[keyof GetSleepNightResponses];
+
+export type GetSleepTrendsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        nights?: Nights;
+    };
+    url: '/api/health/sleep/trends';
+};
+
+export type GetSleepTrendsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetSleepTrendsError = GetSleepTrendsErrors[keyof GetSleepTrendsErrors];
+
+export type GetSleepTrendsResponses = {
+    /**
+     * Successful Response
+     */
+    200: SleepTrends;
+};
+
+export type GetSleepTrendsResponse = GetSleepTrendsResponses[keyof GetSleepTrendsResponses];

@@ -2319,6 +2319,100 @@
           }
         }
       }
+    },
+    "/api/health/sleep/night": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Get Sleep Night",
+        "description": "The night ending on `date` (default: the latest), with the nights before and after it.",
+        "operationId": "getSleepNight",
+        "parameters": [
+          {
+            "name": "date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SleepNight"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/health/sleep/trends": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Get Sleep Trends",
+        "description": "The last `nights` days up to the latest night: stages and need per night, the schedule,\nsleep against the next morning's HRV, and the score by weekday. Gaps are nights the watch\nwasn't worn.",
+        "operationId": "getSleepTrends",
+        "parameters": [
+          {
+            "name": "nights",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/Nights",
+              "default": 30
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SleepTrends"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -3390,6 +3484,58 @@
         ],
         "title": "ConnectionOut"
       },
+      "CorrelationOut": {
+        "properties": {
+          "pairs": {
+            "items": {
+              "$ref": "#/components/schemas/HrvPairOut"
+            },
+            "type": "array",
+            "title": "Pairs"
+          },
+          "slope": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slope"
+          },
+          "intercept": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Intercept"
+          },
+          "r": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "R"
+          }
+        },
+        "type": "object",
+        "required": [
+          "pairs",
+          "slope",
+          "intercept",
+          "r"
+        ],
+        "title": "CorrelationOut"
+      },
       "CounterpartyCreate": {
         "properties": {
           "name": {
@@ -3506,6 +3652,39 @@
         },
         "type": "object",
         "title": "CounterpartyUpdate"
+      },
+      "DebtOut": {
+        "properties": {
+          "nights": {
+            "type": "integer",
+            "title": "Nights"
+          },
+          "missing": {
+            "type": "integer",
+            "title": "Missing"
+          },
+          "need_minutes": {
+            "type": "integer",
+            "title": "Need Minutes"
+          },
+          "slept_minutes": {
+            "type": "integer",
+            "title": "Slept Minutes"
+          },
+          "debt_minutes": {
+            "type": "integer",
+            "title": "Debt Minutes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "nights",
+          "missing",
+          "need_minutes",
+          "slept_minutes",
+          "debt_minutes"
+        ],
+        "title": "DebtOut"
       },
       "HTTPValidationError": {
         "properties": {
@@ -3758,6 +3937,30 @@
           "weight"
         ],
         "title": "Holding"
+      },
+      "HrvPairOut": {
+        "properties": {
+          "day": {
+            "type": "string",
+            "format": "date",
+            "title": "Day"
+          },
+          "hours": {
+            "type": "number",
+            "title": "Hours"
+          },
+          "hrv": {
+            "type": "integer",
+            "title": "Hrv"
+          }
+        },
+        "type": "object",
+        "required": [
+          "day",
+          "hours",
+          "hrv"
+        ],
+        "title": "HrvPairOut"
       },
       "InvestmentAccount": {
         "properties": {
@@ -4300,6 +4503,295 @@
         ],
         "title": "NetWorthPoint"
       },
+      "NightOut": {
+        "properties": {
+          "day": {
+            "type": "string",
+            "format": "date",
+            "title": "Day"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Started At"
+          },
+          "ended_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Ended At"
+          },
+          "bed_min": {
+            "type": "integer",
+            "title": "Bed Min"
+          },
+          "wake_min": {
+            "type": "integer",
+            "title": "Wake Min"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          },
+          "score_qualifier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score Qualifier"
+          },
+          "score_vs_baseline": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score Vs Baseline"
+          },
+          "slept_s": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slept S"
+          },
+          "need_minutes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Need Minutes"
+          },
+          "in_bed_s": {
+            "type": "integer",
+            "title": "In Bed S"
+          },
+          "awake_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Awake Count"
+          },
+          "stages": {
+            "items": {
+              "$ref": "#/components/schemas/StageShareOut"
+            },
+            "type": "array",
+            "title": "Stages"
+          },
+          "average_slept_minutes": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Average Slept Minutes"
+          },
+          "debt": {
+            "$ref": "#/components/schemas/DebtOut"
+          },
+          "heart_rate": {
+            "$ref": "#/components/schemas/ReadingOut"
+          },
+          "hrv": {
+            "$ref": "#/components/schemas/ReadingOut"
+          },
+          "respiration": {
+            "$ref": "#/components/schemas/ReadingOut"
+          },
+          "spo2": {
+            "$ref": "#/components/schemas/ReadingOut"
+          }
+        },
+        "type": "object",
+        "required": [
+          "day",
+          "started_at",
+          "ended_at",
+          "bed_min",
+          "wake_min",
+          "score",
+          "score_qualifier",
+          "score_vs_baseline",
+          "slept_s",
+          "need_minutes",
+          "in_bed_s",
+          "awake_count",
+          "stages",
+          "average_slept_minutes",
+          "debt",
+          "heart_rate",
+          "hrv",
+          "respiration",
+          "spo2"
+        ],
+        "title": "NightOut"
+      },
+      "NightPointOut": {
+        "properties": {
+          "day": {
+            "type": "string",
+            "format": "date",
+            "title": "Day"
+          },
+          "worn": {
+            "type": "boolean",
+            "title": "Worn"
+          },
+          "slept_s": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slept S"
+          },
+          "deep_s": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deep S"
+          },
+          "light_s": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Light S"
+          },
+          "rem_s": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rem S"
+          },
+          "awake_s": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Awake S"
+          },
+          "need_minutes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Need Minutes"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          },
+          "bed_min": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bed Min"
+          },
+          "wake_min": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wake Min"
+          }
+        },
+        "type": "object",
+        "required": [
+          "day",
+          "worn",
+          "slept_s",
+          "deep_s",
+          "light_s",
+          "rem_s",
+          "awake_s",
+          "need_minutes",
+          "score",
+          "bed_min",
+          "wake_min"
+        ],
+        "title": "NightPointOut"
+      },
+      "Nights": {
+        "type": "integer",
+        "enum": [
+          30,
+          90,
+          365
+        ],
+        "title": "Nights"
+      },
       "OverallBudgetOut": {
         "properties": {
           "rollover": {
@@ -4365,6 +4857,82 @@
           "trading212"
         ],
         "title": "ProviderName"
+      },
+      "ReadingOut": {
+        "properties": {
+          "avg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg"
+          },
+          "low": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Low"
+          },
+          "low_at": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Low At"
+          },
+          "high": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "High"
+          },
+          "high_at": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "High At"
+          },
+          "series": {
+            "items": {
+              "$ref": "#/components/schemas/SeriesPointOut"
+            },
+            "type": "array",
+            "title": "Series"
+          }
+        },
+        "type": "object",
+        "required": [
+          "avg",
+          "low",
+          "low_at",
+          "high",
+          "high_at",
+          "series"
+        ],
+        "title": "ReadingOut"
       },
       "RecurringOut": {
         "properties": {
@@ -4841,6 +5409,24 @@
         ],
         "title": "RunResult"
       },
+      "SeriesPointOut": {
+        "properties": {
+          "t": {
+            "type": "integer",
+            "title": "T"
+          },
+          "v": {
+            "type": "number",
+            "title": "V"
+          }
+        },
+        "type": "object",
+        "required": [
+          "t",
+          "v"
+        ],
+        "title": "SeriesPointOut"
+      },
       "SetCategory": {
         "properties": {
           "type": {
@@ -4898,6 +5484,143 @@
           "kind"
         ],
         "title": "SetKind"
+      },
+      "SleepNight": {
+        "properties": {
+          "day": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Day"
+          },
+          "night": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NightOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "previous_day": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previous Day"
+          },
+          "next_day": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Day"
+          }
+        },
+        "type": "object",
+        "required": [
+          "day",
+          "night",
+          "previous_day",
+          "next_day"
+        ],
+        "title": "SleepNight",
+        "description": "A night and the nearest nights either side of it. `night` is none when the member has no\nnight on that day (or none at all)."
+      },
+      "SleepTrends": {
+        "properties": {
+          "nights": {
+            "type": "integer",
+            "title": "Nights"
+          },
+          "start": {
+            "type": "string",
+            "format": "date",
+            "title": "Start"
+          },
+          "end": {
+            "type": "string",
+            "format": "date",
+            "title": "End"
+          },
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/NightPointOut"
+            },
+            "type": "array",
+            "title": "Points"
+          },
+          "nights_worn": {
+            "type": "integer",
+            "title": "Nights Worn"
+          },
+          "average_slept_minutes": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Average Slept Minutes"
+          },
+          "average_need_minutes": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Average Need Minutes"
+          },
+          "schedule": {
+            "$ref": "#/components/schemas/SpreadOut"
+          },
+          "correlation": {
+            "$ref": "#/components/schemas/CorrelationOut"
+          },
+          "weekday_scores": {
+            "items": {
+              "$ref": "#/components/schemas/WeekdayScoreOut"
+            },
+            "type": "array",
+            "title": "Weekday Scores"
+          }
+        },
+        "type": "object",
+        "required": [
+          "nights",
+          "start",
+          "end",
+          "points",
+          "nights_worn",
+          "average_slept_minutes",
+          "average_need_minutes",
+          "schedule",
+          "correlation",
+          "weekday_scores"
+        ],
+        "title": "SleepTrends"
       },
       "Source": {
         "type": "string",
@@ -5239,6 +5962,168 @@
           "share"
         ],
         "title": "SpendingRank"
+      },
+      "SpreadOut": {
+        "properties": {
+          "nights": {
+            "type": "integer",
+            "title": "Nights"
+          },
+          "bed_avg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bed Avg"
+          },
+          "bed_sd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bed Sd"
+          },
+          "wake_avg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wake Avg"
+          },
+          "wake_sd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wake Sd"
+          },
+          "weekday_bed_avg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weekday Bed Avg"
+          },
+          "weekday_wake_avg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weekday Wake Avg"
+          },
+          "weekend_bed_avg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weekend Bed Avg"
+          },
+          "weekend_wake_avg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weekend Wake Avg"
+          }
+        },
+        "type": "object",
+        "required": [
+          "nights",
+          "bed_avg",
+          "bed_sd",
+          "wake_avg",
+          "wake_sd",
+          "weekday_bed_avg",
+          "weekday_wake_avg",
+          "weekend_bed_avg",
+          "weekend_wake_avg"
+        ],
+        "title": "SpreadOut"
+      },
+      "StageShareOut": {
+        "properties": {
+          "stage": {
+            "type": "string",
+            "enum": [
+              "deep",
+              "light",
+              "rem",
+              "awake"
+            ],
+            "title": "Stage"
+          },
+          "seconds": {
+            "type": "integer",
+            "title": "Seconds"
+          },
+          "share": {
+            "type": "number",
+            "title": "Share"
+          },
+          "typical_low": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Typical Low"
+          },
+          "typical_high": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Typical High"
+          }
+        },
+        "type": "object",
+        "required": [
+          "stage",
+          "seconds",
+          "share",
+          "typical_low",
+          "typical_high"
+        ],
+        "title": "StageShareOut"
       },
       "StartConnection": {
         "properties": {
@@ -6012,6 +6897,36 @@
           "net_deposits"
         ],
         "title": "ValuePoint"
+      },
+      "WeekdayScoreOut": {
+        "properties": {
+          "weekday": {
+            "type": "integer",
+            "title": "Weekday"
+          },
+          "nights": {
+            "type": "integer",
+            "title": "Nights"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          }
+        },
+        "type": "object",
+        "required": [
+          "weekday",
+          "nights",
+          "score"
+        ],
+        "title": "WeekdayScoreOut"
       },
       "hubnisio__finance__models__ConnectionStatus": {
         "type": "string",
