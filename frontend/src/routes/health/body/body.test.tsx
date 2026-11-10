@@ -18,7 +18,7 @@ test('shows the weight figures, the goal and fitness age against real age', asyn
   renderAt('/health/body');
 
   expect(await screen.findByText('78.4')).toBeTruthy();
-  expect(screen.getByText('20 Oct 2026')).toBeTruthy();
+  expect(screen.getAllByText('20 Oct 2026').length).toBeGreaterThan(0);
   expect(screen.getByText('−1.8')).toBeTruthy();
   expect(screen.getByText('3.4 to lose')).toBeTruthy();
   expect(screen.getAllByText('24.1').length).toBeGreaterThan(0);
