@@ -2448,6 +2448,221 @@ export type SyncRunOut = {
 export type SyncStatus = 'running' | 'succeeded' | 'failed';
 
 /**
+ * Training
+ */
+export type Training = {
+    /**
+     * Period
+     */
+    period: string;
+    /**
+     * First Day
+     */
+    first_day: string | null;
+    /**
+     * Last Day
+     */
+    last_day: string;
+    summary: TrainingSummary;
+    /**
+     * Points
+     */
+    points: Array<TrainingPoint>;
+    /**
+     * Weeks
+     */
+    weeks: Array<TrainingWeek>;
+    /**
+     * Average Week Hours
+     */
+    average_week_hours: number | null;
+    /**
+     * Intensity
+     */
+    intensity: Array<TrainingIntensity>;
+    /**
+     * Months
+     */
+    months: Array<TrainingMonth>;
+};
+
+/**
+ * TrainingIntensity
+ *
+ * Seconds in heart-rate zones for one sport, grouped; shares of `total_s`.
+ */
+export type TrainingIntensity = {
+    /**
+     * Sport
+     */
+    sport: 'swim' | 'bike' | 'run' | 'strength' | 'other' | 'all';
+    /**
+     * Z12 S
+     */
+    z12_s: number;
+    /**
+     * Z3 S
+     */
+    z3_s: number;
+    /**
+     * Z45 S
+     */
+    z45_s: number;
+    /**
+     * Z12 Share
+     */
+    z12_share: number | null;
+    /**
+     * Z3 Share
+     */
+    z3_share: number | null;
+    /**
+     * Z45 Share
+     */
+    z45_share: number | null;
+};
+
+/**
+ * TrainingMonth
+ */
+export type TrainingMonth = {
+    /**
+     * Month
+     */
+    month: string;
+    /**
+     * Swim M
+     */
+    swim_m: number;
+    /**
+     * Bike M
+     */
+    bike_m: number;
+    /**
+     * Run M
+     */
+    run_m: number;
+    /**
+     * Hours
+     */
+    hours: number;
+    /**
+     * Load
+     */
+    load: number;
+    /**
+     * Climb M
+     */
+    climb_m: number;
+    /**
+     * Sessions
+     */
+    sessions: number;
+    /**
+     * Partial
+     */
+    partial: boolean;
+};
+
+/**
+ * TrainingPoint
+ */
+export type TrainingPoint = {
+    /**
+     * Day
+     */
+    day: string;
+    /**
+     * Load
+     */
+    load: number;
+    /**
+     * Fitness
+     */
+    fitness: number;
+    /**
+     * Fatigue
+     */
+    fatigue: number;
+    /**
+     * Form
+     */
+    form: number;
+    /**
+     * Band
+     */
+    band: 'fresh' | 'neutral' | 'optimal' | 'high_risk';
+};
+
+/**
+ * TrainingSummary
+ */
+export type TrainingSummary = {
+    /**
+     * Fitness
+     */
+    fitness: number | null;
+    /**
+     * Fatigue
+     */
+    fatigue: number | null;
+    /**
+     * Form
+     */
+    form: number | null;
+    /**
+     * Band
+     */
+    band: 'fresh' | 'neutral' | 'optimal' | 'high_risk' | null;
+    /**
+     * Fitness Change
+     */
+    fitness_change: number | null;
+    /**
+     * Ramp Per Week
+     */
+    ramp_per_week: number | null;
+    /**
+     * Ramp Safe
+     */
+    ramp_safe: boolean | null;
+};
+
+/**
+ * TrainingWeek
+ */
+export type TrainingWeek = {
+    /**
+     * Week Start
+     */
+    week_start: string;
+    /**
+     * Swim
+     */
+    swim: number;
+    /**
+     * Bike
+     */
+    bike: number;
+    /**
+     * Run
+     */
+    run: number;
+    /**
+     * Strength
+     */
+    strength: number;
+    /**
+     * Other
+     */
+    other: number;
+    /**
+     * Partial
+     */
+    partial: boolean;
+};
+
+/**
  * TransactionCategory
  */
 export type TransactionCategory = {
@@ -2858,6 +3073,11 @@ export type HubnisioHealthModelsConnectionStatus = 'active' | 'expired';
  * Period
  */
 export type HubnisioHealthRecoveryApiPeriod = 30 | 90 | 365;
+
+/**
+ * Period
+ */
+export type HubnisioHealthTrainingApiPeriod = '90' | '180' | '365' | 'all';
 
 export type GetHealthData = {
     body?: never;
@@ -4317,3 +4537,30 @@ export type GetSleepTrendsResponses = {
 };
 
 export type GetSleepTrendsResponse = GetSleepTrendsResponses[keyof GetSleepTrendsResponses];
+
+export type GetTrainingData = {
+    body?: never;
+    path?: never;
+    query?: {
+        days?: HubnisioHealthTrainingApiPeriod;
+    };
+    url: '/api/health/training';
+};
+
+export type GetTrainingErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetTrainingError = GetTrainingErrors[keyof GetTrainingErrors];
+
+export type GetTrainingResponses = {
+    /**
+     * Successful Response
+     */
+    200: Training;
+};
+
+export type GetTrainingResponse = GetTrainingResponses[keyof GetTrainingResponses];

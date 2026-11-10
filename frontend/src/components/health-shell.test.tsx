@@ -63,7 +63,7 @@ test('the switcher moves between Finance and Health', async () => {
 });
 
 // Pages with their own tests are left out as their slices fill them.
-const FILLED = new Set(['Body', 'Garmin', 'Recovery', 'Sleep']);
+const FILLED = new Set(['Body', 'Garmin', 'Recovery', 'Sleep', 'Training']);
 test.each(HEALTH_PAGES.filter((page) => !FILLED.has(page.title)))(
   '$title renders its title and an honest gap',
   async ({ to, title }) => {

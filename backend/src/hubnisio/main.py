@@ -19,6 +19,7 @@ from hubnisio.health.api import router as health_router
 from hubnisio.health.body_api import router as body_router
 from hubnisio.health.recovery_api import router as recovery_router
 from hubnisio.health.sleep_api import router as sleep_router
+from hubnisio.health.training_api import router as training_router
 from hubnisio.jobs import app as job_app
 
 
@@ -47,6 +48,7 @@ ROUTERS = (
     body_router,
     recovery_router,
     sleep_router,
+    training_router,
 )
 for router in ROUTERS:
     app.include_router(router, prefix="/api")
