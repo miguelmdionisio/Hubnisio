@@ -21,6 +21,7 @@ from hubnisio.health.body_api import router as body_router
 from hubnisio.health.performance_api import router as performance_router
 from hubnisio.health.recovery_api import router as recovery_router
 from hubnisio.health.sleep_api import router as sleep_router
+from hubnisio.health.today_api import router as today_router
 from hubnisio.health.training_api import router as training_router
 from hubnisio.jobs import app as job_app
 
@@ -53,6 +54,7 @@ ROUTERS = (
     sleep_router,
     training_router,
     performance_router,
+    today_router,
 )
 for router in ROUTERS:
     app.include_router(router, prefix="/api")

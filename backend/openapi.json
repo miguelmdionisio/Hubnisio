@@ -2811,6 +2811,28 @@
           }
         }
       }
+    },
+    "/api/health/today": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Get Today",
+        "description": "The member's day at a glance, composed from what Training, Sleep and Recovery return.",
+        "operationId": "getToday",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Today"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -5903,6 +5925,37 @@
         ],
         "title": "Family"
       },
+      "Figures": {
+        "properties": {
+          "form": {
+            "$ref": "#/components/schemas/FormFigure"
+          },
+          "sleep": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SleepFigure"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "hrv": {
+            "$ref": "#/components/schemas/HrvFigure"
+          },
+          "resting_hr": {
+            "$ref": "#/components/schemas/RestingFigure"
+          }
+        },
+        "type": "object",
+        "required": [
+          "form",
+          "sleep",
+          "hrv",
+          "resting_hr"
+        ],
+        "title": "Figures"
+      },
       "FitnessAgeOut": {
         "properties": {
           "points": {
@@ -5929,6 +5982,56 @@
           "latest"
         ],
         "title": "FitnessAgeOut"
+      },
+      "FormFigure": {
+        "properties": {
+          "form": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Form"
+          },
+          "band": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "fresh",
+                  "neutral",
+                  "optimal",
+                  "high_risk"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Band"
+          },
+          "fitness": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fitness"
+          }
+        },
+        "type": "object",
+        "required": [
+          "form",
+          "band",
+          "fitness"
+        ],
+        "title": "FormFigure"
       },
       "HTTPValidationError": {
         "properties": {
@@ -6194,6 +6297,63 @@
           "weight"
         ],
         "title": "Holding"
+      },
+      "HrvFigure": {
+        "properties": {
+          "avg7": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg7"
+          },
+          "position": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "in",
+                  "below",
+                  "above"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Position"
+          }
+        },
+        "type": "object",
+        "required": [
+          "avg7",
+          "position"
+        ],
+        "title": "HrvFigure"
+      },
+      "HrvNights": {
+        "properties": {
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/HrvPoint"
+            },
+            "type": "array",
+            "title": "Points"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/HrvSummary"
+          }
+        },
+        "type": "object",
+        "required": [
+          "points",
+          "summary"
+        ],
+        "title": "HrvNights"
       },
       "HrvOut": {
         "properties": {
@@ -6822,6 +6982,108 @@
           "accounts"
         ],
         "title": "InvestmentsOut"
+      },
+      "LastNight": {
+        "properties": {
+          "day": {
+            "type": "string",
+            "format": "date",
+            "title": "Day"
+          },
+          "last_night": {
+            "type": "boolean",
+            "title": "Last Night"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Started At"
+          },
+          "ended_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Ended At"
+          },
+          "bed_min": {
+            "type": "integer",
+            "title": "Bed Min"
+          },
+          "wake_min": {
+            "type": "integer",
+            "title": "Wake Min"
+          },
+          "slept_s": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slept S"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          },
+          "score_qualifier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score Qualifier"
+          },
+          "need_minutes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Need Minutes"
+          },
+          "in_bed_s": {
+            "type": "integer",
+            "title": "In Bed S"
+          },
+          "stages": {
+            "items": {
+              "$ref": "#/components/schemas/StageShare"
+            },
+            "type": "array",
+            "title": "Stages"
+          }
+        },
+        "type": "object",
+        "required": [
+          "day",
+          "last_night",
+          "started_at",
+          "ended_at",
+          "bed_min",
+          "wake_min",
+          "slept_s",
+          "score",
+          "score_qualifier",
+          "need_minutes",
+          "in_bed_s",
+          "stages"
+        ],
+        "title": "LastNight"
       },
       "MarathonShape": {
         "properties": {
@@ -7752,6 +8014,83 @@
         ],
         "title": "ReadingOut"
       },
+      "RecentActivity": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "sport": {
+            "type": "string",
+            "title": "Sport"
+          },
+          "group": {
+            "type": "string",
+            "title": "Group"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "start": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Start"
+          },
+          "distance_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Distance M"
+          },
+          "duration_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration S"
+          },
+          "load": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Load"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "sport",
+          "group",
+          "name",
+          "start",
+          "distance_m",
+          "duration_s",
+          "load"
+        ],
+        "title": "RecentActivity"
+      },
       "Recovery": {
         "properties": {
           "days": {
@@ -7967,6 +8306,50 @@
         "type": "object",
         "title": "RecurringUpdate",
         "description": "Only the fields sent change. An empty `name` goes back to the detected one."
+      },
+      "RestingFigure": {
+        "properties": {
+          "latest": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest"
+          },
+          "avg7": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg7"
+          },
+          "change": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Change"
+          }
+        },
+        "type": "object",
+        "required": [
+          "latest",
+          "avg7",
+          "change"
+        ],
+        "title": "RestingFigure"
       },
       "RestingOut": {
         "properties": {
@@ -8691,6 +9074,61 @@
         ],
         "title": "Signals"
       },
+      "SleepFigure": {
+        "properties": {
+          "day": {
+            "type": "string",
+            "format": "date",
+            "title": "Day"
+          },
+          "last_night": {
+            "type": "boolean",
+            "title": "Last Night"
+          },
+          "slept_s": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slept S"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          },
+          "need_minutes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Need Minutes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "day",
+          "last_night",
+          "slept_s",
+          "score",
+          "need_minutes"
+        ],
+        "title": "SleepFigure"
+      },
       "SleepNight": {
         "properties": {
           "day": {
@@ -9278,6 +9716,53 @@
         ],
         "title": "SpreadOut"
       },
+      "StageShare": {
+        "properties": {
+          "stage": {
+            "type": "string",
+            "title": "Stage"
+          },
+          "seconds": {
+            "type": "integer",
+            "title": "Seconds"
+          },
+          "share": {
+            "type": "number",
+            "title": "Share"
+          },
+          "typical_low": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Typical Low"
+          },
+          "typical_high": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Typical High"
+          }
+        },
+        "type": "object",
+        "required": [
+          "stage",
+          "seconds",
+          "share",
+          "typical_low",
+          "typical_high"
+        ],
+        "title": "StageShare"
+      },
       "StageShareOut": {
         "properties": {
           "stage": {
@@ -9766,6 +10251,63 @@
         ],
         "title": "SyncStatus"
       },
+      "Today": {
+        "properties": {
+          "today": {
+            "type": "string",
+            "format": "date",
+            "title": "Today"
+          },
+          "figures": {
+            "$ref": "#/components/schemas/Figures"
+          },
+          "fitness": {
+            "items": {
+              "$ref": "#/components/schemas/TrainingPoint"
+            },
+            "type": "array",
+            "title": "Fitness"
+          },
+          "week": {
+            "$ref": "#/components/schemas/WeekSummary"
+          },
+          "night": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LastNight"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "hrv": {
+            "$ref": "#/components/schemas/HrvNights"
+          },
+          "activities": {
+            "items": {
+              "$ref": "#/components/schemas/RecentActivity"
+            },
+            "type": "array",
+            "title": "Activities"
+          },
+          "signals": {
+            "$ref": "#/components/schemas/Signals"
+          }
+        },
+        "type": "object",
+        "required": [
+          "today",
+          "figures",
+          "fitness",
+          "week",
+          "night",
+          "hrv",
+          "activities",
+          "signals"
+        ],
+        "title": "Today"
+      },
       "Training": {
         "properties": {
           "period": {
@@ -9845,6 +10387,45 @@
           "months"
         ],
         "title": "Training"
+      },
+      "TrainingDay": {
+        "properties": {
+          "day": {
+            "type": "string",
+            "format": "date",
+            "title": "Day"
+          },
+          "swim": {
+            "type": "number",
+            "title": "Swim"
+          },
+          "bike": {
+            "type": "number",
+            "title": "Bike"
+          },
+          "run": {
+            "type": "number",
+            "title": "Run"
+          },
+          "strength": {
+            "type": "number",
+            "title": "Strength"
+          },
+          "other": {
+            "type": "number",
+            "title": "Other"
+          }
+        },
+        "type": "object",
+        "required": [
+          "day",
+          "swim",
+          "bike",
+          "run",
+          "strength",
+          "other"
+        ],
+        "title": "TrainingDay"
       },
       "TrainingIntensity": {
         "properties": {
@@ -10955,6 +11536,32 @@
           "change_90d"
         ],
         "title": "Vo2maxTrend"
+      },
+      "WeekSummary": {
+        "properties": {
+          "days": {
+            "items": {
+              "$ref": "#/components/schemas/TrainingDay"
+            },
+            "type": "array",
+            "title": "Days"
+          },
+          "total_hours": {
+            "type": "number",
+            "title": "Total Hours"
+          },
+          "average_hours": {
+            "type": "number",
+            "title": "Average Hours"
+          }
+        },
+        "type": "object",
+        "required": [
+          "days",
+          "total_hours",
+          "average_hours"
+        ],
+        "title": "WeekSummary"
       },
       "WeekdayScoreOut": {
         "properties": {
