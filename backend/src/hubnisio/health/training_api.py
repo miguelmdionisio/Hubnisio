@@ -9,6 +9,7 @@ from fastapi import APIRouter
 
 from hubnisio.health.api import CurrentPrincipal, DbSession
 from hubnisio.health.insights.training import (
+    ActivityRow,
     Band,
     TrainingIntensity,
     TrainingMonth,
@@ -67,7 +68,11 @@ async def get_training(
     history, the period only crops what is returned."""
     connection = await own_connection(session, principal)
     today = today_in(connection.time_zone if connection else None)
-    rows = await load_activity_rows(session, principal)
+    return training(await load_activity_rows(session, principal), today, days)
+
+
+def training(rows: list[ActivityRow], today: date, days: Period) -> Training:
+    """The page's figures from the member's activities (the MCP server calls it too)."""
     series = load_series(rows, today)
     if not series:
         return Training(days.value, None, today, summarize([]), [], [], None, [], [])

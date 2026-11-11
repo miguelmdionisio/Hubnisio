@@ -14,6 +14,7 @@ from typing import Any
 import psycopg
 import pytest
 from analytics_data import OCTOBER, SEPTEMBER, VIEWS, Data, Login, new_account, save
+from health_data import seed_health
 from households import Home, add, api, make_home
 from mcp import Client, StdioServerParameters
 from portfolios import Trade, investment_account, new_instrument, set_prices
@@ -59,6 +60,12 @@ TOOLS = {
     "balances",
     "budget_status",
     "cashflow",
+    "health_activities",
+    "health_body",
+    "health_performance",
+    "health_recovery",
+    "health_sleep",
+    "health_training",
     "investments",
     "list_accounts",
     "list_categories",
@@ -472,6 +479,90 @@ async def test_search_transactions_agrees_with_the_transactions_page(
         assert [
             (t["id"], t["category"], t["category_source"]) for t in suggested["transactions"]
         ] == [(transaction["id"], "Groceries", "ai")]
+
+
+async def test_health_tools_agree_with_the_health_pages(
+    home: Home, logins: dict[uuid.UUID, Login]
+) -> None:
+    """Each health tool gives what its page's API gives the same member; the household's other
+    member gets their own (empty) health, never the owner's."""
+    today = await seed_health(home.owner.user_id)
+    night = today - timedelta(days=5)
+    cases: list[tuple[str, dict[str, Any], str, dict[str, Any], str | None]] = [
+        ("health_training", {"days": "90"}, "/api/health/training", {"days": "90"}, None),
+        ("health_training", {"days": "all"}, "/api/health/training", {"days": "all"}, None),
+        ("health_recovery", {"days": 30}, "/api/health/recovery", {"days": 30}, None),
+        ("health_recovery", {"days": 90}, "/api/health/recovery", {"days": 90}, None),
+        ("health_performance", {}, "/api/health/performance", {}, None),
+        (
+            "health_performance",
+            {"period": "all"},
+            "/api/health/performance",
+            {"period": "all"},
+            None,
+        ),
+        ("health_body", {"days": "90"}, "/api/health/body", {"days": "90"}, None),
+        ("health_body", {}, "/api/health/body", {}, None),
+        ("health_sleep", {"nights": 90}, "/api/health/sleep/trends", {"nights": 90}, "trends"),
+        ("health_sleep", {}, "/api/health/sleep/night", {}, "night"),
+        (
+            "health_sleep",
+            {"on": night.isoformat()},
+            "/api/health/sleep/night",
+            {"date": night.isoformat()},
+            "night",
+        ),
+    ]
+    for principal in principals(home):
+        async with connected(logins[principal.user_id]) as client, api(principal) as page:
+            for tool, arguments, path, params, part in cases:
+                found = await call(client, tool, **arguments)
+                response = await page.get(path, params=params)
+                assert response.status_code == 200, (tool, response.text)
+                context = (principal, tool, arguments)
+                assert (found[part] if part else found) == response.json(), context
+            if principal == home.member:
+                assert (await call(client, "health_activities"))["matched"] == 0
+                assert "No activity 1000" in await failure(
+                    client, "health_activities", activity_id=1000
+                )
+
+    async with connected(logins[home.owner.user_id]) as client:
+        sleep = await call(client, "health_sleep", on=night.isoformat())
+        assert sleep["night"]["night"]["hrv"]["avg"] is not None
+        assert (await call(client, "health_training"))["summary"]["fitness"] > 0
+
+        # Activities: newest first, filtered, and one in full with its derived results and laps.
+        everything = await call(client, "health_activities", limit=200)
+        assert everything["matched"] == len(everything["activities"]) == 27
+        started = [a["start_local"] or "" for a in everything["activities"] if a["start_local"]]
+        assert started == sorted(started, reverse=True)
+        runs = await call(client, "health_activities", sport="running", limit=200)
+        assert runs["matched"] == 9  # eight runs and the triathlon's run
+        assert {a["sport"] for a in runs["activities"]} == {"running"}
+        recent = await call(
+            client,
+            "health_activities",
+            date_from=(today - timedelta(days=10)).isoformat(),
+            date_to=today.isoformat(),
+            limit=200,
+        )
+        assert recent["matched"] == 4
+        named = await call(client, "health_activities", text="triathlon", limit=1)
+        assert named["matched"] == 4 and len(named["activities"]) == 1
+
+        detail = (await call(client, "health_activities", activity_id=1000))["detail"]
+        assert (detail["sport"], detail["has_derived"], len(detail["laps"])) == ("running", True, 2)
+        assert detail["best_efforts"] == {"1000": 230.0, "5000": 1240.0 + 1000 % 9}
+        assert len(detail["power_curve"]) == len(detail["curve_durations_s"])
+        without_file = (await call(client, "health_activities", activity_id=1003))["detail"]
+        assert (without_file["has_derived"], without_file["hr_load"], without_file["laps"]) == (
+            False,
+            None,
+            [],
+        )
+        parent = (await call(client, "health_activities", activity_id=2000))["detail"]
+        assert (parent["is_parent"], parent["child_ids"]) == (True, [2001, 2002, 2003])
 
 
 @pytest.mark.usefixtures("data")

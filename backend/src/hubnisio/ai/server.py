@@ -46,6 +46,19 @@ from hubnisio.finance.models import Cadence, RecurringStatus, Review, Transactio
 from hubnisio.finance.prices.table import PriceTable
 from hubnisio.finance.recurring.detect import description_key, status_on
 from hubnisio.finance.scoping import View
+from hubnisio.health.body_api import Period as BodyPeriod
+from hubnisio.health.insights import sleep as sleep_insights
+from hubnisio.health.insights.body import Body, body
+from hubnisio.health.insights.curves import CURVE_DURATIONS
+from hubnisio.health.insights.performance import Performance, performance
+from hubnisio.health.insights.performance import Period as PerformancePeriod
+from hubnisio.health.insights.recovery import Recovery, recovery
+from hubnisio.health.insights.training import current_form
+from hubnisio.health.recovery_api import Period as RecoveryPeriod
+from hubnisio.health.sleep_api import NIGHT_WINDOW, NightOut, SleepNight, SleepTrends
+from hubnisio.health.sleep_api import Nights as SleepNights
+from hubnisio.health.training_api import Period as TrainingPeriod
+from hubnisio.health.training_api import Training, training
 
 QUERY_ROWS = 500
 QUERY_TIMEOUT = "5s"
@@ -66,6 +79,13 @@ that category's spending.
 shared pot is left out, and money the user moves into it counts as spending in the pot's \
 category. "household" counts every account the user can see, the pot's spending included.
 - Prefer the specific tools; query_sql is for what they don't answer.
+
+Health (the health_* tools) is the user's own data from their Garmin watch: activities, \
+training load, sleep, recovery, performance and body. Nobody else's, not even another member \
+of the household. Units: seconds, metres, m/s, bpm, watts and kg unless a field says \
+otherwise; days are the user's local dates. Race predictions, VO2max, critical power and \
+speed are estimates from the user's own efforts, not results. Training load is Hubnisio's \
+own hrTSS-style score from heart rate, so it differs from Garmin's.
 """
 
 Months = Annotated[int, Field(ge=1, le=36, description="How many months, ending with until's.")]
@@ -629,6 +649,221 @@ class Tools:
         arguments = {"suggestions": [s.model_dump(exclude_none=True) for s in suggestions]}
         return await self._call("suggest_categories", arguments, write, read_only=False)
 
+    async def health_training(
+        self,
+        days: Annotated[
+            TrainingPeriod,
+            Field(description='The period ending today: "90", "180", "365" days, or "all".'),
+        ] = TrainingPeriod.QUARTER,
+    ) -> Training:
+        """The user's training, as the Training page shows it. Per day, the load (an
+        hrTSS-style score from heart rate), fitness (its 42-day average), fatigue (7-day) and
+        form (fitness less fatigue) with its band; the summary with the ramp (fitness gained
+        over 4 weeks, per week); hours per week by sport; the intensity split (time in zones 1
+        and 2, 3, and 4 and 5) by sport; and totals per month, newest first. Fitness is
+        computed over all history; the period only crops what is listed."""
+
+        async def read(db: Connection) -> tuple[Training, int]:
+            today = await views.health_today(db)
+            result = training(await views.activity_rows(db), today, days)
+            return result, len(result.points)
+
+        return await self._call("health_training", {"days": days}, read)
+
+    async def health_sleep(
+        self,
+        nights: Annotated[
+            SleepNights, Field(description="How many nights the trends cover: 30, 90 or 365.")
+        ] = SleepNights.MONTH,
+        on: Annotated[
+            date | None,
+            Field(description="The night to detail: the day it ends (default: the latest)."),
+        ] = None,
+    ) -> outputs.HealthSleep:
+        """The user's sleep, as the Sleep page shows it. trends: the nights up to the latest
+        one, each with time slept and per stage (s), Garmin's need (min) and score, bed and
+        wake time (minutes from the wake day's midnight, negative before it); the schedule's
+        averages and spread; hours slept against the next morning's HRV; the score by weekday
+        (0 is Monday). A night the watch wasn't worn is a gap, not zero. night: one night, with
+        its stages against a typical night's shares, the 7-night average, sleep debt (need less
+        slept, negative when ahead), and its heart rate, HRV, respiration and SpO2 as averages,
+        lows and highs (without the overnight readings the page draws)."""
+
+        async def read(db: Connection) -> tuple[outputs.HealthSleep, int]:
+            days = await views.night_days(db)
+            count = int(nights)
+            end = days[-1] if days else date.today()
+            start = end - timedelta(days=count - 1)
+            hrv = await views.hrv_nights(db, start + timedelta(days=1), end + timedelta(days=1))
+            trends = sleep_insights.trends(
+                await views.nights(db, start, end),
+                end,
+                count,
+                {day: row.last_night_avg for day, row in hrv.items()},
+            )
+            result = outputs.HealthSleep(
+                trends=SleepTrends.model_validate(trends),
+                night=await _sleep_night(db, days, on),
+            )
+            return result, result.trends.nights_worn
+
+        return await self._call("health_sleep", {"nights": nights, "on": on}, read)
+
+    async def health_recovery(
+        self,
+        days: Annotated[
+            RecoveryPeriod, Field(description="The days ending today: 30, 90 or 365.")
+        ] = RecoveryPeriod.QUARTER,
+    ) -> Recovery:
+        """The user's recovery, as the Recovery page shows it: overnight HRV (ms) against
+        their normal range (the 60 nights before, mean ± 0.75 SD) with its 7-day average and
+        swing; resting heart rate (bpm) and its 7-day average; Body Battery at waking, charged
+        and drained (0 to 100); stress (0 to 100, and seconds per level); and today's signals
+        (HRV, resting heart rate, sleep, Body Battery, form), each ok or not. A day without
+        data is a gap."""
+
+        async def read(db: Connection) -> tuple[Recovery, int]:
+            today = await views.health_today(db)
+            facts = await views.recovery_facts(db, today, days.value)
+            form = current_form(await views.activity_rows(db), today)
+            return recovery(facts, today, days.value, form), len(facts)
+
+        return await self._call("health_recovery", {"days": days}, read)
+
+    async def health_performance(
+        self,
+        period: Annotated[
+            PerformancePeriod,
+            Field(description="season (this calendar year), 90d or all, to today."),
+        ] = "season",
+    ) -> Performance:
+        """The user's performance, as the Performance page shows it: the period's best
+        power, pace and heart rate per duration; critical power (W) and W' (J), critical speed
+        (m/s) and D' (m), and the swim threshold, from those bests; the VO2max trend
+        (Hubnisio's own, from runs); race predictions from VO2max and from a recent race-length
+        effort, which are estimates, not results; easy-run efficiency (speed per heartbeat);
+        the bike's bests and climbs; and records (run and swim distances, bike durations,
+        triathlons). Times in s, speeds in m/s, distances in m."""
+
+        async def read(db: Connection) -> tuple[Performance, int]:
+            today = await views.health_today(db)
+            rows = await views.activity_facts(db)
+            result = performance(
+                rows,
+                today,
+                period,
+                zone3_floor=await views.run_zone3_floor(db),
+                weight_kg=await views.latest_weight(db, today),
+            )
+            return result, len(rows)
+
+        return await self._call("health_performance", {"period": period}, read)
+
+    async def health_body(
+        self,
+        days: Annotated[
+            BodyPeriod, Field(description='The days ending today: "90", "365", or "all".')
+        ] = BodyPeriod.YEAR,
+    ) -> Body:
+        """The user's body, as the Body page shows it: weigh-ins (kg; a day's latest counts)
+        with BMI and body fat (%), the change over the period and against their goal, and
+        Garmin's fitness age against their age."""
+
+        async def read(db: Connection) -> tuple[Body, int]:
+            today = await views.health_today(db)
+            weigh_ins, readings, goal = await views.body_facts(db)
+            window = None if days is BodyPeriod.ALL else int(days.value)
+            return body(weigh_ins, readings, goal, today, window), len(weigh_ins)
+
+        return await self._call("health_body", {"days": days}, read)
+
+    async def health_activities(
+        self,
+        activity_id: Annotated[
+            int | None,
+            Field(description="One activity, in full: the other arguments are then ignored."),
+        ] = None,
+        sport: Annotated[
+            str | None,
+            Field(
+                max_length=48,
+                description="Part of Garmin's type key: running, trail_running, cycling, "
+                "lap_swimming, open_water_swimming, multi_sport, strength_training, …",
+            ),
+        ] = None,
+        date_from: date | None = None,
+        date_to: date | None = None,
+        text: Annotated[str | None, Field(max_length=100, description="Part of the name.")] = None,
+        limit: Limit = 50,
+    ) -> outputs.HealthActivitiesResult:
+        """The user's activities, newest first: Garmin's summary of each, with Hubnisio's
+        load and VO2max estimate. With activity_id, that one activity in full instead
+        (detail): every summary field, what Hubnisio derived from its file (time moving, the
+        heart-rate reference, time in zones, best power, heart rate and speed per duration,
+        best efforts by distance, graded pace, efficiency and decoupling, climbs) and its
+        laps. A multisport activity (a triathlon) is a parent whose legs are activities of
+        their own. Units: s, m, m/s, bpm, W."""
+        arguments = {
+            "activity_id": activity_id,
+            "sport": sport,
+            "date_from": date_from,
+            "date_to": date_to,
+            "text": text,
+            "limit": limit,
+        }
+        if activity_id is not None:
+
+            async def detail(db: Connection) -> tuple[outputs.HealthActivitiesResult, int]:
+                rows = await _dicts(
+                    db,
+                    "SELECT * FROM analytics.health_activities WHERE activity_id = %s",
+                    [activity_id],
+                )
+                if not rows:
+                    raise ToolError(f"No activity {activity_id}.")
+                laps = await _dicts(
+                    db,
+                    "SELECT * FROM analytics.health_activity_laps WHERE activity_id = %s"
+                    " ORDER BY lap_index",
+                    [activity_id],
+                )
+                found = outputs.HealthActivityDetail.model_validate(
+                    rows[0]
+                    | {
+                        "curve_durations_s": list(CURVE_DURATIONS),
+                        "laps": [outputs.HealthLap.model_validate(lap) for lap in laps],
+                    }
+                )
+                return outputs.HealthActivitiesResult(matched=1, activities=[], detail=found), 1
+
+            return await self._call("health_activities", arguments, detail)
+
+        conditions: list[LiteralString] = ["true"]
+        params: list[Any] = []
+        filters: list[tuple[Any, LiteralString]] = [
+            (sport and f"%{_escape_like(sport.strip())}%", "sport ILIKE %s"),
+            (text and text.strip() and f"%{_escape_like(text.strip())}%", "name ILIKE %s"),
+            (date_from, "day >= %s"),
+            (date_to, "day <= %s"),
+        ]
+        for value, condition in filters:
+            if value:
+                conditions.append(condition)
+                params.append(value)
+        query = sql.SQL(
+            "SELECT *, count(*) OVER () AS matched FROM analytics.health_activities"
+            " WHERE {} ORDER BY started_at DESC, activity_id DESC LIMIT %s"
+        ).format(_all(conditions))
+
+        async def search(db: Connection) -> tuple[outputs.HealthActivitiesResult, int]:
+            rows = await _dicts(db, query, [*params, limit])
+            found = [outputs.HealthActivity.model_validate(row) for row in rows]
+            matched = rows[0]["matched"] if rows else 0
+            result = outputs.HealthActivitiesResult(matched=matched, activities=found)
+            return result, len(found)
+
+        return await self._call("health_activities", arguments, search)
+
     async def query_sql(
         self, query: Annotated[str, Field(description="One PostgreSQL query.")]
     ) -> outputs.QueryResult:
@@ -639,7 +874,10 @@ class Tools:
         The views (bare names work): me, accounts, visible_accounts, transactions,
         monthly_category_spend, categories, merchants, budgets, budget_limits,
         recurring_payments, balances, daily_movements, account_connections, fx_rates,
-        portfolios, holdings, fills, instruments, instrument_prices.
+        portfolios, holdings, fills, instruments, instrument_prices; and the user's own
+        health: health_connection, health_activities, health_activity_laps,
+        health_daily_summaries, health_sleeps, health_hrv_nights, health_wake_battery,
+        health_heart_rate_zones, health_weights, health_weight_goal, health_fitness_ages.
         Each has a comment saying what it holds, e.g.
         `SELECT obj_description('analytics.transactions'::regclass)`; their columns are in
         information_schema.columns. Prefer monthly_category_spend for monthly totals: it
@@ -723,6 +961,12 @@ def build_server(dsn: str) -> MCPServer:
         tools.net_worth_history,
         tools.investments,
         tools.uncategorized_overview,
+        tools.health_training,
+        tools.health_sleep,
+        tools.health_recovery,
+        tools.health_performance,
+        tools.health_activities,
+        tools.health_body,
         tools.query_sql,
     ):
         server.add_tool(tool, annotations=read_only)
@@ -798,6 +1042,20 @@ async def _suggestion_targets(db: Connection, suggestion: Suggestion) -> list[uu
 def _description_group(row: dict[str, Any]) -> str:
     """A transaction's group in uncategorized_overview when it has no merchant."""
     return description_key(row["description"]) or description_key(row["bank_counterparty"])
+
+
+async def _sleep_night(db: Connection, days: list[date], on: date | None) -> SleepNight:
+    """The Sleep page's night, from the night's summary alone: the overnight readings stay out
+    of the views (ADR-0009, "As built in H9")."""
+    day = on or (days[-1] if days else None)
+    if day is None:
+        return SleepNight(day=None, night=None, previous_day=None, next_day=None)
+    previous_day, next_day = sleep_insights.neighbours(days, day)
+    rows = await views.nights(db, day - timedelta(days=NIGHT_WINDOW), day)
+    hrv = await views.hrv_nights(db, day, day)
+    found = sleep_insights.night_detail(rows, day, hrv_night=hrv.get(day))
+    night = NightOut.model_validate(found) if found else None
+    return SleepNight(day=day, night=night, previous_day=previous_day, next_day=next_day)
 
 
 def _all(conditions: Sequence[LiteralString]) -> sql.Composed:
