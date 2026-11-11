@@ -17,6 +17,7 @@ from hubnisio.finance.recurring_api import router as recurring_router
 from hubnisio.finance.transactions_api import router as transactions_router
 from hubnisio.health.api import router as health_router
 from hubnisio.health.body_api import router as body_router
+from hubnisio.health.performance_api import router as performance_router
 from hubnisio.health.recovery_api import router as recovery_router
 from hubnisio.health.sleep_api import router as sleep_router
 from hubnisio.health.training_api import router as training_router
@@ -49,6 +50,7 @@ ROUTERS = (
     recovery_router,
     sleep_router,
     training_router,
+    performance_router,
 )
 for router in ROUTERS:
     app.include_router(router, prefix="/api")

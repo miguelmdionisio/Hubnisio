@@ -14,7 +14,7 @@ afterEach(() => {
 test('the Health sidebar lists its pages in groups', async () => {
   const calls = mockApi({});
 
-  renderAt('/health/training');
+  renderAt('/health');
 
   const sidebar = within(await screen.findByRole('navigation', { name: 'Health' }));
   expect(screen.getByRole('button', { name: 'Domain: Health' })).toBeDefined();
@@ -23,8 +23,8 @@ test('the Health sidebar lists its pages in groups', async () => {
   );
   expect(sidebar.getByText('Analyse')).toBeDefined();
   expect(sidebar.getByText('Sources')).toBeDefined();
-  expect(sidebar.getByRole('link', { name: 'Training' }).getAttribute('aria-current')).toBe('page');
-  expect(sidebar.getByRole('link', { name: 'Today' }).getAttribute('aria-current')).toBeNull();
+  expect(sidebar.getByRole('link', { name: 'Today' }).getAttribute('aria-current')).toBe('page');
+  expect(sidebar.getByRole('link', { name: 'Training' }).getAttribute('aria-current')).toBeNull();
   // No Finance bank sync, no household view, no API calls at all.
   expect(screen.queryByRole('group', { name: 'View' })).toBeNull();
   expect(calls).toEqual([]);
@@ -49,7 +49,7 @@ test('the Health tab bar holds four pages and More', async () => {
 test('the switcher moves between Finance and Health', async () => {
   mockApi({});
 
-  renderAt('/health/training');
+  renderAt('/health');
 
   fireEvent.click(await screen.findByRole('button', { name: 'Domain: Health' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Finance' }));
@@ -63,7 +63,7 @@ test('the switcher moves between Finance and Health', async () => {
 });
 
 // Pages with their own tests are left out as their slices fill them.
-const FILLED = new Set(['Body', 'Garmin', 'Recovery', 'Sleep', 'Training']);
+const FILLED = new Set(['Body', 'Garmin', 'Performance', 'Recovery', 'Sleep', 'Training']);
 test.each(HEALTH_PAGES.filter((page) => !FILLED.has(page.title)))(
   '$title renders its title and an honest gap',
   async ({ to, title }) => {

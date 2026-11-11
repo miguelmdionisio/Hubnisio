@@ -2542,6 +2542,55 @@
           }
         }
       }
+    },
+    "/api/health/performance": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Get Performance",
+        "description": "This season (the calendar year), the last 90 days or all time, to today.",
+        "operationId": "getPerformance",
+        "parameters": [
+          {
+            "name": "period",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "season",
+                "90d",
+                "all"
+              ],
+              "type": "string",
+              "default": "season",
+              "title": "Period"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Performance"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -3129,6 +3178,129 @@
           "day"
         ],
         "title": "BatterySummary"
+      },
+      "BestClimb": {
+        "properties": {
+          "day": {
+            "type": "string",
+            "format": "date",
+            "title": "Day"
+          },
+          "activity_id": {
+            "type": "integer",
+            "title": "Activity Id"
+          },
+          "distance_m": {
+            "type": "number",
+            "title": "Distance M"
+          },
+          "gain_m": {
+            "type": "number",
+            "title": "Gain M"
+          },
+          "duration_s": {
+            "type": "number",
+            "title": "Duration S"
+          },
+          "grade": {
+            "type": "number",
+            "title": "Grade"
+          },
+          "vam": {
+            "type": "number",
+            "title": "Vam"
+          }
+        },
+        "type": "object",
+        "required": [
+          "day",
+          "activity_id",
+          "distance_m",
+          "gain_m",
+          "duration_s",
+          "grade",
+          "vam"
+        ],
+        "title": "BestClimb"
+      },
+      "BestPoint": {
+        "properties": {
+          "duration_s": {
+            "type": "integer",
+            "title": "Duration S"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "day": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Day"
+          },
+          "activity_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activity Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "duration_s",
+          "value"
+        ],
+        "title": "BestPoint"
+      },
+      "BikePerformance": {
+        "properties": {
+          "hr_curve": {
+            "$ref": "#/components/schemas/SeasonCurves"
+          },
+          "power_curve": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SeasonCurves"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "climbs": {
+            "items": {
+              "$ref": "#/components/schemas/BestClimb"
+            },
+            "type": "array",
+            "title": "Climbs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "hr_curve",
+          "power_curve",
+          "climbs"
+        ],
+        "title": "BikePerformance"
       },
       "Body": {
         "properties": {
@@ -4073,6 +4245,85 @@
         "type": "object",
         "title": "CounterpartyUpdate"
       },
+      "CriticalPower": {
+        "properties": {
+          "cp": {
+            "type": "number",
+            "title": "Cp"
+          },
+          "w_prime": {
+            "type": "number",
+            "title": "W Prime"
+          },
+          "cp_per_kg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cp Per Kg"
+          },
+          "points": {
+            "type": "integer",
+            "title": "Points"
+          },
+          "line": {
+            "items": {
+              "$ref": "#/components/schemas/ModelPoint"
+            },
+            "type": "array",
+            "title": "Line"
+          }
+        },
+        "type": "object",
+        "required": [
+          "cp",
+          "w_prime",
+          "cp_per_kg",
+          "points",
+          "line"
+        ],
+        "title": "CriticalPower"
+      },
+      "CriticalSpeed": {
+        "properties": {
+          "speed": {
+            "type": "number",
+            "title": "Speed"
+          },
+          "d_prime": {
+            "type": "number",
+            "title": "D Prime"
+          },
+          "pace_per_km_s": {
+            "type": "number",
+            "title": "Pace Per Km S"
+          },
+          "points": {
+            "type": "integer",
+            "title": "Points"
+          },
+          "line": {
+            "items": {
+              "$ref": "#/components/schemas/ModelPoint"
+            },
+            "type": "array",
+            "title": "Line"
+          }
+        },
+        "type": "object",
+        "required": [
+          "speed",
+          "d_prime",
+          "pace_per_km_s",
+          "points",
+          "line"
+        ],
+        "title": "CriticalSpeed"
+      },
       "DateRange": {
         "properties": {
           "first": {
@@ -4125,6 +4376,69 @@
           "debt_minutes"
         ],
         "title": "DebtOut"
+      },
+      "EasyEfficiency": {
+        "properties": {
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/EasyEfficiencyPoint"
+            },
+            "type": "array",
+            "title": "Points"
+          },
+          "trend": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TrendLine"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "change_6m_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Change 6M Pct"
+          }
+        },
+        "type": "object",
+        "required": [
+          "points",
+          "trend",
+          "change_6m_pct"
+        ],
+        "title": "EasyEfficiency"
+      },
+      "EasyEfficiencyPoint": {
+        "properties": {
+          "day": {
+            "type": "string",
+            "format": "date",
+            "title": "Day"
+          },
+          "activity_id": {
+            "type": "integer",
+            "title": "Activity Id"
+          },
+          "value": {
+            "type": "number",
+            "title": "Value"
+          }
+        },
+        "type": "object",
+        "required": [
+          "day",
+          "activity_id",
+          "value"
+        ],
+        "title": "EasyEfficiencyPoint"
       },
       "FitnessAgeOut": {
         "properties": {
@@ -5046,6 +5360,67 @@
         ],
         "title": "InvestmentsOut"
       },
+      "MarathonShape": {
+        "properties": {
+          "score": {
+            "type": "number",
+            "title": "Score"
+          },
+          "weekly_km": {
+            "type": "number",
+            "title": "Weekly Km"
+          },
+          "weekly_target_km": {
+            "type": "number",
+            "title": "Weekly Target Km"
+          },
+          "weekly_share": {
+            "type": "number",
+            "title": "Weekly Share"
+          },
+          "long_runs": {
+            "type": "integer",
+            "title": "Long Runs"
+          },
+          "long_target_km": {
+            "type": "number",
+            "title": "Long Target Km"
+          },
+          "long_share": {
+            "type": "number",
+            "title": "Long Share"
+          }
+        },
+        "type": "object",
+        "required": [
+          "score",
+          "weekly_km",
+          "weekly_target_km",
+          "weekly_share",
+          "long_runs",
+          "long_target_km",
+          "long_share"
+        ],
+        "title": "MarathonShape"
+      },
+      "ModelPoint": {
+        "properties": {
+          "duration_s": {
+            "type": "integer",
+            "title": "Duration S"
+          },
+          "value": {
+            "type": "number",
+            "title": "Value"
+          }
+        },
+        "type": "object",
+        "required": [
+          "duration_s",
+          "value"
+        ],
+        "title": "ModelPoint"
+      },
       "NetWorthAccount": {
         "properties": {
           "id": {
@@ -5512,6 +5887,227 @@
         "title": "Overspend",
         "description": "What overspending a budget does to the next month (ADR-0007, \"Budgets\")."
       },
+      "Performance": {
+        "properties": {
+          "period": {
+            "type": "string",
+            "enum": [
+              "season",
+              "90d",
+              "all"
+            ],
+            "title": "Period"
+          },
+          "first_day": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Day"
+          },
+          "last_day": {
+            "type": "string",
+            "format": "date",
+            "title": "Last Day"
+          },
+          "season": {
+            "type": "integer",
+            "title": "Season"
+          },
+          "weight_kg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weight Kg"
+          },
+          "run_power": {
+            "$ref": "#/components/schemas/RunPower"
+          },
+          "run_pace": {
+            "$ref": "#/components/schemas/RunPace"
+          },
+          "swim_threshold": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SwimThreshold"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "vo2max": {
+            "$ref": "#/components/schemas/Vo2maxTrend"
+          },
+          "predictions": {
+            "$ref": "#/components/schemas/RacePredictions"
+          },
+          "efficiency": {
+            "$ref": "#/components/schemas/EasyEfficiency"
+          },
+          "bike": {
+            "$ref": "#/components/schemas/BikePerformance"
+          },
+          "records": {
+            "$ref": "#/components/schemas/PerformanceRecords"
+          }
+        },
+        "type": "object",
+        "required": [
+          "period",
+          "first_day",
+          "last_day",
+          "season",
+          "weight_kg",
+          "run_power",
+          "run_pace",
+          "swim_threshold",
+          "vo2max",
+          "predictions",
+          "efficiency",
+          "bike",
+          "records"
+        ],
+        "title": "Performance"
+      },
+      "PerformanceRecord": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "day": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Day"
+          },
+          "activity_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activity Id"
+          },
+          "venue": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "pool",
+                  "open_water"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Venue"
+          },
+          "all_time": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "All Time"
+          },
+          "all_time_day": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "All Time Day"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "value",
+          "day",
+          "activity_id"
+        ],
+        "title": "PerformanceRecord"
+      },
+      "PerformanceRecords": {
+        "properties": {
+          "run": {
+            "items": {
+              "$ref": "#/components/schemas/PerformanceRecord"
+            },
+            "type": "array",
+            "title": "Run"
+          },
+          "swim": {
+            "items": {
+              "$ref": "#/components/schemas/PerformanceRecord"
+            },
+            "type": "array",
+            "title": "Swim"
+          },
+          "bike": {
+            "items": {
+              "$ref": "#/components/schemas/PerformanceRecord"
+            },
+            "type": "array",
+            "title": "Bike"
+          },
+          "triathlon": {
+            "items": {
+              "$ref": "#/components/schemas/TriathlonResult"
+            },
+            "type": "array",
+            "title": "Triathlon"
+          }
+        },
+        "type": "object",
+        "required": [
+          "run",
+          "swim",
+          "bike",
+          "triathlon"
+        ],
+        "title": "PerformanceRecords"
+      },
       "ProviderName": {
         "type": "string",
         "enum": [
@@ -5519,6 +6115,103 @@
           "trading212"
         ],
         "title": "ProviderName"
+      },
+      "RacePrediction": {
+        "properties": {
+          "distance_m": {
+            "type": "integer",
+            "title": "Distance M"
+          },
+          "needs": {
+            "type": "number",
+            "title": "Needs"
+          },
+          "vdot_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vdot S"
+          },
+          "slowed": {
+            "type": "boolean",
+            "title": "Slowed"
+          },
+          "riegel_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Riegel S"
+          }
+        },
+        "type": "object",
+        "required": [
+          "distance_m",
+          "needs",
+          "vdot_s",
+          "slowed",
+          "riegel_s"
+        ],
+        "title": "RacePrediction"
+      },
+      "RacePredictions": {
+        "properties": {
+          "vo2max": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vo2Max"
+          },
+          "shape": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MarathonShape"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RacePrediction"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "riegel_from": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RiegelSource"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "vo2max",
+          "shape",
+          "items",
+          "riegel_from"
+        ],
+        "title": "RacePredictions"
       },
       "ReadingOut": {
         "properties": {
@@ -5990,6 +6683,35 @@
         "title": "Review",
         "description": "What the user made of a detected series. Only confirmed ones count (ADR-0007)."
       },
+      "RiegelSource": {
+        "properties": {
+          "distance_m": {
+            "type": "integer",
+            "title": "Distance M"
+          },
+          "seconds": {
+            "type": "number",
+            "title": "Seconds"
+          },
+          "day": {
+            "type": "string",
+            "format": "date",
+            "title": "Day"
+          },
+          "activity_id": {
+            "type": "integer",
+            "title": "Activity Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "distance_m",
+          "seconds",
+          "day",
+          "activity_id"
+        ],
+        "title": "RiegelSource"
+      },
       "RuleIn": {
         "properties": {
           "name": {
@@ -6207,6 +6929,76 @@
         ],
         "title": "RulePreviewIn"
       },
+      "RunPace": {
+        "properties": {
+          "current": {
+            "items": {
+              "$ref": "#/components/schemas/BestPoint"
+            },
+            "type": "array",
+            "title": "Current"
+          },
+          "last_season": {
+            "items": {
+              "$ref": "#/components/schemas/BestPoint"
+            },
+            "type": "array",
+            "title": "Last Season"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CriticalSpeed"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "current",
+          "last_season",
+          "model"
+        ],
+        "title": "RunPace"
+      },
+      "RunPower": {
+        "properties": {
+          "current": {
+            "items": {
+              "$ref": "#/components/schemas/BestPoint"
+            },
+            "type": "array",
+            "title": "Current"
+          },
+          "last_season": {
+            "items": {
+              "$ref": "#/components/schemas/BestPoint"
+            },
+            "type": "array",
+            "title": "Last Season"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CriticalPower"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "current",
+          "last_season",
+          "model"
+        ],
+        "title": "RunPower"
+      },
       "RunResult": {
         "properties": {
           "processed": {
@@ -6229,6 +7021,30 @@
           "counterparties_created"
         ],
         "title": "RunResult"
+      },
+      "SeasonCurves": {
+        "properties": {
+          "current": {
+            "items": {
+              "$ref": "#/components/schemas/BestPoint"
+            },
+            "type": "array",
+            "title": "Current"
+          },
+          "last_season": {
+            "items": {
+              "$ref": "#/components/schemas/BestPoint"
+            },
+            "type": "array",
+            "title": "Last Season"
+          }
+        },
+        "type": "object",
+        "required": [
+          "current",
+          "last_season"
+        ],
+        "title": "SeasonCurves"
       },
       "SeriesPointOut": {
         "properties": {
@@ -7245,6 +8061,34 @@
         ],
         "title": "SuggestionsApproved"
       },
+      "SwimThreshold": {
+        "properties": {
+          "speed": {
+            "type": "number",
+            "title": "Speed"
+          },
+          "pace_per_100_s": {
+            "type": "number",
+            "title": "Pace Per 100 S"
+          },
+          "t200_s": {
+            "type": "number",
+            "title": "T200 S"
+          },
+          "t400_s": {
+            "type": "number",
+            "title": "T400 S"
+          }
+        },
+        "type": "object",
+        "required": [
+          "speed",
+          "pace_per_100_s",
+          "t200_s",
+          "t400_s"
+        ],
+        "title": "SwimThreshold"
+      },
       "SyncQueued": {
         "properties": {
           "queued": {
@@ -8207,6 +9051,91 @@
         ],
         "title": "TransferLink"
       },
+      "TrendLine": {
+        "properties": {
+          "start_day": {
+            "type": "string",
+            "format": "date",
+            "title": "Start Day"
+          },
+          "start": {
+            "type": "number",
+            "title": "Start"
+          },
+          "end_day": {
+            "type": "string",
+            "format": "date",
+            "title": "End Day"
+          },
+          "end": {
+            "type": "number",
+            "title": "End"
+          }
+        },
+        "type": "object",
+        "required": [
+          "start_day",
+          "start",
+          "end_day",
+          "end"
+        ],
+        "title": "TrendLine"
+      },
+      "TriathlonResult": {
+        "properties": {
+          "activity_id": {
+            "type": "integer",
+            "title": "Activity Id"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "day": {
+            "type": "string",
+            "format": "date",
+            "title": "Day"
+          },
+          "duration_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration S"
+          },
+          "distance_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Distance M"
+          }
+        },
+        "type": "object",
+        "required": [
+          "activity_id",
+          "name",
+          "day",
+          "duration_s",
+          "distance_m"
+        ],
+        "title": "TriathlonResult"
+      },
       "UnexplainedQuantity": {
         "properties": {
           "ticker": {
@@ -8351,6 +9280,82 @@
           "net_deposits"
         ],
         "title": "ValuePoint"
+      },
+      "Vo2Point": {
+        "properties": {
+          "day": {
+            "type": "string",
+            "format": "date",
+            "title": "Day"
+          },
+          "activity_id": {
+            "type": "integer",
+            "title": "Activity Id"
+          },
+          "value": {
+            "type": "number",
+            "title": "Value"
+          },
+          "line": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Line"
+          }
+        },
+        "type": "object",
+        "required": [
+          "day",
+          "activity_id",
+          "value",
+          "line"
+        ],
+        "title": "Vo2Point"
+      },
+      "Vo2maxTrend": {
+        "properties": {
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/Vo2Point"
+            },
+            "type": "array",
+            "title": "Points"
+          },
+          "latest": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest"
+          },
+          "change_90d": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Change 90D"
+          }
+        },
+        "type": "object",
+        "required": [
+          "points",
+          "latest",
+          "change_90d"
+        ],
+        "title": "Vo2maxTrend"
       },
       "WeekdayScoreOut": {
         "properties": {
