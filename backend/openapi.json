@@ -2320,6 +2320,226 @@
         }
       }
     },
+    "/api/health/activities": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "List Activities",
+        "description": "The member's activities, newest first. A multisport activity is one row with its legs.",
+        "operationId": "listActivities",
+        "parameters": [
+          {
+            "name": "sport",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "swim",
+                    "bike",
+                    "run",
+                    "strength",
+                    "other"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Sport"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "From"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "To"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 30,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActivityList"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/health/activities/{activity_id}": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Get Activity",
+        "description": "One of the member's activities, shaped for its page; a section the activity can't give\nis null or empty.",
+        "operationId": "getActivity",
+        "parameters": [
+          {
+            "name": "activity_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Activity Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActivityDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/health/activities/{activity_id}/file": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Download Activity File",
+        "description": "The file as Garmin sent it (a zip holding the .FIT).",
+        "operationId": "downloadActivityFile",
+        "parameters": [
+          {
+            "name": "activity_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Activity Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/health/body": {
       "get": {
         "tags": [
@@ -2726,6 +2946,1239 @@
           "private"
         ],
         "title": "AccountVisibility"
+      },
+      "ActivityClimb": {
+        "properties": {
+          "start_s": {
+            "type": "number",
+            "title": "Start S"
+          },
+          "duration_s": {
+            "type": "number",
+            "title": "Duration S"
+          },
+          "distance_m": {
+            "type": "number",
+            "title": "Distance M"
+          },
+          "gain_m": {
+            "type": "number",
+            "title": "Gain M"
+          },
+          "grade": {
+            "type": "number",
+            "title": "Grade"
+          },
+          "vam": {
+            "type": "number",
+            "title": "Vam"
+          }
+        },
+        "type": "object",
+        "required": [
+          "start_s",
+          "duration_s",
+          "distance_m",
+          "gain_m",
+          "grade",
+          "vam"
+        ],
+        "title": "ActivityClimb"
+      },
+      "ActivityDetail": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "sport": {
+            "type": "string",
+            "title": "Sport"
+          },
+          "group": {
+            "type": "string",
+            "enum": [
+              "swim",
+              "bike",
+              "run",
+              "strength",
+              "other"
+            ],
+            "title": "Group"
+          },
+          "family": {
+            "$ref": "#/components/schemas/Family"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "start": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Start"
+          },
+          "pool": {
+            "type": "boolean",
+            "title": "Pool"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          },
+          "legs": {
+            "items": {
+              "$ref": "#/components/schemas/ActivityLeg"
+            },
+            "type": "array",
+            "title": "Legs"
+          },
+          "has_file": {
+            "type": "boolean",
+            "title": "Has File"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/ActivitySummary"
+          },
+          "loads": {
+            "$ref": "#/components/schemas/ActivityLoads"
+          },
+          "streams": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ActivityStreams"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "splits": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ActivitySplits"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pool_sets": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ActivityPool"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "zones": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ActivityZones"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "durability": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ActivityDurability"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "form": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ActivityForm"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "climbs": {
+            "items": {
+              "$ref": "#/components/schemas/ActivityClimb"
+            },
+            "type": "array",
+            "title": "Climbs"
+          },
+          "best_vam": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Best Vam"
+          },
+          "route": {
+            "anyOf": [
+              {
+                "items": {
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "type": "array",
+                  "maxItems": 2,
+                  "minItems": 2
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Route"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "sport",
+          "group",
+          "family",
+          "name",
+          "start",
+          "pool",
+          "parent_id",
+          "legs",
+          "has_file",
+          "summary",
+          "loads",
+          "streams",
+          "splits",
+          "pool_sets",
+          "zones",
+          "durability",
+          "form",
+          "climbs",
+          "best_vam",
+          "route"
+        ],
+        "title": "ActivityDetail"
+      },
+      "ActivityDurability": {
+        "properties": {
+          "decoupling_pct": {
+            "type": "number",
+            "title": "Decoupling Pct"
+          },
+          "efficiency_factor": {
+            "type": "number",
+            "title": "Efficiency Factor"
+          },
+          "steady": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Steady"
+          },
+          "efficiency_90d": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Efficiency 90D"
+          },
+          "first": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ActivityHalf"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "second": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ActivityHalf"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "decoupling_pct",
+          "efficiency_factor",
+          "steady",
+          "efficiency_90d",
+          "first",
+          "second"
+        ],
+        "title": "ActivityDurability"
+      },
+      "ActivityForm": {
+        "properties": {
+          "cadence": {
+            "$ref": "#/components/schemas/ActivityPair"
+          },
+          "stride_cm": {
+            "$ref": "#/components/schemas/ActivityPair"
+          },
+          "ground_contact_ms": {
+            "$ref": "#/components/schemas/ActivityPair"
+          },
+          "vertical_oscillation_cm": {
+            "$ref": "#/components/schemas/ActivityPair"
+          },
+          "vertical_ratio_pct": {
+            "$ref": "#/components/schemas/ActivityPair"
+          },
+          "power": {
+            "$ref": "#/components/schemas/ActivityPair"
+          }
+        },
+        "type": "object",
+        "required": [
+          "cadence",
+          "stride_cm",
+          "ground_contact_ms",
+          "vertical_oscillation_cm",
+          "vertical_ratio_pct",
+          "power"
+        ],
+        "title": "ActivityForm"
+      },
+      "ActivityHalf": {
+        "properties": {
+          "speed": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speed"
+          },
+          "heart_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Heart Rate"
+          },
+          "efficiency": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Efficiency"
+          }
+        },
+        "type": "object",
+        "required": [
+          "speed",
+          "heart_rate",
+          "efficiency"
+        ],
+        "title": "ActivityHalf"
+      },
+      "ActivityLeg": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "sport": {
+            "type": "string",
+            "title": "Sport"
+          },
+          "group": {
+            "type": "string",
+            "enum": [
+              "swim",
+              "bike",
+              "run",
+              "strength",
+              "other"
+            ],
+            "title": "Group"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "start": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Start"
+          },
+          "duration_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration S"
+          },
+          "distance_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Distance M"
+          },
+          "load": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Load"
+          },
+          "figure_kind": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "pace_km",
+                  "pace_100m",
+                  "speed_kmh"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Figure Kind"
+          },
+          "figure": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Figure"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "sport",
+          "group",
+          "name",
+          "start",
+          "duration_s",
+          "distance_m",
+          "load",
+          "figure_kind",
+          "figure"
+        ],
+        "title": "ActivityLeg"
+      },
+      "ActivityList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ActivityRow"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "title": "ActivityList"
+      },
+      "ActivityLoads": {
+        "properties": {
+          "ours": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ours"
+          },
+          "garmin": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Garmin"
+          },
+          "aerobic_te": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aerobic Te"
+          },
+          "anaerobic_te": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Anaerobic Te"
+          },
+          "te_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Te Label"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ours",
+          "garmin",
+          "aerobic_te",
+          "anaerobic_te",
+          "te_label"
+        ],
+        "title": "ActivityLoads"
+      },
+      "ActivityPair": {
+        "properties": {
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "avg_90d": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg 90D"
+          }
+        },
+        "type": "object",
+        "required": [
+          "value",
+          "avg_90d"
+        ],
+        "title": "ActivityPair"
+      },
+      "ActivityPool": {
+        "properties": {
+          "sets": {
+            "items": {
+              "$ref": "#/components/schemas/SwimSet"
+            },
+            "type": "array",
+            "title": "Sets"
+          },
+          "lengths": {
+            "items": {
+              "$ref": "#/components/schemas/SwimLength"
+            },
+            "type": "array",
+            "title": "Lengths"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sets",
+          "lengths"
+        ],
+        "title": "ActivityPool"
+      },
+      "ActivityRow": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "sport": {
+            "type": "string",
+            "title": "Sport"
+          },
+          "group": {
+            "type": "string",
+            "enum": [
+              "swim",
+              "bike",
+              "run",
+              "strength",
+              "other"
+            ],
+            "title": "Group"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "start": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Start"
+          },
+          "duration_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration S"
+          },
+          "distance_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Distance M"
+          },
+          "load": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Load"
+          },
+          "figure_kind": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "pace_km",
+                  "pace_100m",
+                  "speed_kmh"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Figure Kind"
+          },
+          "figure": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Figure"
+          },
+          "legs": {
+            "items": {
+              "$ref": "#/components/schemas/ActivityLeg"
+            },
+            "type": "array",
+            "title": "Legs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "sport",
+          "group",
+          "name",
+          "start",
+          "duration_s",
+          "distance_m",
+          "load",
+          "figure_kind",
+          "figure",
+          "legs"
+        ],
+        "title": "ActivityRow"
+      },
+      "ActivitySplit": {
+        "properties": {
+          "index": {
+            "type": "integer",
+            "title": "Index"
+          },
+          "distance_m": {
+            "type": "number",
+            "title": "Distance M"
+          },
+          "duration_s": {
+            "type": "number",
+            "title": "Duration S"
+          },
+          "avg_hr": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Hr"
+          },
+          "avg_speed": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Speed"
+          },
+          "avg_power": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Power"
+          },
+          "elevation_change_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Elevation Change M"
+          }
+        },
+        "type": "object",
+        "required": [
+          "index",
+          "distance_m",
+          "duration_s",
+          "avg_hr",
+          "avg_speed",
+          "avg_power",
+          "elevation_change_m"
+        ],
+        "title": "ActivitySplit",
+        "description": "A kilometre or a lap. Pace is `duration_s / distance_m`; the page works it out."
+      },
+      "ActivitySplits": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "km",
+              "lap"
+            ],
+            "title": "Kind"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/ActivitySplit"
+            },
+            "type": "array",
+            "title": "Rows"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "rows"
+        ],
+        "title": "ActivitySplits"
+      },
+      "ActivityStreams": {
+        "properties": {
+          "axis": {
+            "type": "string",
+            "enum": [
+              "distance",
+              "time"
+            ],
+            "title": "Axis"
+          },
+          "x": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "X"
+          },
+          "series": {
+            "additionalProperties": {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            "type": "object",
+            "title": "Series"
+          }
+        },
+        "type": "object",
+        "required": [
+          "axis",
+          "x",
+          "series"
+        ],
+        "title": "ActivityStreams",
+        "description": "What the charts draw: `x` along `axis` (metres or seconds), each series as long as `x`\nwith None where a bucket has no value. Keys: `pace` (s/km), `pace100` (s/100 m), `speed`\n(km/h), `heart_rate`, `altitude` (m), `cadence`, `power` (W)."
+      },
+      "ActivitySummary": {
+        "properties": {
+          "distance_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Distance M"
+          },
+          "duration_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration S"
+          },
+          "moving_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Moving S"
+          },
+          "elapsed_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Elapsed S"
+          },
+          "avg_speed": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Speed"
+          },
+          "max_speed": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Speed"
+          },
+          "graded_speed": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Graded Speed"
+          },
+          "avg_hr": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Hr"
+          },
+          "max_hr": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Hr"
+          },
+          "elevation_gain_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Elevation Gain M"
+          },
+          "elevation_loss_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Elevation Loss M"
+          },
+          "avg_cadence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Cadence"
+          },
+          "max_cadence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Cadence"
+          },
+          "avg_power": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Power"
+          },
+          "norm_power": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Norm Power"
+          },
+          "max_power": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Power"
+          },
+          "calories": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Calories"
+          },
+          "steps": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Steps"
+          },
+          "pool_length_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pool Length M"
+          },
+          "lengths": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lengths"
+          },
+          "avg_swolf": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Swolf"
+          },
+          "avg_strokes": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Strokes"
+          },
+          "vo2max": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vo2Max"
+          }
+        },
+        "type": "object",
+        "required": [
+          "distance_m",
+          "duration_s",
+          "moving_s",
+          "elapsed_s",
+          "avg_speed",
+          "max_speed",
+          "graded_speed",
+          "avg_hr",
+          "max_hr",
+          "elevation_gain_m",
+          "elevation_loss_m",
+          "avg_cadence",
+          "max_cadence",
+          "avg_power",
+          "norm_power",
+          "max_power",
+          "calories",
+          "steps",
+          "pool_length_m",
+          "lengths",
+          "avg_swolf",
+          "avg_strokes",
+          "vo2max"
+        ],
+        "title": "ActivitySummary"
+      },
+      "ActivityZones": {
+        "properties": {
+          "source": {
+            "type": "string",
+            "enum": [
+              "ours",
+              "garmin"
+            ],
+            "title": "Source"
+          },
+          "below_s": {
+            "type": "integer",
+            "title": "Below S"
+          },
+          "seconds": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Seconds"
+          },
+          "threshold": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Threshold"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source",
+          "below_s",
+          "seconds",
+          "threshold"
+        ],
+        "title": "ActivityZones",
+        "description": "Seconds in heart-rate zones 1 to 5 (`below_s` under zone 1). `source` is whose zones:\nours (the member's reference) or Garmin's own."
       },
       "AddTag": {
         "properties": {
@@ -4082,6 +5535,16 @@
           "debt_minutes"
         ],
         "title": "DebtOut"
+      },
+      "Family": {
+        "type": "string",
+        "enum": [
+          "run",
+          "ride",
+          "swim",
+          "other"
+        ],
+        "title": "Family"
       },
       "FitnessAgeOut": {
         "properties": {
@@ -7201,6 +8664,142 @@
           "approved"
         ],
         "title": "SuggestionsApproved"
+      },
+      "SwimLength": {
+        "properties": {
+          "index": {
+            "type": "integer",
+            "title": "Index"
+          },
+          "stroke": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stroke"
+          },
+          "strokes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Strokes"
+          },
+          "duration_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration S"
+          },
+          "swolf": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Swolf"
+          },
+          "set_index": {
+            "type": "integer",
+            "title": "Set Index"
+          }
+        },
+        "type": "object",
+        "required": [
+          "index",
+          "stroke",
+          "strokes",
+          "duration_s",
+          "swolf",
+          "set_index"
+        ],
+        "title": "SwimLength"
+      },
+      "SwimSet": {
+        "properties": {
+          "index": {
+            "type": "integer",
+            "title": "Index"
+          },
+          "lengths": {
+            "type": "integer",
+            "title": "Lengths"
+          },
+          "distance_m": {
+            "type": "number",
+            "title": "Distance M"
+          },
+          "duration_s": {
+            "type": "number",
+            "title": "Duration S"
+          },
+          "rest_s": {
+            "type": "number",
+            "title": "Rest S"
+          },
+          "strokes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Strokes"
+          },
+          "swolf": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Swolf"
+          },
+          "stroke": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stroke"
+          }
+        },
+        "type": "object",
+        "required": [
+          "index",
+          "lengths",
+          "distance_m",
+          "duration_s",
+          "rest_s",
+          "strokes",
+          "swolf",
+          "stroke"
+        ],
+        "title": "SwimSet",
+        "description": "Consecutive swum lengths; `rest_s` is the rest that follows them."
       },
       "SyncQueued": {
         "properties": {

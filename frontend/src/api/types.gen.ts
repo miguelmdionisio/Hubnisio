@@ -117,6 +117,517 @@ export type AccountUpdate = {
 export type AccountVisibility = 'shared' | 'private';
 
 /**
+ * ActivityClimb
+ */
+export type ActivityClimb = {
+    /**
+     * Start S
+     */
+    start_s: number;
+    /**
+     * Duration S
+     */
+    duration_s: number;
+    /**
+     * Distance M
+     */
+    distance_m: number;
+    /**
+     * Gain M
+     */
+    gain_m: number;
+    /**
+     * Grade
+     */
+    grade: number;
+    /**
+     * Vam
+     */
+    vam: number;
+};
+
+/**
+ * ActivityDetail
+ */
+export type ActivityDetail = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Sport
+     */
+    sport: string;
+    /**
+     * Group
+     */
+    group: 'swim' | 'bike' | 'run' | 'strength' | 'other';
+    family: Family;
+    /**
+     * Name
+     */
+    name: string | null;
+    /**
+     * Start
+     */
+    start: string;
+    /**
+     * Pool
+     */
+    pool: boolean;
+    /**
+     * Parent Id
+     */
+    parent_id: number | null;
+    /**
+     * Legs
+     */
+    legs: Array<ActivityLeg>;
+    /**
+     * Has File
+     */
+    has_file: boolean;
+    summary: ActivitySummary;
+    loads: ActivityLoads;
+    streams: ActivityStreams | null;
+    splits: ActivitySplits | null;
+    pool_sets: ActivityPool | null;
+    zones: ActivityZones | null;
+    durability: ActivityDurability | null;
+    form: ActivityForm | null;
+    /**
+     * Climbs
+     */
+    climbs: Array<ActivityClimb>;
+    /**
+     * Best Vam
+     */
+    best_vam: number | null;
+    /**
+     * Route
+     */
+    route: Array<[
+        number,
+        number
+    ]> | null;
+};
+
+/**
+ * ActivityDurability
+ */
+export type ActivityDurability = {
+    /**
+     * Decoupling Pct
+     */
+    decoupling_pct: number;
+    /**
+     * Efficiency Factor
+     */
+    efficiency_factor: number;
+    /**
+     * Steady
+     */
+    steady: boolean | null;
+    /**
+     * Efficiency 90D
+     */
+    efficiency_90d: number | null;
+    first: ActivityHalf | null;
+    second: ActivityHalf | null;
+};
+
+/**
+ * ActivityForm
+ */
+export type ActivityForm = {
+    cadence: ActivityPair;
+    stride_cm: ActivityPair;
+    ground_contact_ms: ActivityPair;
+    vertical_oscillation_cm: ActivityPair;
+    vertical_ratio_pct: ActivityPair;
+    power: ActivityPair;
+};
+
+/**
+ * ActivityHalf
+ */
+export type ActivityHalf = {
+    /**
+     * Speed
+     */
+    speed: number | null;
+    /**
+     * Heart Rate
+     */
+    heart_rate: number | null;
+    /**
+     * Efficiency
+     */
+    efficiency: number | null;
+};
+
+/**
+ * ActivityLeg
+ */
+export type ActivityLeg = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Sport
+     */
+    sport: string;
+    /**
+     * Group
+     */
+    group: 'swim' | 'bike' | 'run' | 'strength' | 'other';
+    /**
+     * Name
+     */
+    name: string | null;
+    /**
+     * Start
+     */
+    start: string;
+    /**
+     * Duration S
+     */
+    duration_s: number | null;
+    /**
+     * Distance M
+     */
+    distance_m: number | null;
+    /**
+     * Load
+     */
+    load: number | null;
+    /**
+     * Figure Kind
+     */
+    figure_kind: 'pace_km' | 'pace_100m' | 'speed_kmh' | null;
+    /**
+     * Figure
+     */
+    figure: number | null;
+};
+
+/**
+ * ActivityList
+ */
+export type ActivityList = {
+    /**
+     * Items
+     */
+    items: Array<ActivityRow>;
+    /**
+     * Next Cursor
+     */
+    next_cursor: string | null;
+};
+
+/**
+ * ActivityLoads
+ */
+export type ActivityLoads = {
+    /**
+     * Ours
+     */
+    ours: number | null;
+    /**
+     * Garmin
+     */
+    garmin: number | null;
+    /**
+     * Aerobic Te
+     */
+    aerobic_te: number | null;
+    /**
+     * Anaerobic Te
+     */
+    anaerobic_te: number | null;
+    /**
+     * Te Label
+     */
+    te_label: string | null;
+};
+
+/**
+ * ActivityPair
+ */
+export type ActivityPair = {
+    /**
+     * Value
+     */
+    value: number | null;
+    /**
+     * Avg 90D
+     */
+    avg_90d: number | null;
+};
+
+/**
+ * ActivityPool
+ */
+export type ActivityPool = {
+    /**
+     * Sets
+     */
+    sets: Array<SwimSet>;
+    /**
+     * Lengths
+     */
+    lengths: Array<SwimLength>;
+};
+
+/**
+ * ActivityRow
+ */
+export type ActivityRow = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Sport
+     */
+    sport: string;
+    /**
+     * Group
+     */
+    group: 'swim' | 'bike' | 'run' | 'strength' | 'other';
+    /**
+     * Name
+     */
+    name: string | null;
+    /**
+     * Start
+     */
+    start: string;
+    /**
+     * Duration S
+     */
+    duration_s: number | null;
+    /**
+     * Distance M
+     */
+    distance_m: number | null;
+    /**
+     * Load
+     */
+    load: number | null;
+    /**
+     * Figure Kind
+     */
+    figure_kind: 'pace_km' | 'pace_100m' | 'speed_kmh' | null;
+    /**
+     * Figure
+     */
+    figure: number | null;
+    /**
+     * Legs
+     */
+    legs: Array<ActivityLeg>;
+};
+
+/**
+ * ActivitySplit
+ *
+ * A kilometre or a lap. Pace is `duration_s / distance_m`; the page works it out.
+ */
+export type ActivitySplit = {
+    /**
+     * Index
+     */
+    index: number;
+    /**
+     * Distance M
+     */
+    distance_m: number;
+    /**
+     * Duration S
+     */
+    duration_s: number;
+    /**
+     * Avg Hr
+     */
+    avg_hr: number | null;
+    /**
+     * Avg Speed
+     */
+    avg_speed: number | null;
+    /**
+     * Avg Power
+     */
+    avg_power: number | null;
+    /**
+     * Elevation Change M
+     */
+    elevation_change_m: number | null;
+};
+
+/**
+ * ActivitySplits
+ */
+export type ActivitySplits = {
+    /**
+     * Kind
+     */
+    kind: 'km' | 'lap';
+    /**
+     * Rows
+     */
+    rows: Array<ActivitySplit>;
+};
+
+/**
+ * ActivityStreams
+ *
+ * What the charts draw: `x` along `axis` (metres or seconds), each series as long as `x`
+ * with None where a bucket has no value. Keys: `pace` (s/km), `pace100` (s/100 m), `speed`
+ * (km/h), `heart_rate`, `altitude` (m), `cadence`, `power` (W).
+ */
+export type ActivityStreams = {
+    /**
+     * Axis
+     */
+    axis: 'distance' | 'time';
+    /**
+     * X
+     */
+    x: Array<number>;
+    /**
+     * Series
+     */
+    series: {
+        [key: string]: Array<number | null>;
+    };
+};
+
+/**
+ * ActivitySummary
+ */
+export type ActivitySummary = {
+    /**
+     * Distance M
+     */
+    distance_m: number | null;
+    /**
+     * Duration S
+     */
+    duration_s: number | null;
+    /**
+     * Moving S
+     */
+    moving_s: number | null;
+    /**
+     * Elapsed S
+     */
+    elapsed_s: number | null;
+    /**
+     * Avg Speed
+     */
+    avg_speed: number | null;
+    /**
+     * Max Speed
+     */
+    max_speed: number | null;
+    /**
+     * Graded Speed
+     */
+    graded_speed: number | null;
+    /**
+     * Avg Hr
+     */
+    avg_hr: number | null;
+    /**
+     * Max Hr
+     */
+    max_hr: number | null;
+    /**
+     * Elevation Gain M
+     */
+    elevation_gain_m: number | null;
+    /**
+     * Elevation Loss M
+     */
+    elevation_loss_m: number | null;
+    /**
+     * Avg Cadence
+     */
+    avg_cadence: number | null;
+    /**
+     * Max Cadence
+     */
+    max_cadence: number | null;
+    /**
+     * Avg Power
+     */
+    avg_power: number | null;
+    /**
+     * Norm Power
+     */
+    norm_power: number | null;
+    /**
+     * Max Power
+     */
+    max_power: number | null;
+    /**
+     * Calories
+     */
+    calories: number | null;
+    /**
+     * Steps
+     */
+    steps: number | null;
+    /**
+     * Pool Length M
+     */
+    pool_length_m: number | null;
+    /**
+     * Lengths
+     */
+    lengths: number | null;
+    /**
+     * Avg Swolf
+     */
+    avg_swolf: number | null;
+    /**
+     * Avg Strokes
+     */
+    avg_strokes: number | null;
+    /**
+     * Vo2Max
+     */
+    vo2max: number | null;
+};
+
+/**
+ * ActivityZones
+ *
+ * Seconds in heart-rate zones 1 to 5 (`below_s` under zone 1). `source` is whose zones:
+ * ours (the member's reference) or Garmin's own.
+ */
+export type ActivityZones = {
+    /**
+     * Source
+     */
+    source: 'ours' | 'garmin';
+    /**
+     * Below S
+     */
+    below_s: number;
+    /**
+     * Seconds
+     */
+    seconds: Array<number>;
+    /**
+     * Threshold
+     */
+    threshold: number | null;
+};
+
+/**
  * AddTag
  */
 export type AddTag = {
@@ -831,6 +1342,11 @@ export type DebtOut = {
      */
     debt_minutes: number;
 };
+
+/**
+ * Family
+ */
+export type Family = 'run' | 'ride' | 'swim' | 'other';
 
 /**
  * FitnessAgeOut
@@ -2403,6 +2919,76 @@ export type SuggestionsApproved = {
      * Approved
      */
     approved: number;
+};
+
+/**
+ * SwimLength
+ */
+export type SwimLength = {
+    /**
+     * Index
+     */
+    index: number;
+    /**
+     * Stroke
+     */
+    stroke: string | null;
+    /**
+     * Strokes
+     */
+    strokes: number | null;
+    /**
+     * Duration S
+     */
+    duration_s: number | null;
+    /**
+     * Swolf
+     */
+    swolf: number | null;
+    /**
+     * Set Index
+     */
+    set_index: number;
+};
+
+/**
+ * SwimSet
+ *
+ * Consecutive swum lengths; `rest_s` is the rest that follows them.
+ */
+export type SwimSet = {
+    /**
+     * Index
+     */
+    index: number;
+    /**
+     * Lengths
+     */
+    lengths: number;
+    /**
+     * Distance M
+     */
+    distance_m: number;
+    /**
+     * Duration S
+     */
+    duration_s: number;
+    /**
+     * Rest S
+     */
+    rest_s: number;
+    /**
+     * Strokes
+     */
+    strokes: number | null;
+    /**
+     * Swolf
+     */
+    swolf: number | null;
+    /**
+     * Stroke
+     */
+    stroke: string | null;
 };
 
 /**
@@ -4206,6 +4792,114 @@ export type SyncHealthResponses = {
 };
 
 export type SyncHealthResponse = SyncHealthResponses[keyof SyncHealthResponses];
+
+export type ListActivitiesData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Sport
+         */
+        sport?: 'swim' | 'bike' | 'run' | 'strength' | 'other' | null;
+        /**
+         * From
+         */
+        from?: string | null;
+        /**
+         * To
+         */
+        to?: string | null;
+        /**
+         * Q
+         */
+        q?: string | null;
+        /**
+         * Cursor
+         */
+        cursor?: string | null;
+        /**
+         * Limit
+         */
+        limit?: number;
+    };
+    url: '/api/health/activities';
+};
+
+export type ListActivitiesErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListActivitiesError = ListActivitiesErrors[keyof ListActivitiesErrors];
+
+export type ListActivitiesResponses = {
+    /**
+     * Successful Response
+     */
+    200: ActivityList;
+};
+
+export type ListActivitiesResponse = ListActivitiesResponses[keyof ListActivitiesResponses];
+
+export type GetActivityData = {
+    body?: never;
+    path: {
+        /**
+         * Activity Id
+         */
+        activity_id: number;
+    };
+    query?: never;
+    url: '/api/health/activities/{activity_id}';
+};
+
+export type GetActivityErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetActivityError = GetActivityErrors[keyof GetActivityErrors];
+
+export type GetActivityResponses = {
+    /**
+     * Successful Response
+     */
+    200: ActivityDetail;
+};
+
+export type GetActivityResponse = GetActivityResponses[keyof GetActivityResponses];
+
+export type DownloadActivityFileData = {
+    body?: never;
+    path: {
+        /**
+         * Activity Id
+         */
+        activity_id: number;
+    };
+    query?: never;
+    url: '/api/health/activities/{activity_id}/file';
+};
+
+export type DownloadActivityFileErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DownloadActivityFileError = DownloadActivityFileErrors[keyof DownloadActivityFileErrors];
+
+export type DownloadActivityFileResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
 
 export type GetBodyData = {
     body?: never;

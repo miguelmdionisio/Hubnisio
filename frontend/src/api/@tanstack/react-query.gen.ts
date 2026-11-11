@@ -3,8 +3,8 @@
 import { type DefaultError, type InfiniteData, infiniteQueryOptions, queryOptions, type UseMutationOptions } from '@tanstack/react-query';
 
 import { client } from '../client.gen';
-import { approveSuggestions, completeConnection, createCategory, createCounterparty, createRule, deleteAccount, deleteBudget, deleteCategory, deleteConnection, deleteOverallBudget, deleteRule, getBody, getCashFlow, getHealth, getHealthConnection, getInvestmentReturns, getInvestments, getNetWorth, getRecovery, getSleepNight, getSleepTrends, getSpending, getSpendingMonth, linkTransfer, listAccounts, listBanks, listBudgets, listCategories, listConnections, listCounterparties, listRecurring, listRules, listTransactions, listUpcomingPayments, mergeCounterparty, type Options, previewRule, reorderRules, runRules, setBudget, setOverallBudget, startConnection, syncConnection, syncHealth, unlinkTransfer, updateAccount, updateCategory, updateCounterparty, updateRecurring, updateRule, updateTransaction } from '../sdk.gen';
-import type { ApproveSuggestionsData, ApproveSuggestionsError, ApproveSuggestionsResponse, CompleteConnectionData, CompleteConnectionError, CompleteConnectionResponse, CreateCategoryData, CreateCategoryError, CreateCategoryResponse, CreateCounterpartyData, CreateCounterpartyError, CreateCounterpartyResponse, CreateRuleData, CreateRuleError, CreateRuleResponse, DeleteAccountData, DeleteAccountError, DeleteAccountResponse, DeleteBudgetData, DeleteBudgetError, DeleteBudgetResponse, DeleteCategoryData, DeleteCategoryError, DeleteCategoryResponse, DeleteConnectionData, DeleteConnectionError, DeleteConnectionResponse, DeleteOverallBudgetData, DeleteOverallBudgetResponse, DeleteRuleData, DeleteRuleError, DeleteRuleResponse, GetBodyData, GetBodyError, GetBodyResponse, GetCashFlowData, GetCashFlowError, GetCashFlowResponse, GetHealthConnectionData, GetHealthConnectionResponse, GetHealthData, GetHealthError, GetHealthResponse, GetInvestmentReturnsData, GetInvestmentReturnsError, GetInvestmentReturnsResponse, GetInvestmentsData, GetInvestmentsError, GetInvestmentsResponse, GetNetWorthData, GetNetWorthError, GetNetWorthResponse, GetRecoveryData, GetRecoveryError, GetRecoveryResponse, GetSleepNightData, GetSleepNightError, GetSleepNightResponse, GetSleepTrendsData, GetSleepTrendsError, GetSleepTrendsResponse, GetSpendingData, GetSpendingError, GetSpendingMonthData, GetSpendingMonthError, GetSpendingMonthResponse, GetSpendingResponse, LinkTransferData, LinkTransferError, LinkTransferResponse, ListAccountsData, ListAccountsError, ListAccountsResponse, ListBanksData, ListBanksError, ListBanksResponse, ListBudgetsData, ListBudgetsError, ListBudgetsResponse, ListCategoriesData, ListCategoriesResponse, ListConnectionsData, ListConnectionsResponse, ListCounterpartiesData, ListCounterpartiesError, ListCounterpartiesResponse, ListRecurringData, ListRecurringError, ListRecurringResponse, ListRulesData, ListRulesResponse, ListTransactionsData, ListTransactionsError, ListTransactionsResponse, ListUpcomingPaymentsData, ListUpcomingPaymentsError, ListUpcomingPaymentsResponse, MergeCounterpartyData, MergeCounterpartyError, MergeCounterpartyResponse, PreviewRuleData, PreviewRuleError, PreviewRuleResponse, ReorderRulesData, ReorderRulesError, ReorderRulesResponse, RunRulesData, RunRulesResponse, SetBudgetData, SetBudgetError, SetBudgetResponse, SetOverallBudgetData, SetOverallBudgetError, SetOverallBudgetResponse, StartConnectionData, StartConnectionError, StartConnectionResponse, SyncConnectionData, SyncConnectionError, SyncConnectionResponse, SyncHealthData, SyncHealthResponse, UnlinkTransferData, UnlinkTransferError, UnlinkTransferResponse, UpdateAccountData, UpdateAccountError, UpdateAccountResponse, UpdateCategoryData, UpdateCategoryError, UpdateCategoryResponse, UpdateCounterpartyData, UpdateCounterpartyError, UpdateCounterpartyResponse, UpdateRecurringData, UpdateRecurringError, UpdateRecurringResponse, UpdateRuleData, UpdateRuleError, UpdateRuleResponse, UpdateTransactionData, UpdateTransactionError, UpdateTransactionResponse } from '../types.gen';
+import { approveSuggestions, completeConnection, createCategory, createCounterparty, createRule, deleteAccount, deleteBudget, deleteCategory, deleteConnection, deleteOverallBudget, deleteRule, downloadActivityFile, getActivity, getBody, getCashFlow, getHealth, getHealthConnection, getInvestmentReturns, getInvestments, getNetWorth, getRecovery, getSleepNight, getSleepTrends, getSpending, getSpendingMonth, linkTransfer, listAccounts, listActivities, listBanks, listBudgets, listCategories, listConnections, listCounterparties, listRecurring, listRules, listTransactions, listUpcomingPayments, mergeCounterparty, type Options, previewRule, reorderRules, runRules, setBudget, setOverallBudget, startConnection, syncConnection, syncHealth, unlinkTransfer, updateAccount, updateCategory, updateCounterparty, updateRecurring, updateRule, updateTransaction } from '../sdk.gen';
+import type { ApproveSuggestionsData, ApproveSuggestionsError, ApproveSuggestionsResponse, CompleteConnectionData, CompleteConnectionError, CompleteConnectionResponse, CreateCategoryData, CreateCategoryError, CreateCategoryResponse, CreateCounterpartyData, CreateCounterpartyError, CreateCounterpartyResponse, CreateRuleData, CreateRuleError, CreateRuleResponse, DeleteAccountData, DeleteAccountError, DeleteAccountResponse, DeleteBudgetData, DeleteBudgetError, DeleteBudgetResponse, DeleteCategoryData, DeleteCategoryError, DeleteCategoryResponse, DeleteConnectionData, DeleteConnectionError, DeleteConnectionResponse, DeleteOverallBudgetData, DeleteOverallBudgetResponse, DeleteRuleData, DeleteRuleError, DeleteRuleResponse, DownloadActivityFileData, DownloadActivityFileError, GetActivityData, GetActivityError, GetActivityResponse, GetBodyData, GetBodyError, GetBodyResponse, GetCashFlowData, GetCashFlowError, GetCashFlowResponse, GetHealthConnectionData, GetHealthConnectionResponse, GetHealthData, GetHealthError, GetHealthResponse, GetInvestmentReturnsData, GetInvestmentReturnsError, GetInvestmentReturnsResponse, GetInvestmentsData, GetInvestmentsError, GetInvestmentsResponse, GetNetWorthData, GetNetWorthError, GetNetWorthResponse, GetRecoveryData, GetRecoveryError, GetRecoveryResponse, GetSleepNightData, GetSleepNightError, GetSleepNightResponse, GetSleepTrendsData, GetSleepTrendsError, GetSleepTrendsResponse, GetSpendingData, GetSpendingError, GetSpendingMonthData, GetSpendingMonthError, GetSpendingMonthResponse, GetSpendingResponse, LinkTransferData, LinkTransferError, LinkTransferResponse, ListAccountsData, ListAccountsError, ListAccountsResponse, ListActivitiesData, ListActivitiesError, ListActivitiesResponse, ListBanksData, ListBanksError, ListBanksResponse, ListBudgetsData, ListBudgetsError, ListBudgetsResponse, ListCategoriesData, ListCategoriesResponse, ListConnectionsData, ListConnectionsResponse, ListCounterpartiesData, ListCounterpartiesError, ListCounterpartiesResponse, ListRecurringData, ListRecurringError, ListRecurringResponse, ListRulesData, ListRulesResponse, ListTransactionsData, ListTransactionsError, ListTransactionsResponse, ListUpcomingPaymentsData, ListUpcomingPaymentsError, ListUpcomingPaymentsResponse, MergeCounterpartyData, MergeCounterpartyError, MergeCounterpartyResponse, PreviewRuleData, PreviewRuleError, PreviewRuleResponse, ReorderRulesData, ReorderRulesError, ReorderRulesResponse, RunRulesData, RunRulesResponse, SetBudgetData, SetBudgetError, SetBudgetResponse, SetOverallBudgetData, SetOverallBudgetError, SetOverallBudgetResponse, StartConnectionData, StartConnectionError, StartConnectionResponse, SyncConnectionData, SyncConnectionError, SyncConnectionResponse, SyncHealthData, SyncHealthResponse, UnlinkTransferData, UnlinkTransferError, UnlinkTransferResponse, UpdateAccountData, UpdateAccountError, UpdateAccountResponse, UpdateCategoryData, UpdateCategoryError, UpdateCategoryResponse, UpdateCounterpartyData, UpdateCounterpartyError, UpdateCounterpartyResponse, UpdateRecurringData, UpdateRecurringError, UpdateRecurringResponse, UpdateRuleData, UpdateRuleError, UpdateRuleResponse, UpdateTransactionData, UpdateTransactionError, UpdateTransactionResponse } from '../types.gen';
 
 export type QueryKey<TOptions extends Options> = [
     Pick<TOptions, 'baseUrl' | 'body' | 'headers' | 'path' | 'query'> & {
@@ -996,6 +996,99 @@ export const syncHealthMutation = (options?: Partial<Options<SyncHealthData>>): 
     };
     return mutationOptions;
 };
+
+export const listActivitiesQueryKey = (options?: Options<ListActivitiesData>) => createQueryKey('listActivities', options);
+
+/**
+ * List Activities
+ *
+ * The member's activities, newest first. A multisport activity is one row with its legs.
+ */
+export const listActivitiesOptions = (options?: Options<ListActivitiesData>) => queryOptions<ListActivitiesResponse, ListActivitiesError, ListActivitiesResponse, ReturnType<typeof listActivitiesQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await listActivities({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: listActivitiesQueryKey(options)
+});
+
+export const listActivitiesInfiniteQueryKey = (options?: Options<ListActivitiesData>): QueryKey<Options<ListActivitiesData>> => createQueryKey('listActivities', options, true);
+
+/**
+ * List Activities
+ *
+ * The member's activities, newest first. A multisport activity is one row with its legs.
+ */
+export const listActivitiesInfiniteOptions = (options?: Options<ListActivitiesData>) => {
+    const opts = infiniteQueryOptions<ListActivitiesResponse, ListActivitiesError, InfiniteData<ListActivitiesResponse>, QueryKey<Options<ListActivitiesData>>, string | null | Pick<QueryKey<Options<ListActivitiesData>>[0], 'body' | 'headers' | 'path' | 'query'>>(
+    // @ts-ignore
+    {
+        queryFn: async ({ pageParam, queryKey, signal }) => {
+            // @ts-ignore
+            const page: Pick<QueryKey<Options<ListActivitiesData>>[0], 'body' | 'headers' | 'path' | 'query'> = typeof pageParam === 'object' ? pageParam : {
+                query: {
+                    cursor: pageParam
+                }
+            };
+            const params = createInfiniteParams(queryKey, page);
+            const { data } = await listActivities({
+                ...options,
+                ...params,
+                signal,
+                throwOnError: true
+            });
+            return data;
+        },
+        queryKey: listActivitiesInfiniteQueryKey(options)
+    });
+    return opts as Omit<typeof opts, 'initialData'>;
+};
+
+export const getActivityQueryKey = (options: Options<GetActivityData>) => createQueryKey('getActivity', options);
+
+/**
+ * Get Activity
+ *
+ * One of the member's activities, shaped for its page; a section the activity can't give
+ * is null or empty.
+ */
+export const getActivityOptions = (options: Options<GetActivityData>) => queryOptions<GetActivityResponse, GetActivityError, GetActivityResponse, ReturnType<typeof getActivityQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getActivity({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getActivityQueryKey(options)
+});
+
+export const downloadActivityFileQueryKey = (options: Options<DownloadActivityFileData>) => createQueryKey('downloadActivityFile', options);
+
+/**
+ * Download Activity File
+ *
+ * The file as Garmin sent it (a zip holding the .FIT).
+ */
+export const downloadActivityFileOptions = (options: Options<DownloadActivityFileData>) => queryOptions<unknown, DownloadActivityFileError, unknown, ReturnType<typeof downloadActivityFileQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await downloadActivityFile({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: downloadActivityFileQueryKey(options)
+});
 
 export const getBodyQueryKey = (options?: Options<GetBodyData>) => createQueryKey('getBody', options);
 
