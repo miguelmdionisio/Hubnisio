@@ -21,8 +21,13 @@ A private, self-hosted personal hub, one app per domain; finance first. Decision
   - F4 done: the transaction sheet (`transaction-sheet.tsx`; a side panel on desktop, a bottom sheet on the phone): chip, merchant and amount, date, account and who set the category, a category grid that sets it in one click (or approves an AI suggestion), "All from <merchant>", then kind, merchant, note, tags and the bank's fields. Rows grouped by day (`transaction-rows.tsx`) on Transactions and Spending; Transactions has search and category, account and kind pills, and All / Review in the header.
   - F5 done: the shorter Overview (`routes/home.tsx`): sync status, four figures that open their pages (spent this month against the month before, left to spend, due in 7 days, net worth), budgets with a pace tick, coming up, spent per day, and a review pill in the header. The spending, donut, cash-flow and net-worth cards left it; `overview/net-worth-card.tsx` waits for Accounts in F6.
   - F6 done: the shadcn primitives restyled (pill buttons, soft cards, inputs and tabs), no sentences under page titles (`PageHeader` lost `description`), Merchants and Accounts as rows with chips, net worth's chart on Accounts (`finance/net-worth.tsx`), raw colours replaced by `good` / `destructive`; an impeccable critique pass at desktop and 375px (P1s fixed: tables scrolling sideways on the phone, explanatory sentences).
-- **M8 Health** ([plan](docs/design/m8-health.md), [ADR-0009](docs/adr/0009-health-garmin.md)):
-  - H2 done (migration 0019, no new API): activities from Garmin's search (multisport parents and legs, totals count legs), each one's detail and original file (`activity_files`, the zip as received), parsed with `garmin-fit-sdk` (`providers/garmin/fit.py`) into `activity_streams` (arrays per column), `activity_laps`, `activity_lengths`, and `activity_derived` from pure functions in `health/insights/` (hrTSS-style load, zones, mean-max curves, best efforts, graded pace, EF and decoupling, estimated VO2max, climbs and VAM). `garmin-backfill --kind activities`; `garmin-renormalize` parses the stored files again. One activity's failure never fails the run. Live: migrate, restart the worker, `garmin-backfill --kind activities`, report counts.
+- **M8 Health done** (2026-11-11; [plan](docs/design/m8-health.md), [ADR-0009](docs/adr/0009-health-garmin.md), mock in `docs/design/m8-mock/`): the hub's second domain, from the user's Garmin watch through Garmin's Connect Personal API. Health rows belong to one member: no household view anywhere.
+  - Source: `health/providers/garmin` (key in `secrets/garmin/<file>`, exchanged for a 24-hour token returned as plain text; send no `Accept` header, Garmin answers 406). `cli garmin-link --email --key-file --key-expires`, `garmin-sync`, `garmin-backfill [--kind …]`, `garmin-renormalize`; daily task `health:schedule_syncs`. Linked live on 2026-11-10; the key lapses on 2027-11-10 and the Garmin page warns from 14 days before.
+  - Data (migrations 0018–0019): daily summaries, sleep, HRV, overnight samples, zones, weight, fitness age; activities with their original files parsed by `garmin-fit-sdk` into streams, laps and lengths, and `activity_derived` (our heart-rate load, zones, curves, best efforts, graded pace, EF and decoupling, estimated VO2max, climbs). Raw replies and files are kept, so renormalize rebuilds everything.
+  - Pages (`routes/health/`, APIs `health/*_api.py`, pure functions in `health/insights/`): Today (`/health`), Activities and the activity page, Training (fitness 42-day, fatigue 7-day, form), Performance (run power and pace curves, critical power and speed, VO2max trend, race predictions with marathon shape, bike heart-rate curve and climbs, records), Recovery (HRV against a 60-day band, Signals today), Sleep, Body, Garmin. The shell follows the domain: `data-domain` on `<html>` switches the accent (Health: orange).
+  - AI (migration 0020): 11 `analytics.health_*` views and the tools `health_training`, `health_sleep`, `health_recovery`, `health_performance`, `health_body`, `health_activities`. Streams, GPS, overnight samples, raw replies and files stay out of the views.
+  - What Garmin doesn't send: a sleep stage timeline (only seconds per stage), its own VO2max, Training Readiness and Status. The user's rides have no power; runs do. Open-water stroke distance arrives in centimetres.
+  - Not done: the impeccable critique pass (H10) beyond measured checks at 375px (no sideways overflow, no text under 11px).
 - **Next:** plan the next milestone with the user.
 - **Deferred:** M5 server (Tailscale, Caddy, passkey login replacing the dev user, Postgres roles, backups) waits until the user has an always-on machine. Don't start it, and don't build anything that needs one, until they say so.
 - **Waiting on the user:**
@@ -50,7 +55,7 @@ A private, self-hosted personal hub, one app per domain; finance first. Decision
 ## Layout and rules of the code
 
 - `backend/`: FastAPI, SQLAlchemy 2.1 async, Alembic, Procrastinate; managed with uv. `frontend/`: Vite, React, TanStack Query/Router, shadcn/ui; pnpm via corepack. `compose.yaml` runs it all.
-- **Import layers** (import-linter): `main | worker | cli | ai` > `jobs` > `finance` > `core`.
+- **Import layers** (import-linter): `main | worker | cli | ai` > `jobs` > `finance | health` > `core`; `finance` and `health` never import each other.
 - **Scoping:** every finance query goes through `finance/scoping.py` (household + account visibility). Another member's private accounts never show, not even by name.
 - **Bank facts vs user layer:** only the sync writes `transactions` and `balance_snapshots`. Everything decided about a transaction lives in the user-layer tables. Precedence: manual > rule > counterparty default > ai.
 - **Migrations:** autogenerate against a throwaway Postgres container, then finish by hand: named constraints, enum types created once, downgrade drops them. `tests/test_migrations.py` checks models and migrations agree.
@@ -93,7 +98,7 @@ The user commits to `main` and approves pushes. Check CI with `gh run list` afte
 
 ## Data, privacy, cost
 
-- **Real data:** the live database holds real bank data. Report counts and aggregates, not transaction details.
+- **Real data:** the live database holds real bank and health data. Report counts and aggregates, not transaction details or health values.
 - **Secrets:** they live in `secrets/` (gitignored). Never open or print key files.
 - **Cost:** the user watches usage. Work inline, use subagents only when clearly worth it, keep tool output small, and prefer page text over screenshots.
 
