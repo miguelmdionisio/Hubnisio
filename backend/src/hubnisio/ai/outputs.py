@@ -20,6 +20,7 @@ from hubnisio.finance.models import (
     TransactionStatus,
 )
 from hubnisio.finance.scoping import View
+from hubnisio.health.sleep_api import SleepNight, SleepTrends
 
 
 class Category(BaseModel):
@@ -194,3 +195,109 @@ class Suggested(BaseModel):
     results: list[SuggestionResult]  # one per suggestion, in order
     written: int
     skipped: int
+
+
+# Health (ADR-0009, H9): the member's own data. Units: s, m, m/s, bpm, W; cadence in steps/min
+# for runs, rpm for rides, strokes/min for swims.
+
+
+class HealthActivity(BaseModel):
+    """An activity as Garmin summarized it, with Hubnisio's load and VO2max estimate."""
+
+    activity_id: int
+    name: str | None
+    sport: str  # Garmin's type key: running, cycling, lap_swimming, …
+    day: date  # the local start's date
+    start_local: datetime | None  # wall-clock time there
+    duration_s: Decimal | None
+    distance_m: Decimal | None
+    elevation_gain_m: Decimal | None
+    avg_hr: int | None
+    avg_speed: Decimal | None
+    avg_power: int | None
+    calories: int | None
+    hr_load: float | None  # Hubnisio's hrTSS-style load; null without a file
+    vo2max: float | None  # Hubnisio's estimate from the file
+    is_parent: bool  # a multisport parent: its legs are activities of their own
+    parent_id: int | None
+
+
+class HealthLap(BaseModel):
+    lap_index: int
+    started_at: datetime | None
+    elapsed_s: float | None
+    timer_s: float | None
+    distance_m: float | None
+    avg_hr: int | None
+    max_hr: int | None
+    avg_speed: float | None
+    max_speed: float | None
+    avg_power: int | None
+    normalized_power: int | None
+    avg_cadence: float | None
+    ascent_m: int | None
+    descent_m: int | None
+    intensity: str | None
+    swim_stroke: str | None
+
+
+class HealthActivityDetail(HealthActivity):
+    """One activity: Garmin's summary, what Hubnisio derived from its file (null without one)
+    and its laps."""
+
+    event_type: str | None
+    started_at: datetime
+    elapsed_s: Decimal | None
+    moving_s: Decimal | None
+    elevation_loss_m: Decimal | None
+    max_hr: int | None
+    max_speed: Decimal | None
+    avg_gap_speed: Decimal | None  # Garmin's grade-adjusted speed
+    max_power: int | None
+    norm_power: int | None
+    avg_cadence: Decimal | None
+    max_cadence: Decimal | None
+    garmin_load: Decimal | None
+    aerobic_te: Decimal | None
+    anaerobic_te: Decimal | None
+    te_label: str | None
+    hr_zone_s: list[int | None] | None  # Garmin's five zones
+    power_zone_s: list[int | None] | None
+    ground_contact_ms: Decimal | None
+    vertical_oscillation_cm: Decimal | None
+    vertical_ratio_pct: Decimal | None
+    stride_length_cm: Decimal | None
+    pool_length_m: Decimal | None
+    active_lengths: int | None
+    avg_swolf: Decimal | None
+    fastest_splits: dict[str, float] | None  # seconds by distance in metres
+    child_ids: list[int] | None
+    has_derived: bool  # Hubnisio read the activity's file
+    derived_moving_s: int | None
+    hr_threshold: float | None  # the reference the load and zones use, bpm
+    hr_reference_source: str | None
+    derived_hr_zone_s: list[int] | None  # below zone 1, then zones 1 to 5
+    curve_durations_s: list[int]  # what the curves below are aligned with
+    power_curve: list[float | None] | None  # best average W per duration
+    hr_curve: list[float | None] | None
+    speed_curve: list[float | None] | None  # m/s
+    best_efforts: dict[str, float] | None  # seconds by distance in metres
+    gap_speed: float | None  # Hubnisio's graded pace, m/s
+    ngp_speed: float | None
+    efficiency_factor: float | None
+    decoupling_pct: float | None
+    steady: bool | None
+    climbs: list[dict[str, float]] | None  # distance_m, gain_m, duration_s, grade, vam
+    best_vam: float | None  # m/h
+    laps: list[HealthLap]
+
+
+class HealthActivitiesResult(BaseModel):
+    matched: int  # every activity that matches; `activities` lists the newest
+    activities: list[HealthActivity]
+    detail: HealthActivityDetail | None = None  # the activity asked for by id
+
+
+class HealthSleep(BaseModel):
+    trends: SleepTrends
+    night: SleepNight

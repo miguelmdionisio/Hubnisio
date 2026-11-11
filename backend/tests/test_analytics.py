@@ -1,6 +1,7 @@
 """AI access (ADR-0006): a member's Postgres login reads the `analytics` views and nothing else,
 never sees another member's private accounts, and gets the app's own figures."""
 
+import enum
 import re
 import uuid
 from collections import defaultdict
@@ -13,10 +14,12 @@ from typing import Any
 import psycopg
 import pytest
 from analytics_data import OCTOBER, SEPTEMBER, VIEWS, Data, Login, email_of, save
+from health_data import TIME_ZONE, seed_health
 from households import Home, add, api
 from portfolios import Trade, investment_account, new_instrument, set_prices
 from psycopg import errors, sql
 from psycopg.abc import QueryNoTemplate as Query
+from psycopg.rows import dict_row
 from sqlalchemy import select, update
 
 from hubnisio.ai import views
@@ -48,6 +51,30 @@ from hubnisio.finance.models import (
 from hubnisio.finance.prices.table import PriceTable
 from hubnisio.finance.scoping import View, listed_account_ids
 from hubnisio.finance.transactions_api import transactions_query
+from hubnisio.health.insights import sleep
+from hubnisio.health.insights.body_loader import load_body_facts
+from hubnisio.health.insights.performance_loader import (
+    load_activity_facts,
+    load_run_zone3_floor,
+    load_weight,
+)
+from hubnisio.health.insights.recovery_loader import load_recovery_facts
+from hubnisio.health.insights.training_loader import load_activity_rows
+from hubnisio.health.models import (
+    Activity,
+    ActivityDerived,
+    ActivityLap,
+    DailySummary,
+    FitnessAge,
+    HeartRateZones,
+    HrvNight,
+    Sleep,
+    Weight,
+    WeightGoal,
+)
+from hubnisio.health.models import Connection as HealthConnection
+from hubnisio.health.scoping import mine
+from hubnisio.health.sync import today_in
 
 pytestmark = pytest.mark.anyio
 
@@ -61,6 +88,17 @@ ANALYTICS_VIEWS = {
     "daily_movements",
     "fills",
     "fx_rates",
+    "health_activities",
+    "health_activity_laps",
+    "health_connection",
+    "health_daily_summaries",
+    "health_fitness_ages",
+    "health_heart_rate_zones",
+    "health_hrv_nights",
+    "health_sleeps",
+    "health_wake_battery",
+    "health_weight_goal",
+    "health_weights",
     "holdings",
     "instrument_prices",
     "instruments",
@@ -549,3 +587,141 @@ async def test_investment_views_show_only_what_the_member_may_see_and_agree_with
         await session.execute(update(Account).where(Account.id == shared).values(hidden_at=at))
     assert ids(owner, "SELECT account_id FROM analytics.portfolios") == set()
     assert ids(owner, "SELECT account_id FROM analytics.fills") == {shared}
+
+
+# Health (ADR-0009, H9): the member's own rows, never another member's.
+
+# Each view over one table, with the columns that identify a row.
+HEALTH_TABLES: dict[str, tuple[Any, tuple[str, ...]]] = {
+    "health_connection": (HealthConnection, ("provider",)),
+    "health_activities": (Activity, ("activity_id",)),
+    "health_activity_laps": (ActivityLap, ("activity_id", "lap_index")),
+    "health_daily_summaries": (DailySummary, ("day",)),
+    "health_sleeps": (Sleep, ("day",)),
+    "health_hrv_nights": (HrvNight, ("day",)),
+    "health_heart_rate_zones": (HeartRateZones, ("sport",)),
+    "health_weights": (Weight, ("measured_at",)),
+    "health_weight_goal": (WeightGoal, ()),
+    "health_fitness_ages": (FitnessAge, ("day",)),
+}
+HEALTH_VIEWS = {name for name in ANALYTICS_VIEWS if name.startswith("health_")}
+
+
+def view_dicts(login: Login, view: str) -> list[dict[str, Any]]:
+    with psycopg.connect(login.dsn, autocommit=True) as connection:
+        cursor = connection.cursor(row_factory=dict_row)
+        cursor.execute(sql.SQL("SELECT * FROM analytics.{}").format(sql.Identifier(view)))
+        return cursor.fetchall()
+
+
+def same(view_value: Any, app_value: Any) -> bool:
+    return view_value == (app_value.value if isinstance(app_value, enum.Enum) else app_value)
+
+
+async def test_health_views_are_the_members_own_rows(
+    home: Home, logins: dict[uuid.UUID, Login]
+) -> None:
+    await seed_health(home.owner.user_id)
+    owner = logins[home.owner.user_id]
+    async with get_sessionmaker()() as session:
+        for view, (model, key) in HEALTH_TABLES.items():
+            found = view_dicts(owner, view)
+            app = list(await session.scalars(select(model).where(mine(model, home.owner))))
+            assert found and len(found) == len(app), view
+            by_key = {tuple(getattr(row, k) for k in key): row for row in app}
+            for row in found:
+                expected = by_key[tuple(row[k] for k in key)]
+                for column, value in row.items():
+                    if column in model.__table__.columns:
+                        assert same(value, getattr(expected, column)), (view, column)
+            assert "user_id" not in found[0] and "raw" not in found[0], view
+            assert "key_file" not in found[0], view
+
+        # The activities carry what was derived from each one's file, under its own name.
+        derived = {
+            row.activity_id: row
+            for row in await session.scalars(
+                select(ActivityDerived).where(mine(ActivityDerived, home.owner))
+            )
+        }
+        activities = view_dicts(owner, "health_activities")
+        assert {row["activity_id"] for row in activities if row["has_derived"]} == set(derived)
+        for row in activities:
+            expected = derived.get(row["activity_id"])
+            assert row["derived_moving_s"] == (expected and expected.moving_s)
+            assert row["derived_hr_zone_s"] == (expected and expected.hr_zone_s)
+            for column in ("hr_load", "power_curve", "best_efforts", "vo2max", "climbs"):
+                assert row[column] == (expected and getattr(expected, column)), column
+
+        # Loaded into the app's dataclasses, the views give what the Health loaders give.
+        today = today_in(TIME_ZONE)
+        first, last = today - timedelta(days=60), today
+        async with await psycopg.AsyncConnection.connect(owner.dsn) as connection:
+            assert await views.health_today(connection) == today
+            assert await views.activity_rows(connection) == await load_activity_rows(
+                session, home.owner
+            )
+            assert await views.activity_facts(connection) == await load_activity_facts(
+                session, home.owner
+            )
+            assert await views.run_zone3_floor(connection) == await load_run_zone3_floor(
+                session, home.owner
+            )
+            assert await views.latest_weight(connection, today) == await load_weight(
+                session, home.owner, today
+            )
+            assert await views.body_facts(connection) == await load_body_facts(session, home.owner)
+            facts = await views.recovery_facts(connection, today, 30)
+            assert facts == await load_recovery_facts(session, home.owner, today, 30)
+            assert any(fact.battery_wake for fact in facts)
+            assert await views.night_days(connection) == await sleep.load_night_days(
+                session, home.owner
+            )
+            assert await views.nights(connection, first, last) == await sleep.load_nights(
+                session, home.owner, first, last
+            )
+            assert await views.hrv_nights(connection, first, last) == await sleep.load_hrv_nights(
+                session, home.owner, first, last
+            )
+
+
+async def test_another_member_sees_none_of_the_members_health(
+    home: Home, logins: dict[uuid.UUID, Login], migrated_database: str
+) -> None:
+    """Health has no household view: the household's other member, the owner's partner here,
+    sees not a row, not even a count. Nor can any AI login read the health schema itself."""
+    await seed_health(home.owner.user_id)
+    owner, member = logins[home.owner.user_id], logins[home.member.user_id]
+    assert {*HEALTH_TABLES, "health_wake_battery"} == HEALTH_VIEWS
+    for view in HEALTH_VIEWS:
+        query = sql.SQL("SELECT count(*) FROM analytics.{}").format(sql.Identifier(view))
+        assert rows(member, query) == [(0,)], view
+        assert rows(owner, query)[0][0] > 0, view
+
+    tables = admin_rows(
+        migrated_database,
+        "SELECT table_name FROM information_schema.tables WHERE table_schema = 'health'",
+    )
+    assert tables
+    assert admin_rows(
+        migrated_database, "SELECT has_schema_privilege('hub_ai', 'health', 'USAGE')"
+    ) == [(False,)]
+    for (table,) in tables:
+        [(allowed,)] = admin_rows(
+            migrated_database,
+            "SELECT has_table_privilege('hub_ai', %s, 'SELECT')",
+            [f"health.{table}"],
+        )
+        assert not allowed, table
+        with pytest.raises(errors.InsufficientPrivilege):
+            rows(
+                owner,
+                sql.SQL("SELECT 1 FROM health.{} LIMIT 1").format(sql.Identifier(table)),
+            )
+    # The streams and the overnight samples stay out: no view has a position or a reading.
+    columns = admin_rows(
+        migrated_database,
+        "SELECT column_name FROM information_schema.columns"
+        " WHERE table_schema = 'analytics' AND table_name LIKE 'health%%'",
+    )
+    assert not {name for (name,) in columns} & {"lat", "lon", "raw", "data", "response", "key_file"}

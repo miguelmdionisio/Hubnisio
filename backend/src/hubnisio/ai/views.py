@@ -31,6 +31,13 @@ from hubnisio.finance.insights.spending import CategoryInfo, MonthlySums, add_mo
 from hubnisio.finance.models import CategoryKind, Overspend, TransactionKind
 from hubnisio.finance.prices.table import MAX_PRICE_AGE_DAYS, InstrumentInfo, PriceTable
 from hubnisio.finance.scoping import View
+from hubnisio.health.insights.body import AgeReading, WeighIn
+from hubnisio.health.insights.performance import ActivityFacts, ClimbFacts
+from hubnisio.health.insights.recovery import DayFacts
+from hubnisio.health.insights.recovery_loader import LOOKBACK as RECOVERY_LOOKBACK
+from hubnisio.health.insights.sleep import HrvRow, NightRow
+from hubnisio.health.insights.training import ActivityRow
+from hubnisio.health.sync import today_in
 
 Connection = AsyncConnection[tuple[Any, ...]]
 
@@ -297,3 +304,284 @@ async def price_table(
     for instrument_id, on, price in await cursor.fetchall():
         prices[instrument_id].append((on, price))
     return PriceTable(instruments, prices)
+
+
+# Health (ADR-0009, H9): the member's own rows only; the views filter on session_user as
+# health/scoping.py filters on the principal.
+
+
+def _float(value: Decimal | float | None) -> float | None:
+    return None if value is None else float(value)
+
+
+async def health_today(connection: Connection) -> date:
+    """`today_in` the member's time zone at Garmin, as the Health pages take it."""
+    cursor = await connection.execute(
+        "SELECT time_zone FROM analytics.health_connection WHERE provider = 'garmin'"
+    )
+    row = await cursor.fetchone()
+    return today_in(row[0] if row else None)
+
+
+async def activity_rows(connection: Connection) -> list[ActivityRow]:
+    """What `load_activity_rows` gives: the activities without multisport parents."""
+    cursor = await connection.execute(
+        "SELECT start_local, started_at, sport, duration_s, moving_s, distance_m,"
+        " elevation_gain_m, hr_load, derived_hr_zone_s FROM analytics.health_activities"
+        " WHERE NOT is_parent ORDER BY started_at"
+    )
+    rows: list[ActivityRow] = []
+    for (
+        start_local,
+        started_at,
+        sport,
+        duration_s,
+        moving_s,
+        distance_m,
+        climb_m,
+        load,
+        zones,
+    ) in await cursor.fetchall():
+        seconds = duration_s or moving_s or 0
+        rows.append(
+            ActivityRow(
+                day=(start_local or started_at).date(),
+                sport=sport,
+                duration_s=float(seconds),
+                distance_m=_float(distance_m),
+                climb_m=_float(climb_m),
+                load=load,
+                zone_s=zones,
+            )
+        )
+    return rows
+
+
+async def recovery_facts(connection: Connection, today: date, days: int) -> list[DayFacts]:
+    """What `load_recovery_facts` gives."""
+    start = today - timedelta(days=days - 1 + RECOVERY_LOOKBACK)
+    rows: dict[date, dict[str, float | None]] = {}
+
+    def put(day: date, **values: float | None) -> None:
+        rows.setdefault(day, {}).update(values)
+
+    cursor = await connection.execute(
+        "SELECT day, last_night_avg FROM analytics.health_hrv_nights WHERE day BETWEEN %s AND %s",
+        [start, today],
+    )
+    for day, hrv in await cursor.fetchall():
+        put(day, hrv=hrv)
+    cursor = await connection.execute(
+        "SELECT day, resting_hr, body_battery_charged, body_battery_drained, stress_avg,"
+        " rest_stress_s, low_stress_s, medium_stress_s, high_stress_s"
+        " FROM analytics.health_daily_summaries WHERE day BETWEEN %s AND %s",
+        [start, today],
+    )
+    for day, resting, charged, drained, stress, rest, low, medium, high in await cursor.fetchall():
+        put(
+            day,
+            resting_hr=resting,
+            battery_charged=charged,
+            battery_drained=drained,
+            stress_avg=stress,
+            rest_s=rest,
+            low_s=low,
+            medium_s=medium,
+            high_s=high,
+        )
+    cursor = await connection.execute(
+        "SELECT day, sleep_s, need_minutes FROM analytics.health_sleeps"
+        " WHERE day BETWEEN %s AND %s",
+        [start, today],
+    )
+    for day, sleep_s, need in await cursor.fetchall():
+        put(day, sleep_s=sleep_s, sleep_need_min=need)
+    cursor = await connection.execute(
+        "SELECT day, body_battery FROM analytics.health_wake_battery WHERE day BETWEEN %s AND %s",
+        [start, today],
+    )
+    for day, value in await cursor.fetchall():
+        put(day, battery_wake=float(value))
+    return [DayFacts(day=day, **values) for day, values in sorted(rows.items())]
+
+
+async def night_days(connection: Connection) -> list[date]:
+    """What `load_night_days` gives."""
+    cursor = await connection.execute(
+        "SELECT day FROM analytics.health_sleeps WHERE sleep_s > 0 ORDER BY day"
+    )
+    return [day for (day,) in await cursor.fetchall()]
+
+
+async def nights(connection: Connection, start: date, end: date) -> list[NightRow]:
+    """What `load_nights` gives."""
+    cursor = await connection.execute(
+        "SELECT day, started_at, ended_at, coalesce(utc_offset_minutes, 0), sleep_s, deep_s,"
+        " light_s, rem_s, awake_s, awake_count, score, score_qualifier, need_minutes, avg_hr,"
+        " avg_respiration, min_respiration, max_respiration, avg_spo2, min_spo2"
+        " FROM analytics.health_sleeps WHERE day BETWEEN %s AND %s ORDER BY day",
+        [start, end],
+    )
+    found: list[NightRow] = []
+    for row in await cursor.fetchall():
+        *head, avg_hr, avg_resp, min_resp, max_resp, avg_spo2, min_spo2 = row
+        found.append(
+            NightRow(
+                *head,
+                avg_hr=_float(avg_hr),
+                avg_respiration=_float(avg_resp),
+                min_respiration=_float(min_resp),
+                max_respiration=_float(max_resp),
+                avg_spo2=_float(avg_spo2),
+                min_spo2=min_spo2,
+            )
+        )
+    return found
+
+
+async def hrv_nights(connection: Connection, start: date, end: date) -> dict[date, HrvRow]:
+    """What `load_hrv_nights` gives."""
+    cursor = await connection.execute(
+        "SELECT day, last_night_avg, last_night_5min_high FROM analytics.health_hrv_nights"
+        " WHERE day BETWEEN %s AND %s",
+        [start, end],
+    )
+    return {day: HrvRow(day, avg, high) for day, avg, high in await cursor.fetchall()}
+
+
+async def activity_facts(connection: Connection) -> list[ActivityFacts]:
+    """What `load_activity_facts` gives."""
+    cursor = await connection.execute(
+        "SELECT activity_id, start_local, started_at, sport, name, distance_m, duration_s,"
+        " elapsed_s, elevation_gain_m, avg_hr, is_parent, parent_id, has_derived,"
+        " derived_moving_s, hr_threshold, power_curve, hr_curve, speed_curve, best_efforts,"
+        " efficiency_factor, steady, vo2max, climbs"
+        " FROM analytics.health_activities ORDER BY started_at"
+    )
+    out: list[ActivityFacts] = []
+    for (
+        activity_id,
+        start_local,
+        started_at,
+        sport,
+        name,
+        distance_m,
+        duration_s,
+        elapsed_s,
+        elevation_gain_m,
+        avg_hr,
+        is_parent,
+        parent_id,
+        derived,
+        moving_s,
+        hr_threshold,
+        power_curve,
+        hr_curve,
+        speed_curve,
+        best_efforts,
+        efficiency_factor,
+        steady,
+        vo2max,
+        climbs,
+    ) in await cursor.fetchall():
+        duration = duration_s if duration_s is not None else elapsed_s
+        out.append(
+            ActivityFacts(
+                activity_id=activity_id,
+                day=(start_local or started_at).date(),
+                sport=sport,
+                name=name,
+                distance_m=_float(distance_m),
+                duration_s=_float(duration),
+                elevation_gain_m=_float(elevation_gain_m),
+                avg_hr=_float(avg_hr),
+                is_parent=is_parent,
+                parent_id=parent_id,
+                moving_s=moving_s if derived else None,
+                hr_threshold=hr_threshold if derived else None,
+                power_curve=power_curve if derived else None,
+                hr_curve=hr_curve if derived else None,
+                speed_curve=speed_curve if derived else None,
+                best_efforts=(
+                    {int(metres): float(s) for metres, s in best_efforts.items()}
+                    if best_efforts
+                    else None
+                ),
+                efficiency_factor=efficiency_factor if derived else None,
+                steady=steady if derived else None,
+                vo2max=vo2max if derived else None,
+                climbs=[
+                    ClimbFacts(
+                        distance_m=float(c["distance_m"]),
+                        gain_m=float(c["gain_m"]),
+                        duration_s=float(c["duration_s"]),
+                        grade=float(c["grade"]),
+                        vam=float(c["vam"]),
+                    )
+                    for c in climbs or []
+                ],
+            )
+        )
+    return out
+
+
+async def run_zone3_floor(connection: Connection) -> float | None:
+    """What `load_run_zone3_floor` gives."""
+    cursor = await connection.execute(
+        "SELECT sport, zone3_floor FROM analytics.health_heart_rate_zones"
+        " WHERE sport IN ('RUNNING', 'DEFAULT')"
+    )
+    floors = dict(await cursor.fetchall())
+    for sport in ("RUNNING", "DEFAULT"):
+        if floors.get(sport) is not None:
+            return float(floors[sport])
+    return None
+
+
+async def latest_weight(connection: Connection, today: date) -> float | None:
+    """What `load_weight` gives."""
+    cursor = await connection.execute(
+        "SELECT weight_kg FROM analytics.health_weights WHERE day <= %s"
+        " ORDER BY measured_at DESC LIMIT 1",
+        [today],
+    )
+    row = await cursor.fetchone()
+    return _float(row[0]) if row else None
+
+
+async def body_facts(
+    connection: Connection,
+) -> tuple[list[WeighIn], list[AgeReading], float | None]:
+    """What `load_body_facts` gives."""
+    cursor = await connection.execute(
+        "SELECT measured_at, day, weight_kg, bmi, body_fat_pct FROM analytics.health_weights"
+    )
+    weigh_ins = [
+        WeighIn(
+            measured_at=measured_at,
+            day=day,
+            weight_kg=float(weight),
+            bmi=_float(bmi),
+            body_fat_pct=_float(fat),
+        )
+        for measured_at, day, weight, bmi, fat in await cursor.fetchall()
+    ]
+    cursor = await connection.execute(
+        "SELECT day, fitness_age, chronological_age, resting_hr, bmi, vigorous_days_avg,"
+        " vigorous_minutes_avg FROM analytics.health_fitness_ages"
+    )
+    readings = [
+        AgeReading(
+            day=day,
+            fitness_age=_float(age),
+            chronological_age=chronological,
+            resting_hr=resting,
+            bmi=_float(bmi),
+            vigorous_days_avg=_float(days),
+            vigorous_minutes_avg=_float(minutes),
+        )
+        for day, age, chronological, resting, bmi, days, minutes in await cursor.fetchall()
+    ]
+    cursor = await connection.execute("SELECT target_kg FROM analytics.health_weight_goal")
+    goal = await cursor.fetchone()
+    return weigh_ins, readings, _float(goal[0]) if goal else None
