@@ -183,6 +183,14 @@ All on a one-second grid of moving time (`series.moving`): gaps up to 5 s are fi
 - **Bike:** the heart-rate curve, and the five fastest climbs (H2's VAM) with day, length and gain.
 - **Records:** in the period, with the all-time best beside it when another activity holds it (not for "all"): run best efforts over 1 km, 5 km, 10 km, half and marathon; swims over 100, 400 and 1500 m, pool or open water; rides' longest distance, most climbing and best 20- and 60-minute average speed; multisport results (the parent's totals, else its legs' sums), newest first.
 
+## As built in H5 (Activities)
+
+`GET /api/health/activities` (`health/activities_api.py`, shaping in `health/insights/activity_view.py`), member-only through `scoping.py`: another member's list is empty and their ids are a 404.
+
+- **List:** `sport` (swim, bike, run, strength, other; the SQL twin of `sport_group`), `from` / `to` (the watch's local start date), `q` (name or type key), keyset `cursor` on start and id, newest first. A multisport parent is one row with its legs nested (its load is the legs' sum); legs are not rows. The key figure is pace per km (runs), per 100 m (swims) or speed (rides), from timer time and distance.
+- **One activity** (`/activities/{id}`): summary, both loads and Garmin's training effects, streams cut to 600 points by averaging slices of the axis (distance for runs and rides, time otherwise; pace from the mean speed), km splits for runs (interpolated; a stub under 100 m folds into the last one) or the file's laps, a pool swim's sets (runs of swum lengths, the rest after each) and lengths, zones (ours, else Garmin's), durability with first and second half and the member's 90-day mean efficiency, running form beside the 90-day mean of the same sport, climbs, and the route simplified to 500 points (Ramer-Douglas-Peucker, no map tiles). A section without data is null.
+- **File:** `/activities/{id}/file` returns the stored zip as received.
+
 ## Consequences
 
 - **Easier:** later slices read typed rows through `scoping.py`; a normalizer fix is a `garmin-renormalize` away; a new endpoint is one line in `ENDPOINTS` and one normalizer.

@@ -19,7 +19,7 @@ export function ListPanel({ children, className }: { children: ReactNode; classN
 }
 
 /** "Wed 14 Oct", with the year when it isn't this one. */
-function dayHeading(day: string): string {
+export function dayHeading(day: string): string {
   const date = parseDate(day);
   if (date.getFullYear() === new Date().getFullYear()) return formatDay(day);
   return new Intl.DateTimeFormat(LOCALE, {

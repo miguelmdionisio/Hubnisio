@@ -21,6 +21,8 @@ import { validateSpendingSearch } from './routes/finance/spending/search';
 import { SpendingPage } from './routes/finance/spending/spending';
 import { TransactionsPage, validateTransactionSearch } from './routes/finance/transactions';
 import { ActivitiesPage } from './routes/health/activities/activities';
+import { ActivityPage } from './routes/health/activities/activity';
+import { validateActivitiesSearch } from './routes/health/activities/search';
 import { BodyPage } from './routes/health/body/body';
 import { validateBodySearch } from './routes/health/body/search';
 import { GarminPage } from './routes/health/garmin/garmin';
@@ -115,7 +117,13 @@ const routeTree = rootRoute.addChildren([
   createRoute({
     getParentRoute: () => rootRoute,
     path: '/health/activities',
+    validateSearch: validateActivitiesSearch,
     component: ActivitiesPage,
+  }),
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/health/activities/$id',
+    component: ActivityPage,
   }),
   createRoute({
     getParentRoute: () => rootRoute,

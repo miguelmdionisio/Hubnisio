@@ -2,9 +2,12 @@ import { expect, test } from 'vitest';
 import {
   formatCompactMoney,
   formatDate,
+  formatDistance,
+  formatDuration,
   formatMoney,
   formatMonth,
   formatMonthName,
+  formatPace,
   formatPercent,
   formatQuantity,
   formatRelative,
@@ -50,6 +53,24 @@ test('steps through months across year ends', () => {
   expect(isMonth('2026-10')).toBe(true);
   expect(isMonth('2026-13')).toBe(false);
   expect(isMonth('2026-10-01')).toBe(false);
+});
+
+test('formats durations as clock readings', () => {
+  expect(formatDuration(0)).toBe('0:00');
+  expect(formatDuration(3125.4)).toBe('52:05');
+  expect(formatDuration(6730)).toBe('1:52:10');
+});
+
+test('formats pace as minutes and seconds', () => {
+  expect(formatPace(314)).toBe('5:14');
+  expect(formatPace(299.6)).toBe('5:00');
+  expect(formatPace(66.67)).toBe('1:07');
+});
+
+test('formats distances in metres under a kilometre and kilometres above', () => {
+  expect(formatDistance(850.4)).toBe('850 m');
+  expect(formatDistance(21412)).toBe('21.4 km');
+  expect(formatDistance(10000)).toBe('10.0 km');
 });
 
 test('describes times relative to now', () => {

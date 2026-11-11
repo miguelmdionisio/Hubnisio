@@ -110,3 +110,25 @@ export function formatShare(share: string | number): string {
   const rounded = Math.round(value * 100);
   return rounded === 0 && value > 0 ? '<1%' : `${rounded}%`;
 }
+
+/** Seconds as a clock reading: "52:10", "1:52:10". */
+export function formatDuration(seconds: number): string {
+  const total = Math.round(seconds);
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const rest = String(total % 60).padStart(2, '0');
+  return hours > 0 ? `${hours}:${String(minutes).padStart(2, '0')}:${rest}` : `${minutes}:${rest}`;
+}
+
+/** Seconds per kilometre (or per 100 m) as minutes and seconds: "5:14". */
+export function formatPace(secondsPerUnit: number): string {
+  const total = Math.round(secondsPerUnit);
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
+}
+
+/** Metres: "850 m" under a kilometre, else "21.4 km". */
+export function formatDistance(metres: number): string {
+  if (Math.abs(metres) < 1000) return `${Math.round(metres)} m`;
+  const km = new Intl.NumberFormat(LOCALE, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  return `${km.format(metres / 1000)} km`;
+}
