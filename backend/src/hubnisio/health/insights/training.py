@@ -220,6 +220,39 @@ def weekly_hours(rows: Sequence[ActivityRow], start: date, today: date) -> Weeks
 
 
 @dataclass(frozen=True)
+class TrainingDay:
+    day: date
+    swim: float  # hours
+    bike: float
+    run: float
+    strength: float
+    other: float
+
+
+def daily_hours(rows: Sequence[ActivityRow], first: date, last: date) -> list[TrainingDay]:
+    """Hours per day by sport, every day from `first` to `last`; 0 on a day without activity."""
+    hours: dict[date, dict[Sport, float]] = defaultdict(lambda: defaultdict(float))
+    for row in rows:
+        if first <= row.day <= last:
+            hours[row.day][sport_of(row.sport)] += row.duration_s / 3600
+    out: list[TrainingDay] = []
+    for i in range((last - first).days + 1):
+        day = first + timedelta(days=i)
+        h = hours.get(day, {})
+        out.append(
+            TrainingDay(
+                day,
+                h.get("swim", 0.0),
+                h.get("bike", 0.0),
+                h.get("run", 0.0),
+                h.get("strength", 0.0),
+                h.get("other", 0.0),
+            )
+        )
+    return out
+
+
+@dataclass(frozen=True)
 class TrainingIntensity:
     """Seconds in heart-rate zones for one sport, grouped; shares of `total_s`."""
 

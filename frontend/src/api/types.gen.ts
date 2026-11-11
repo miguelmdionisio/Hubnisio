@@ -1502,6 +1502,16 @@ export type EasyEfficiencyPoint = {
 export type Family = 'run' | 'ride' | 'swim' | 'other';
 
 /**
+ * Figures
+ */
+export type Figures = {
+    form: FormFigure;
+    sleep: SleepFigure | null;
+    hrv: HrvFigure;
+    resting_hr: RestingFigure;
+};
+
+/**
  * FitnessAgeOut
  */
 export type FitnessAgeOut = {
@@ -1510,6 +1520,24 @@ export type FitnessAgeOut = {
      */
     points: Array<AgePoint>;
     latest: AgeLatest | null;
+};
+
+/**
+ * FormFigure
+ */
+export type FormFigure = {
+    /**
+     * Form
+     */
+    form: number | null;
+    /**
+     * Band
+     */
+    band: 'fresh' | 'neutral' | 'optimal' | 'high_risk' | null;
+    /**
+     * Fitness
+     */
+    fitness: number | null;
 };
 
 /**
@@ -1638,6 +1666,31 @@ export type Holding = {
      * Weight
      */
     weight: string | null;
+};
+
+/**
+ * HrvFigure
+ */
+export type HrvFigure = {
+    /**
+     * Avg7
+     */
+    avg7: number | null;
+    /**
+     * Position
+     */
+    position: 'in' | 'below' | 'above' | null;
+};
+
+/**
+ * HrvNights
+ */
+export type HrvNights = {
+    /**
+     * Points
+     */
+    points: Array<HrvPoint>;
+    summary: HrvSummary;
 };
 
 /**
@@ -1926,6 +1979,60 @@ export type InvestmentsOut = {
      * Accounts
      */
     accounts: Array<InvestmentAccount>;
+};
+
+/**
+ * LastNight
+ */
+export type LastNight = {
+    /**
+     * Day
+     */
+    day: string;
+    /**
+     * Last Night
+     */
+    last_night: boolean;
+    /**
+     * Started At
+     */
+    started_at: string;
+    /**
+     * Ended At
+     */
+    ended_at: string;
+    /**
+     * Bed Min
+     */
+    bed_min: number;
+    /**
+     * Wake Min
+     */
+    wake_min: number;
+    /**
+     * Slept S
+     */
+    slept_s: number | null;
+    /**
+     * Score
+     */
+    score: number | null;
+    /**
+     * Score Qualifier
+     */
+    score_qualifier: string | null;
+    /**
+     * Need Minutes
+     */
+    need_minutes: number | null;
+    /**
+     * In Bed S
+     */
+    in_bed_s: number;
+    /**
+     * Stages
+     */
+    stages: Array<StageShare>;
 };
 
 /**
@@ -2380,6 +2487,44 @@ export type ReadingOut = {
 };
 
 /**
+ * RecentActivity
+ */
+export type RecentActivity = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Sport
+     */
+    sport: string;
+    /**
+     * Group
+     */
+    group: string;
+    /**
+     * Name
+     */
+    name: string | null;
+    /**
+     * Start
+     */
+    start: string;
+    /**
+     * Distance M
+     */
+    distance_m: number | null;
+    /**
+     * Duration S
+     */
+    duration_s: number | null;
+    /**
+     * Load
+     */
+    load: number | null;
+};
+
+/**
  * Recovery
  */
 export type Recovery = {
@@ -2488,6 +2633,24 @@ export type RecurringUpdate = {
      * Cancelled
      */
     cancelled?: boolean | null;
+};
+
+/**
+ * RestingFigure
+ */
+export type RestingFigure = {
+    /**
+     * Latest
+     */
+    latest: number | null;
+    /**
+     * Avg7
+     */
+    avg7: number | null;
+    /**
+     * Change
+     */
+    change: number | null;
 };
 
 /**
@@ -2887,6 +3050,32 @@ export type Signals = {
 };
 
 /**
+ * SleepFigure
+ */
+export type SleepFigure = {
+    /**
+     * Day
+     */
+    day: string;
+    /**
+     * Last Night
+     */
+    last_night: boolean;
+    /**
+     * Slept S
+     */
+    slept_s: number | null;
+    /**
+     * Score
+     */
+    score: number | null;
+    /**
+     * Need Minutes
+     */
+    need_minutes: number | null;
+};
+
+/**
  * SleepNight
  *
  * A night and the nearest nights either side of it. `night` is none when the member has no
@@ -3194,6 +3383,32 @@ export type SpreadOut = {
 };
 
 /**
+ * StageShare
+ */
+export type StageShare = {
+    /**
+     * Stage
+     */
+    stage: string;
+    /**
+     * Seconds
+     */
+    seconds: number;
+    /**
+     * Share
+     */
+    share: number;
+    /**
+     * Typical Low
+     */
+    typical_low: number | null;
+    /**
+     * Typical High
+     */
+    typical_high: number | null;
+};
+
+/**
  * StageShareOut
  */
 export type StageShareOut = {
@@ -3455,6 +3670,29 @@ export type SyncRunOut = {
 export type SyncStatus = 'running' | 'succeeded' | 'failed';
 
 /**
+ * Today
+ */
+export type Today = {
+    /**
+     * Today
+     */
+    today: string;
+    figures: Figures;
+    /**
+     * Fitness
+     */
+    fitness: Array<TrainingPoint>;
+    week: WeekSummary;
+    night: LastNight | null;
+    hrv: HrvNights;
+    /**
+     * Activities
+     */
+    activities: Array<RecentActivity>;
+    signals: Signals;
+};
+
+/**
  * Training
  */
 export type Training = {
@@ -3491,6 +3729,36 @@ export type Training = {
      * Months
      */
     months: Array<TrainingMonth>;
+};
+
+/**
+ * TrainingDay
+ */
+export type TrainingDay = {
+    /**
+     * Day
+     */
+    day: string;
+    /**
+     * Swim
+     */
+    swim: number;
+    /**
+     * Bike
+     */
+    bike: number;
+    /**
+     * Run
+     */
+    run: number;
+    /**
+     * Strength
+     */
+    strength: number;
+    /**
+     * Other
+     */
+    other: number;
 };
 
 /**
@@ -4062,6 +4330,24 @@ export type Vo2MaxTrend = {
      * Change 90D
      */
     change_90d: number | null;
+};
+
+/**
+ * WeekSummary
+ */
+export type WeekSummary = {
+    /**
+     * Days
+     */
+    days: Array<TrainingDay>;
+    /**
+     * Total Hours
+     */
+    total_hours: number;
+    /**
+     * Average Hours
+     */
+    average_hours: number;
 };
 
 /**
@@ -5797,3 +6083,19 @@ export type GetPerformanceResponses = {
 };
 
 export type GetPerformanceResponse = GetPerformanceResponses[keyof GetPerformanceResponses];
+
+export type GetTodayData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/health/today';
+};
+
+export type GetTodayResponses = {
+    /**
+     * Successful Response
+     */
+    200: Today;
+};
+
+export type GetTodayResponse = GetTodayResponses[keyof GetTodayResponses];

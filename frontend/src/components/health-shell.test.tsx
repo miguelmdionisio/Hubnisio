@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, expect, test, vi } from 'vitest';
 import { HEALTH_PAGES } from '@/test/health/pages';
+import { today } from '@/test/health/today';
 import { mockApi, renderAt } from '@/test/render';
 
 afterEach(() => {
@@ -12,7 +13,7 @@ afterEach(() => {
 });
 
 test('the Health sidebar lists its pages in groups', async () => {
-  const calls = mockApi({});
+  const calls = mockApi({ 'GET /api/health/today': () => today() });
 
   renderAt('/health');
 
@@ -25,9 +26,10 @@ test('the Health sidebar lists its pages in groups', async () => {
   expect(sidebar.getByText('Sources')).toBeDefined();
   expect(sidebar.getByRole('link', { name: 'Today' }).getAttribute('aria-current')).toBe('page');
   expect(sidebar.getByRole('link', { name: 'Training' }).getAttribute('aria-current')).toBeNull();
-  // No Finance bank sync, no household view, no API calls at all.
+  // No Finance bank sync, no household view, and only Today's own call.
   expect(screen.queryByRole('group', { name: 'View' })).toBeNull();
-  expect(calls).toEqual([]);
+  await screen.findByText('Recent activities');
+  expect(new Set(calls.map((call) => call.path))).toEqual(new Set(['/api/health/today']));
 });
 
 test('the Health tab bar holds four pages and More', async () => {
@@ -47,7 +49,7 @@ test('the Health tab bar holds four pages and More', async () => {
 });
 
 test('the switcher moves between Finance and Health', async () => {
-  mockApi({});
+  mockApi({ 'GET /api/health/today': () => today() });
 
   renderAt('/health');
 
@@ -70,6 +72,7 @@ const FILLED = new Set([
   'Performance',
   'Recovery',
   'Sleep',
+  'Today',
   'Training',
 ]);
 test.each(HEALTH_PAGES.filter((page) => !FILLED.has(page.title)))(
@@ -105,7 +108,7 @@ test('More lists the pages the tabs leave out and the domains to switch to', asy
 });
 
 test('the accent follows the domain', async () => {
-  mockApi({});
+  mockApi({ 'GET /api/health/today': () => today() });
 
   const { router } = renderAt('/health');
   await screen.findByRole('heading', { name: 'Today' });
