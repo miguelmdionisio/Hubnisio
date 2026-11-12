@@ -101,6 +101,27 @@ async def active_connection_ids() -> list[uuid.UUID]:
         )
 
 
+async def stale_connection_ids(older_than: timedelta) -> list[uuid.UUID]:
+    """Active connections with no sync attempt (successful or not) in `older_than`: the ones a
+    missed schedule left behind, e.g. while the machine was off. Counting attempts, not
+    successes, keeps a failing connection from being retried more often than that."""
+    last = (
+        select(SyncRun.connection_id, func.max(SyncRun.started_at).label("last"))
+        .group_by(SyncRun.connection_id)
+        .subquery()
+    )
+    cutoff = datetime.now(UTC) - older_than
+    async with get_sessionmaker()() as session:
+        return list(
+            await session.scalars(
+                select(Connection.id)
+                .outerjoin(last, last.c.connection_id == Connection.id)
+                .where(Connection.status == ConnectionStatus.ACTIVE)
+                .where((last.c.last.is_(None)) | (last.c.last < cutoff))
+            )
+        )
+
+
 async def sync_connection(
     connection_id: uuid.UUID,
     *,

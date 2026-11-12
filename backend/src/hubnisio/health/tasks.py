@@ -1,6 +1,7 @@
 """Health background jobs, registered on the shared job app in hubnisio/jobs.py."""
 
 import uuid
+from datetime import timedelta
 
 import procrastinate
 from procrastinate.exceptions import AlreadyEnqueued
@@ -29,6 +30,19 @@ async def sync_connection(connection_id: str, trigger: str = sync.SyncTrigger.SC
 @blueprint.task(name="schedule_syncs", queue="sync")
 async def schedule_syncs(timestamp: int) -> None:
     for connection_id in await sync.active_connection_ids():
+        await defer_sync(connection_id)
+
+
+# The schedules above only fire while the worker runs: a machine that was off or asleep at those
+# hours misses them, and Procrastinate doesn't replay missed runs. Every half hour, sync what
+# nothing has tried for 20 hours, so switching the machine on is enough to catch up.
+CATCH_UP_AFTER = timedelta(hours=20)
+
+
+@blueprint.periodic(cron="*/30 * * * *")
+@blueprint.task(name="catch_up_syncs", queue="sync")
+async def catch_up_syncs(timestamp: int) -> None:
+    for connection_id in await sync.stale_connection_ids(CATCH_UP_AFTER):
         await defer_sync(connection_id)
 
 

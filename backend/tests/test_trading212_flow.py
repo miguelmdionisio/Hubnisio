@@ -23,7 +23,7 @@ from hubnisio.cli import t212_link
 from hubnisio.core.auth import Principal
 from hubnisio.core.db import get_sessionmaker
 from hubnisio.core.settings import get_settings
-from hubnisio.finance import sync
+from hubnisio.finance import sync, tasks
 from hubnisio.finance.ingest.renormalize import renormalize_account
 from hubnisio.finance.models import (
     Account,
@@ -852,3 +852,25 @@ async def test_returns_break_down_the_result_of_what_the_sync_brought_in(setup: 
             .values(visibility=AccountVisibility.PRIVATE)
         )
     assert (await returns_of(home.member))["accounts"] == []
+
+
+async def test_catch_up_syncs_a_connection_nothing_tried_for_20_hours(setup: Setup) -> None:
+    assert await setup.link(setup.home.owner) == 0
+    connection = await connection_of(setup.home.owner)
+    await setup.sync(connection.id, sync.SyncTrigger.INITIAL)
+    assert connection.id not in await sync.stale_connection_ids(tasks.CATCH_UP_AFTER)
+
+    async with get_sessionmaker()() as session, session.begin():
+        await session.execute(
+            update(SyncRun)
+            .where(SyncRun.connection_id == connection.id)
+            .values(started_at=func.now() - timedelta(hours=21))
+        )
+    assert connection.id in await sync.stale_connection_ids(tasks.CATCH_UP_AFTER)
+
+    setup.jobs.jobs.clear()
+    await tasks.catch_up_syncs(timestamp=0)
+    queued = [
+        job for job in setup.jobs.jobs.values() if job["task_name"].endswith("sync_connection")
+    ]
+    assert [job["args"]["connection_id"] for job in queued].count(str(connection.id)) == 1
