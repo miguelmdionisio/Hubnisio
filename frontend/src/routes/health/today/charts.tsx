@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react';
-import { Bar, BarChart, Cell, ComposedChart, Line, ReferenceLine, XAxis, YAxis } from 'recharts';
+import { Bar, BarChart, ComposedChart, Line, ReferenceLine, XAxis, YAxis } from 'recharts';
 import type { TrainingPoint, WeekSummary } from '@/api/types.gen';
 import { ChartContainer } from '@/components/ui/chart';
 import { LOCALE, parseDate } from '@/lib/format';
-import { BAND_NAMES, dayMonth, hoursText, SPORTS } from '../training/charts';
+import { BAND_NAMES, dayMonth, FormChart, hoursText, SPORTS } from '../training/charts';
 
 const axisText = { fontSize: 11.5, fontWeight: 500, fill: 'var(--faint)' };
 const margin = { top: 8, right: 0, bottom: 0, left: 0 };
@@ -31,13 +31,10 @@ function Figure({
   );
 }
 
-/** Fitness in the accent, fatigue muted, and form as bars below the lines. */
+/** Fitness in the accent and fatigue muted; below them form, drawn as on Training (`FormChart`). */
 export function FitnessChart({ points }: { points: TrainingPoint[] }) {
   const top = Math.max(...points.map((p) => Math.max(p.fitness, p.fatigue)), 10);
-  const reach = Math.max(...points.map((p) => Math.abs(p.form)), 10);
   const ceiling = Math.ceil(top / 10) * 10;
-  // The bars live in the lower fifth of the plot: the form axis is stretched so they stay short.
-  const rows = points.map((p) => ({ ...p, bar: p.form }));
   const ticks = [points[0]?.day, points[Math.floor(points.length / 2)]?.day, points.at(-1)?.day];
   return (
     <Figure
@@ -52,10 +49,10 @@ export function FitnessChart({ points }: { points: TrainingPoint[] }) {
           fitness: { label: 'Fitness', color: 'var(--primary)' },
           fatigue: { label: 'Fatigue', color: 'var(--muted-foreground)' },
         }}
-        className="aspect-auto h-[200px] w-full"
+        className="aspect-auto h-[150px] w-full"
         aria-hidden
       >
-        <ComposedChart data={rows} margin={margin}>
+        <ComposedChart data={points} margin={margin}>
           <XAxis
             dataKey="day"
             ticks={ticks.filter((t): t is string => !!t)}
@@ -63,26 +60,19 @@ export function FitnessChart({ points }: { points: TrainingPoint[] }) {
             tickFormatter={dayMonth}
             tickLine={false}
             axisLine={false}
-            height={22}
-            tick={axisText}
+            height={4}
+            tick={false}
           />
           <YAxis
             yAxisId="ctl"
             orientation="right"
-            domain={[-ceiling * 0.35, ceiling + 10]}
+            domain={[0, ceiling + 10]}
             ticks={[0, ceiling]}
             tickLine={false}
             axisLine={false}
             width={34}
             tick={axisText}
           />
-          <YAxis yAxisId="form" hide domain={[-reach * 4, reach * 1.2]} />
-          <ReferenceLine yAxisId="ctl" y={0} stroke="var(--border)" />
-          <Bar yAxisId="form" dataKey="bar" isAnimationActive={false} maxBarSize={4}>
-            {rows.map((r) => (
-              <Cell key={r.day} fill={r.form >= 0 ? 'var(--good)' : 'var(--faint)'} />
-            ))}
-          </Bar>
           <Line
             yAxisId="ctl"
             dataKey="fatigue"
@@ -104,6 +94,7 @@ export function FitnessChart({ points }: { points: TrainingPoint[] }) {
           />
         </ComposedChart>
       </ChartContainer>
+      <FormChart points={points} height={90} />
     </Figure>
   );
 }

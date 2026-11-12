@@ -1,5 +1,6 @@
 import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, expect, test, vi } from 'vitest';
+import { pageCalls } from '@/test/health/calls';
 import { performance } from '@/test/health/performance';
 import { mockApi, renderAt } from '@/test/render';
 
@@ -25,9 +26,10 @@ test('shows the four figures and asks for this season by default', async () => {
   expect(screen.getByText('268')).toBeTruthy();
   expect(screen.getByText('52.1')).toBeTruthy();
   expect(screen.getByText('1.4 in 90 days')).toBeTruthy();
-  expect(screen.getByText('4:10')).toBeTruthy();
+  // In its figure; the pace curve's axis can label 4:10 too.
+  expect(screen.getByText('Threshold run pace').parentElement?.textContent).toContain('4:10');
   expect(screen.getByText('1:38')).toBeTruthy();
-  expect(calls[0]?.search.get('period')).toBe('season');
+  expect(pageCalls(calls)[0]?.search.get('period')).toBe('season');
   expect(screen.getByRole('button', { name: 'This season' }).getAttribute('aria-pressed')).toBe(
     'true',
   );
@@ -38,7 +40,7 @@ test('the period lives in the URL', async () => {
   const { router } = renderAt('/health/performance');
   await screen.findByText('52.1');
   fireEvent.click(screen.getByRole('button', { name: 'Last 90 days' }));
-  await waitFor(() => expect(calls.at(-1)?.search.get('period')).toBe('90d'));
+  await waitFor(() => expect(pageCalls(calls).at(-1)?.search.get('period')).toBe('90d'));
   expect(router.state.location.search).toEqual({ period: '90d' });
 });
 

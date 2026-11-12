@@ -3,6 +3,7 @@ import { Area, Bar, BarChart, ComposedChart, Line, ReferenceLine, XAxis, YAxis }
 import type { Recovery } from '@/api/types.gen';
 import { ChartContainer } from '@/components/ui/chart';
 import { LOCALE, parseDate } from '@/lib/format';
+import { edgeTick } from '../edge-tick';
 
 const axisText = { fontSize: 11.5, fontWeight: 500, fill: 'var(--faint)' };
 const margin = { top: 8, right: 0, bottom: 0, left: 0 };
@@ -31,7 +32,7 @@ function DayAxis({ days }: { days: string[] }) {
       tickLine={false}
       axisLine={false}
       height={22}
-      tick={axisText}
+      tick={edgeTick}
     />
   );
 }
@@ -64,6 +65,23 @@ function Figure({
 const present = (value: number | null | undefined): value is number =>
   value !== null && value !== undefined;
 
+/**
+ * The HRV chart's y range: the nights, the 7-day line and the band, padded by a tenth of their
+ * spread (at least 3 ms), so the plot is filled; three labels on multiples of 5 inside it.
+ */
+export function hrvScale(values: number[]): { low: number; high: number; ticks: number[] } {
+  if (values.length === 0) return { low: 0, high: 100, ticks: [25, 50, 75] };
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const pad = Math.max(3, (max - min) * 0.1);
+  const low = Math.floor(min - pad);
+  const high = Math.ceil(max + pad);
+  const five = (v: number) => Math.round(v / 5) * 5;
+  const inside = (v: number) => Math.min(Math.max(v, low + 1), high - 1);
+  const ticks = [...new Set([five(min), five((min + max) / 2), five(max)].map(inside))];
+  return { low, high, ticks };
+}
+
 /** Nightly HRV as dots, below-range nights in `destructive`, the 7-day line and the band. */
 export function HrvChart({ data, height = 260 }: { data: Recovery['hrv']; height?: number }) {
   const rows = data.points.map((p) => ({
@@ -71,9 +89,9 @@ export function HrvChart({ data, height = 260 }: { data: Recovery['hrv']; height
     base: p.band_low,
     span: present(p.band_low) && present(p.band_high) ? p.band_high - p.band_low : null,
   }));
-  const all = rows.flatMap((r) => [r.value, r.avg7, r.band_low, r.band_high]).filter(present);
-  const low = Math.floor(Math.min(...all, 100) / 5) * 5 - 5;
-  const high = Math.ceil(Math.max(...all, 0) / 5) * 5 + 5;
+  const { low, high, ticks } = hrvScale(
+    rows.flatMap((r) => [r.value, r.avg7, r.band_low, r.band_high]).filter(present),
+  );
   return (
     <Figure
       caption="Nightly HRV, its 7-day average and the normal range"
@@ -97,11 +115,14 @@ export function HrvChart({ data, height = 260 }: { data: Recovery['hrv']; height
           <YAxis
             orientation="right"
             domain={[low, high]}
-            ticks={[low + 5, Math.round((low + high) / 2 / 5) * 5, high - 5]}
+            ticks={ticks}
+            // The band is a stack on an invisible base that starts at 0: without this the
+            // axis stretches down to 0 and leaves the lower half of the plot empty.
+            allowDataOverflow
             tickFormatter={(v: number) => `${v} ms`}
             tickLine={false}
             axisLine={false}
-            width={50}
+            width={58}
             tick={axisText}
           />
           <Area
@@ -245,7 +266,8 @@ export function BatteryChart({
     >
       <ChartContainer
         config={{
-          charged: { label: 'Charged', color: 'var(--good)' },
+          // A neutral pair: charging is not a verdict, so not the `good` green.
+          charged: { label: 'Charged', color: 'var(--foreground)' },
           drained: { label: 'Drained', color: 'var(--faint)' },
         }}
         className="aspect-auto w-full"
@@ -277,6 +299,9 @@ export function BatteryChart({
     </Figure>
   );
 }
+
+/** HRV against its band: in range is good, below is the warning, above is no problem (neutral). */
+export const HRV_TONE = { in: 'text-good', below: 'text-destructive', above: undefined } as const;
 
 export const STRESS_LEVELS = [
   { key: 'rest_min', label: 'Rest', color: 'var(--chart-2)' },

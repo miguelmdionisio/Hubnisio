@@ -6,7 +6,8 @@ import { Toaster } from '@/components/ui/sonner';
 import { ThemeProvider } from '@/lib/theme';
 import { cn } from '@/lib/utils';
 import { useView, VIEW_LABELS, VIEW_NOTES, type View, ViewProvider } from '@/lib/view';
-import { DOMAINS, type Domain, domainForPath, FINANCE, navItems } from './domains';
+import { DOMAINS, type Domain, domainForPath, FINANCE, HEALTH, navItems } from './domains';
+import { HealthFreshness } from './health-freshness';
 import { SearchProvider, useOpenSearch } from './search';
 import { Segmented } from './segmented';
 import { SyncFreshness } from './sync-freshness';
@@ -243,6 +244,8 @@ export function PageHeader({
         </h1>
         <div className="flex-1" />
         {domain === FINANCE && <SyncFreshness className="hidden md:flex" />}
+        {/* Health's at every width: one watch, and the phone is where Today is read. */}
+        {domain === HEALTH && <HealthFreshness />}
         {showsView && <ViewSwitch />}
         {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
       </header>

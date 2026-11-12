@@ -263,7 +263,13 @@ export function Splits({ splits, group }: { splits: ActivitySplits; group: Group
   );
 }
 
-const ZONE_COLORS = ['#7dd3a8', '#4cc283', '#ffd166', '#ff9f5a', '#f2675d'];
+const ZONE_COLORS = [
+  'var(--zone-1)',
+  'var(--zone-2)',
+  'var(--zone-3)',
+  'var(--zone-4)',
+  'var(--zone-5)',
+];
 
 export function Zones({ zones }: { zones: ActivityZones }) {
   const total = zones.seconds.reduce((sum, s) => sum + s, 0) + zones.below_s;

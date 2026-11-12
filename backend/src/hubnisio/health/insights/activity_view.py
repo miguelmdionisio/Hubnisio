@@ -23,6 +23,9 @@ from hubnisio.health.insights.series import Series, mean, moving
 SERIES_POINTS = 600
 ROUTE_POINTS = 500
 MIN_PACE_SPEED = 0.5  # m/s: slower than this is standing still, not a pace
+# m/s (16:40 per km): a run's sample slower than this is a stop. It is masked before the
+# buckets are averaged, so a stop leaves a gap in pace and cadence instead of a spike.
+RUN_MOVING_SPEED = 1.0
 MIN_PARTIAL_KM = 100.0  # metres: a shorter last stretch is left out of the splits
 
 Group = Literal["swim", "bike", "run", "strength", "other"]
@@ -135,6 +138,25 @@ def _scaled(values: list[float | None], numerator: float) -> list[float | None]:
     return [None if v is None or v < MIN_PACE_SPEED else round(numerator / v, 2) for v in values]
 
 
+def _run_moving(speed: Column, cadence: Column | None) -> tuple[Column, Column | None]:
+    """A run's speed and cadence with stopped samples taken out: a speed under
+    `RUN_MOVING_SPEED`, and a cadence of zero or while stopped. Done per sample, before the
+    buckets are averaged, so a bucket with a stop averages only the moving samples."""
+    moving_speed = [None if s is None or s < RUN_MOVING_SPEED else s for s in speed]
+    if cadence is None:
+        return moving_speed, None
+    # No steps is a stop too, even while the GPS speed lags behind.
+    moving_speed = [
+        None if i < len(cadence) and (cadence[i] or 0) <= 0 else s
+        for i, s in enumerate(moving_speed)
+    ]
+    moving_cadence = [
+        None if c is None or c <= 0 or (i < len(speed) and moving_speed[i] is None) else c
+        for i, c in enumerate(cadence)
+    ]
+    return moving_speed, moving_cadence
+
+
 def shape_streams(type_key: str | None, data: StreamData) -> ActivityStreams | None:
     """The charts' series for one activity: a run and a ride along the distance, the rest
     along time. None when there is nothing to draw."""
@@ -152,6 +174,11 @@ def shape_streams(type_key: str | None, data: StreamData) -> ActivityStreams | N
         columns["cadence"] = data.cadence
     if sport in (Family.RUN, Family.RIDE) and data.power is not None and _has(data.power):
         columns["power"] = data.power
+    if sport is Family.RUN and "speed" in columns:
+        speed, cadence = _run_moving(columns["speed"], columns.get("cadence"))
+        columns["speed"] = speed
+        if cadence is not None:
+            columns["cadence"] = cadence
     x, series = downsample(axis, columns)
     if not x or not series:
         return None

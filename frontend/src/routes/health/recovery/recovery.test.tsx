@@ -1,5 +1,6 @@
 import { cleanup, fireEvent, screen, within } from '@testing-library/react';
 import { afterEach, expect, test, vi } from 'vitest';
+import { pageCalls } from '@/test/health/calls';
 import { recovery } from '@/test/health/recovery';
 import { mockApi, renderAt } from '@/test/render';
 
@@ -24,7 +25,7 @@ test('shows the four figures, the signals and the gaps', async () => {
   expect(screen.getByText('1 night without data')).toBeTruthy();
   expect(screen.getByText('Average 47.3')).toBeTruthy();
 
-  expect(calls[0]?.search.get('days')).toBe('90');
+  expect(pageCalls(calls)[0]?.search.get('days')).toBe('90');
   expect(screen.getByRole('button', { name: '90 days' }).getAttribute('aria-pressed')).toBe('true');
 });
 
@@ -58,7 +59,22 @@ test('each signal has its own state, word and icon, and the count is not a score
   // The states differ by icon, not only by colour.
   const icons = rows.map((row) => row.querySelector('svg')?.getAttribute('class'));
   expect(new Set(icons).size).toBe(3);
-  expect(within(card).getByText('3 of 4 OK')).toBeTruthy();
+  // Every state is counted, so the signal without data isn't hidden behind "3 of 4".
+  expect(within(card).getByText('3 OK · 1 watch · 1 no data')).toBeTruthy();
+});
+
+test('HRV above its range is no problem: neutral, not the warning colour', async () => {
+  mockApi({
+    'GET /api/health/recovery': () => {
+      const data = recovery();
+      data.hrv.summary = { ...data.hrv.summary, position: 'above', avg7: 71 };
+      return data;
+    },
+  });
+  renderAt('/health/recovery');
+  const above = await screen.findByText('Above 52–66');
+  expect(above.className).not.toContain('text-destructive');
+  expect(above.className).not.toContain('text-good');
 });
 
 test('flags a night below the range', async () => {
@@ -116,12 +132,12 @@ test('the period lives in the URL and sets the days asked for', async () => {
   const calls = mockApi({ 'GET /api/health/recovery': () => recovery() });
   const { router } = renderAt('/health/recovery?days=30');
   await screen.findByText('In range 52–66');
-  expect(calls[0]?.search.get('days')).toBe('30');
+  expect(pageCalls(calls)[0]?.search.get('days')).toBe('30');
 
   fireEvent.click(screen.getByRole('button', { name: '1 year' }));
   await screen.findByText('In range 52–66');
   expect(router.state.location.search).toMatchObject({ days: 365 });
-  expect(calls.at(-1)?.search.get('days')).toBe('365');
+  expect(pageCalls(calls).at(-1)?.search.get('days')).toBe('365');
 
   fireEvent.click(screen.getByRole('button', { name: '90 days' }));
   await screen.findByText('In range 52–66');

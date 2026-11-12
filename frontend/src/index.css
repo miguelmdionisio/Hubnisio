@@ -180,6 +180,17 @@
   --sleep-awake: #8ee6cf;
 }
 
+/* Heart-rate zones: one sequential ramp, pale sky (Z1) through indigo to magenta (Z5), lighter
+ * to darker as the effort rises. The same in both themes. It avoids `good` and `destructive`
+ * (hard work is not a verdict) and the accent. Zone bars carry their name and share too. */
+:root {
+  --zone-1: oklch(0.82 0.07 230);
+  --zone-2: oklch(0.74 0.11 250);
+  --zone-3: oklch(0.66 0.15 275);
+  --zone-4: oklch(0.6 0.19 305);
+  --zone-5: oklch(0.56 0.21 340);
+}
+
 /* One accent per domain: the shell sets data-domain on <html> from the route, and `primary`
  * follows it. Finance is the default above. Health is orange; the light value keeps 4.5:1 for
  * its text on white, on its soft fill and on soft; white on it too. */

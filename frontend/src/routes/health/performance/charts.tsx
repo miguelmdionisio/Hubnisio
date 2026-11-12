@@ -3,6 +3,7 @@ import { ComposedChart, Line, XAxis, YAxis } from 'recharts';
 import type { Performance } from '@/api/types.gen';
 import { ChartContainer } from '@/components/ui/chart';
 import { dayMonth } from '@/routes/health/recovery/charts';
+import { edgeTick } from '../edge-tick';
 import { durationLabel } from './units';
 
 const axisText = { fontSize: 11.5, fontWeight: 500, fill: 'var(--faint)' };
@@ -37,6 +38,38 @@ function Figure({
 }
 
 const TICKS = [5, 60, 300, 1200, 3600];
+
+/**
+ * Two to four y labels on round values inside the data's own range, never on the padded edges,
+ * so the top one is not cut off and the bottom one stays clear of the x axis' labels. Labels
+ * that format alike are kept once.
+ */
+export function innerTicks(low: number, high: number, format: (value: number) => string): number[] {
+  const span = high - low;
+  let candidates = [(low + high) / 2];
+  if (span > 0) {
+    // The largest round step (1, 2, 2.5 or 5 times a power of ten) that fits twice.
+    const magnitude = 10 ** Math.floor(Math.log10(span));
+    const steps = [5, 2.5, 2, 1, 0.5, 0.25, 0.2, 0.1].map((m) => m * magnitude);
+    for (const step of steps) {
+      const inside: number[] = [];
+      for (let v = Math.ceil(low / step) * step; v <= high + 1e-9; v += step) {
+        inside.push(Number(v.toPrecision(12)));
+      }
+      if (inside.length >= 2) {
+        candidates = inside;
+        break;
+      }
+    }
+  }
+  const seen = new Set<string>();
+  return candidates.filter((value) => {
+    const text = format(value);
+    if (seen.has(text)) return false;
+    seen.add(text);
+    return true;
+  });
+}
 
 /** Best values per duration on a log time axis: this period, last season (dashed), and a
  * model line when there is one. `show` turns a value into the axis' unit (pace: s/km). */
@@ -81,7 +114,7 @@ export function CurveChart({
   const values = rows.flatMap((r) => [r.current, r.last, r.model]).filter(present);
   const low = Math.min(...values);
   const high = Math.max(...values);
-  const pad = (high - low) * 0.08 || 1;
+  const pad = (high - low) * 0.12 || 1;
   const first = rows[0]?.t ?? from;
   const last = rows.at(-1)?.t ?? 3600;
   return (
@@ -102,7 +135,7 @@ export function CurveChart({
         style={{ height }}
         aria-hidden
       >
-        <ComposedChart data={rows} margin={margin}>
+        <ComposedChart data={rows} margin={{ ...margin, left: 14 }}>
           <XAxis
             dataKey="t"
             type="number"
@@ -119,11 +152,13 @@ export function CurveChart({
             orientation="right"
             domain={[low - pad, high + pad]}
             reversed={reversed}
-            tickCount={4}
-            tickFormatter={format}
+            ticks={innerTicks(low, high, format)}
+            interval={0}
+            // A no-break space keeps "200 bpm" on one line: Recharts wraps a tick at spaces.
+            tickFormatter={(v: number) => format(v).replaceAll(' ', ' ')}
             tickLine={false}
             axisLine={false}
-            width={56}
+            width={64}
             tick={axisText}
           />
           <Line
@@ -178,7 +213,7 @@ export function DotsChart({
   const values = rows.flatMap((r) => [r.value, r.line]).filter(present);
   const low = Math.min(...values);
   const high = Math.max(...values);
-  const pad = (high - low) * 0.1 || 1;
+  const pad = (high - low) * 0.15 || 1;
   const ticks = rows.length > 1 ? [0, rows.length - 1] : [0];
   return (
     <Figure
@@ -200,16 +235,18 @@ export function DotsChart({
             type="number"
             domain={[0, Math.max(rows.length - 1, 1)]}
             ticks={ticks}
+            interval={0}
             tickFormatter={(i: number) => (rows[i] ? dayMonth(rows[i].day) : '')}
             tickLine={false}
             axisLine={false}
             height={22}
-            tick={axisText}
+            tick={edgeTick}
           />
           <YAxis
             orientation="right"
             domain={[low - pad, high + pad]}
-            tickCount={4}
+            ticks={innerTicks(low, high, format)}
+            interval={0}
             tickFormatter={format}
             tickLine={false}
             axisLine={false}

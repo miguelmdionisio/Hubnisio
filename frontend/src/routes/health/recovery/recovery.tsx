@@ -9,7 +9,15 @@ import { Segmented } from '@/components/segmented';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { QueryView } from '@/routes/overview/panel';
-import { BatteryChart, HrvChart, RestingChart, STRESS_LEVELS, StressChart } from './charts';
+import { signalCount } from '../signals';
+import {
+  BatteryChart,
+  HRV_TONE,
+  HrvChart,
+  RestingChart,
+  STRESS_LEVELS,
+  StressChart,
+} from './charts';
 import { type Days, daysOf, type RecoverySearch } from './search';
 
 const PERIODS: { value: `${Days}`; label: string }[] = [
@@ -172,7 +180,7 @@ function Legend({
     dot: 'size-2 rounded-full bg-foreground',
     below: 'size-2 rounded-full bg-destructive',
     line: 'h-[3px] w-3 rounded-full bg-primary',
-    charged: 'size-2 rounded-sm bg-good',
+    charged: 'size-2 rounded-sm bg-foreground',
     drained: 'size-2 rounded-sm bg-faint',
   };
   return (
@@ -221,12 +229,7 @@ function HrvFigure({ data }: { data: Recovery['hrv']['summary'] }) {
       {data.position === null ? (
         data.avg7 !== null && 'No normal range yet'
       ) : (
-        <span
-          className={cn(
-            'inline-flex items-center gap-1',
-            data.position === 'in' ? 'text-good' : 'text-destructive',
-          )}
-        >
+        <span className={cn('inline-flex items-center gap-1', HRV_TONE[data.position])}>
           {data.position === 'below' && <ArrowDown className="size-3.5" aria-hidden />}
           {data.position === 'above' && <ArrowUp className="size-3.5" aria-hidden />}
           {data.position === 'in' ? 'In range' : data.position === 'below' ? 'Below' : 'Above'}{' '}
@@ -318,9 +321,7 @@ function SignalsCard({ signals }: { signals: Recovery['signals'] }) {
           );
         })}
       </ul>
-      <p className="text-[13px] text-muted-foreground">
-        {signals.ok} of {signals.total} OK
-      </p>
+      <p className="text-[13px] text-muted-foreground tabular-nums">{signalCount(signals.items)}</p>
     </Card>
   );
 }

@@ -50,7 +50,8 @@ export function lanesFor(group: Group, streams: ActivityStreams): Lane[] {
       color: SPORT_COLOR[group],
       format: (v) => v.toFixed(1),
     },
-    { key: 'heart_rate', label: 'Heart rate', color: 'var(--destructive)', format: whole },
+    // Heart rate and cadence are drawn neutrally: an ordinary heart rate is not an alarm.
+    { key: 'heart_rate', label: 'Heart rate', color: 'var(--foreground)', format: whole },
     {
       key: 'altitude',
       label: 'Elevation m',
@@ -59,7 +60,7 @@ export function lanesFor(group: Group, streams: ActivityStreams): Lane[] {
       area: true,
     },
     { key: 'power', label: 'Power W', color: 'var(--primary)', format: whole },
-    { key: 'cadence', label: 'Cadence', color: 'var(--good)', format: whole },
+    { key: 'cadence', label: 'Cadence', color: 'var(--faint)', format: whole },
   ];
   return all.filter((lane) => streams.series[lane.key]?.some((v) => v !== null));
 }
@@ -71,13 +72,17 @@ function percentile(sorted: number[], share: number): number {
   return sorted[Math.min(sorted.length - 1, Math.floor(share * (sorted.length - 1)))] ?? 0;
 }
 
-/** A range that leaves out the odd spike (a stop, a GPS jump) and pads what is left. */
-function rangeOf(values: (number | null)[]): [number, number] {
+/**
+ * A range that leaves out the odd spike (a GPS jump; stops are gaps already, masked by the
+ * backend) and pads what is left, with the two labels set inside it so they stay in the lane.
+ */
+function rangeOf(values: (number | null)[]): { domain: [number, number]; ticks: number[] } {
   const sorted = values.filter((v): v is number => v !== null).sort((a, b) => a - b);
   const lo = percentile(sorted, 0.02);
   const hi = percentile(sorted, 0.98);
-  const pad = (hi - lo) * 0.1 || 1;
-  return [lo - pad, hi + pad];
+  const pad = (hi - lo) * 0.18 || 1;
+  const ticks = hi - lo >= 2 ? [Math.ceil(lo), Math.floor(hi)] : [Math.round((lo + hi) / 2)];
+  return { domain: [lo - pad, hi + pad], ticks };
 }
 
 /** Every Nth sample, for a screen reader. */
@@ -101,7 +106,7 @@ export function StreamLanes({ group, streams }: { group: Group; streams: Activit
     <figure className="mt-1">
       {lanes.map((lane, index) => {
         const last = index === lanes.length - 1;
-        const [lo, hi] = rangeOf(streams.series[lane.key] ?? []);
+        const { domain, ticks } = rangeOf(streams.series[lane.key] ?? []);
         const Chart = lane.area ? AreaChart : LineChart;
         return (
           <div key={lane.key}>
@@ -115,7 +120,7 @@ export function StreamLanes({ group, streams }: { group: Group; streams: Activit
               <Chart
                 data={rows}
                 syncId="activity"
-                margin={{ top: 4, right: 0, bottom: 0, left: 0 }}
+                margin={{ top: 6, right: 0, bottom: last ? 0 : 6, left: 0 }}
               >
                 <XAxis
                   dataKey="x"
@@ -131,10 +136,10 @@ export function StreamLanes({ group, streams }: { group: Group; streams: Activit
                 />
                 <YAxis
                   orientation="right"
-                  domain={[lo, hi]}
+                  domain={domain}
                   reversed={lane.reversed}
                   allowDataOverflow
-                  ticks={[Math.ceil(lo), Math.floor(hi)]}
+                  ticks={ticks}
                   tickFormatter={lane.format}
                   tickLine={false}
                   axisLine={false}

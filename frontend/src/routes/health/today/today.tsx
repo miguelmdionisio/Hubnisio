@@ -12,7 +12,8 @@ import { cn } from '@/lib/utils';
 import { QueryView } from '@/routes/overview/panel';
 import { rowClass } from '../../finance/transaction-rows';
 import { activityTitle, type Group, SportChip } from '../activities/sport';
-import { HrvChart } from '../recovery/charts';
+import { HRV_TONE, HrvChart } from '../recovery/charts';
+import { signalCount } from '../signals';
 import { clock, hm, hmSeconds, STAGE_COLORS, STAGE_NAMES } from '../sleep/units';
 import { BAND_NAMES, SPORTS } from '../training/charts';
 import { FitnessChart, WeekChart } from './charts';
@@ -46,6 +47,8 @@ function Content({ data }: { data: Today }) {
   const { figures, night, signals } = data;
   return (
     <div className="flex flex-col gap-5">
+      <SignalsStrip signals={signals} />
+
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <FormTile data={figures.form} />
         <SleepTile data={figures.sleep} />
@@ -53,14 +56,12 @@ function Content({ data }: { data: Today }) {
         <RestingTile data={figures.resting_hr} />
       </div>
 
-      <SignalsStrip signals={signals} />
-
       <div className="grid gap-5 lg:grid-cols-2">
         <Card className="min-w-0 px-(--card-spacing)">
           <Heading title="Fitness, 90 days">
             <Key color="var(--primary)">Fitness</Key>
             <Key color="var(--muted-foreground)">Fatigue</Key>
-            <Key color="var(--good)">Form</Key>
+            <Key color="var(--foreground)">Form</Key>
           </Heading>
           {data.fitness.length > 0 ? (
             <FitnessChart points={data.fitness} />
@@ -219,12 +220,7 @@ function HrvTile({ data }: { data: Today['figures']['hrv'] }) {
   return (
     <Tile to="/health/recovery" label="HRV, 7-day" value={number(data.avg7)} unit="ms">
       {data.position && (
-        <span
-          className={cn(
-            'inline-flex items-center gap-1',
-            data.position === 'in' ? 'text-good' : 'text-destructive',
-          )}
-        >
+        <span className={cn('inline-flex items-center gap-1', HRV_TONE[data.position])}>
           {data.position === 'below' && <ArrowDown className="size-3.5" aria-hidden />}
           {data.position === 'above' && <ArrowUp className="size-3.5" aria-hidden />}
           {data.position === 'in' ? 'In range' : data.position === 'below' ? 'Below' : 'Above'}
@@ -268,15 +264,19 @@ const SIGNAL_NAMES: Record<Signal['key'], string> = {
   form: 'Form',
 };
 
-/** The phone's strip: one segment per signal, told apart by height, outline and icon as well as
- * colour, with the list a screen reader gets. */
+/** The page's verdict, first at every width: one segment per signal, told apart by height,
+ * outline and icon as well as colour, a count naming every state, and the list a screen reader
+ * gets. On desktop the heading, the segments and the names share one row. */
 function SignalsStrip({ signals }: { signals: Today['signals'] }) {
   return (
-    <Card className="min-w-0 gap-3 px-(--card-spacing) md:hidden">
-      <Link to="/health/recovery" className="flex items-baseline gap-2">
+    <Card className="min-w-0 gap-3 px-(--card-spacing) md:grid md:grid-cols-[auto_minmax(160px,1fr)_auto] md:items-center md:gap-x-6">
+      <Link
+        to="/health/recovery"
+        className="flex items-baseline gap-2 md:flex-col md:items-start md:gap-0.5"
+      >
         <h2 className="text-[15px] font-semibold">Signals today</h2>
-        <span className="ml-auto text-[13px] text-muted-foreground tabular-nums">
-          {signals.ok} of {signals.total} OK
+        <span className="ml-auto text-[13px] text-muted-foreground tabular-nums md:ml-0">
+          {signalCount(signals.items)}
         </span>
       </Link>
       <div className="flex items-end gap-1.5" aria-hidden>

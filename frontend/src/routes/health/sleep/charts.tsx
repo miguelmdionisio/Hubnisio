@@ -21,6 +21,7 @@ import type {
 } from '@/api/types.gen';
 import { ChartContainer } from '@/components/ui/chart';
 import { formatDay, LOCALE, parseDate } from '@/lib/format';
+import { edgeTick } from '../edge-tick';
 import { clock, hm, STAGE_COLORS, STAGE_NAMES, WEEKDAYS } from './units';
 
 const axisText = { fontSize: 11.5, fontWeight: 500, fill: 'var(--faint)' };
@@ -33,10 +34,12 @@ export function Gap({ children }: { children: string }) {
   return <p className="text-sm text-muted-foreground">{children}</p>;
 }
 
-const SERIES = {
-  hr: { label: 'Heart rate', color: 'var(--destructive)' },
-  hrv: { label: 'HRV', color: 'var(--good)' },
-  spo2: { label: 'SpO2', color: 'var(--sleep-rem)' },
+/** Neutral series (an overnight heart rate is not an alarm, nor a verdict), and SpO2 apart from
+ * the sleep stages' hues. Shapes tell them apart too: a line, dots, a dashed line. */
+export const SERIES = {
+  hr: { label: 'Heart rate', color: 'var(--foreground)' },
+  hrv: { label: 'HRV', color: 'var(--muted-foreground)' },
+  spo2: { label: 'SpO2', color: 'var(--sport-swim)' },
 };
 
 type Row = { t: number; hr?: number; hrv?: number; spo2?: number };
@@ -245,7 +248,7 @@ export function NightsChart({
             tickLine={false}
             axisLine={false}
             height={22}
-            tick={axisText}
+            tick={edgeTick}
             interval={0}
           />
           <YAxis
@@ -257,18 +260,8 @@ export function NightsChart({
             width={34}
             tick={axisText}
           />
-          {need !== null && (
-            <ReferenceLine
-              y={need}
-              stroke="var(--faint)"
-              strokeDasharray="4 4"
-              label={{
-                value: `need ${hm(needMinutes ?? 0)}`,
-                position: 'insideTopLeft',
-                ...axisText,
-              }}
-            />
-          )}
+          {/* Named in the card's key ("Need 8h 00"), not on the line, where it sat on the bars. */}
+          {need !== null && <ReferenceLine y={need} stroke="var(--faint)" strokeDasharray="4 4" />}
           {(['deep', 'light', 'rem', 'awake'] as const).map((stage) => (
             <Bar
               key={stage}
@@ -329,7 +322,7 @@ export function ScheduleChart({ points, spread }: { points: NightPointOut[]; spr
             tickLine={false}
             axisLine={false}
             height={22}
-            tick={axisText}
+            tick={edgeTick}
             interval={0}
           />
           <YAxis

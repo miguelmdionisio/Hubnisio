@@ -154,9 +154,11 @@ function Content({ data }: { data: Training }) {
         </Card>
         <Card className="min-w-0 px-(--card-spacing)">
           <Heading title="Intensity">
-            <Legend color="var(--good)">Z1–2</Legend>
-            <Legend color="var(--chart-3)">Z3</Legend>
-            <Legend color="var(--destructive)">Z4–5</Legend>
+            {ZONE_GROUPS.map((group) => (
+              <Legend key={group.label} color={group.color}>
+                {group.label}
+              </Legend>
+            ))}
           </Heading>
           {data.intensity.length === 0 ? (
             <p className="text-[13px] text-muted-foreground">No heart-rate zones yet</p>
@@ -225,10 +227,17 @@ const SPORT_NAMES: Record<TrainingIntensity['sport'], string> = {
   all: 'All',
 };
 
+/** The intensity bars' three groups, on the zone ramp (`--zone-*`), never good or bad. */
+const ZONE_GROUPS = [
+  { label: 'Z1–2', color: 'var(--zone-2)' },
+  { label: 'Z3', color: 'var(--zone-3)' },
+  { label: 'Z4–5', color: 'var(--zone-5)' },
+] as const;
+
 function IntensityRow({ row }: { row: TrainingIntensity }) {
   const shares = [row.z12_share, row.z3_share, row.z45_share].map((s) => (s ?? 0) * 100);
   const text = shares.map((s) => Math.round(s)).join(' / ');
-  const colors = ['var(--good)', 'var(--chart-3)', 'var(--destructive)'];
+  const colors = ZONE_GROUPS.map((group) => group.color);
   return (
     <li className="grid grid-cols-[64px_minmax(0,1fr)_88px] items-center gap-3 py-2 text-[13.5px]">
       <span className="font-semibold">{SPORT_NAMES[row.sport]}</span>

@@ -1,5 +1,6 @@
 """Shaping an activity for its page: the pure functions on hand-checkable activities."""
 
+import itertools
 import math
 
 from hubnisio.health.insights import activity_view as v
@@ -79,6 +80,28 @@ def test_standing_still_is_no_pace_and_a_ride_gets_kmh() -> None:
     shaped = v.shape_streams("cycling", ride)
     assert shaped is not None
     assert shaped.series["speed"] == [36, 36] and shaped.series["power"] == [200, 220]
+
+
+def test_a_runs_stops_are_gaps_in_pace_and_cadence_not_spikes() -> None:
+    # 2000 samples at 4 m/s with a 400-sample stop in the middle (walking off at 0.6 m/s, then
+    # standing with cadence 0), bucketed into 10 slices of the distance.
+    speed = [4.0] * 800 + [0.6] * 200 + [0.0] * 200 + [4.0] * 800
+    cadence = [170.0] * 800 + [60.0] * 200 + [0.0] * 200 + [170.0] * 800
+    distance = list(itertools.accumulate(speed))
+    data = v.StreamData(
+        time=list(range(len(speed))),
+        distance=distance,
+        speed=speed,
+        cadence=cadence,
+        heart_rate=[150.0] * len(speed),
+    )
+    shaped = v.shape_streams("running", data)
+    assert shaped is not None
+    pace = [p for p in shaped.series["pace"] if p is not None]
+    assert pace and all(p == 250 for p in pace)  # never the stop's 16+ minutes per km
+    steps = [c for c in shaped.series["cadence"] if c is not None]
+    assert steps and all(c == 170 for c in steps)
+    assert all(h is not None for h in shaped.series["heart_rate"])  # heart rate is untouched
 
 
 def test_a_swim_and_a_strength_session_go_over_time() -> None:

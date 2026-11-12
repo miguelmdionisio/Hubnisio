@@ -7,6 +7,7 @@ import {
   swimDetail,
   triathlonDetail,
 } from '@/test/health/activities';
+import { pageCalls } from '@/test/health/calls';
 import { mockApi, renderAt } from '@/test/render';
 
 afterEach(() => {
@@ -33,7 +34,7 @@ test('a run shows its six figures and every section it has data for', async () =
   renderAt('/health/activities/100');
 
   expect(await screen.findByRole('heading', { name: 'Long run', level: 1 })).toBeTruthy();
-  expect(calls[0]?.path).toBe('/api/health/activities/100');
+  expect(pageCalls(calls)[0]?.path).toBe('/api/health/activities/100');
   expect(screen.getByText('Sun 8 Nov · 08:12')).toBeTruthy();
   expect(card('Distance')).toBe('Distance21.4km');
   expect(card('Time')).toBe('Time1:52:10Moving 1:43:20');

@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, expect, test, vi } from 'vitest';
 import { activityList, row } from '@/test/health/activities';
+import { pageCalls } from '@/test/health/calls';
 import { mockApi, renderAt } from '@/test/render';
 
 afterEach(() => {
@@ -25,8 +26,8 @@ test('lists activities by day with distance, time, load and the sport figure', a
   const friday = screen.getByRole('region', { name: 'Fri 6 Nov' });
   // no load yet: the row says nothing about it
   expect(within(friday).getByRole('link').textContent).toBe('Pool07:00 · 3:00 /100 m1.0 km30:00');
-  expect(calls[0]?.search.get('limit')).toBe('30');
-  expect(calls[0]?.search.get('sport')).toBeNull();
+  expect(pageCalls(calls)[0]?.search.get('limit')).toBe('30');
+  expect(pageCalls(calls)[0]?.search.get('sport')).toBeNull();
 });
 
 test('a multisport activity is one row naming its legs', async () => {
@@ -61,7 +62,7 @@ test('sport pills narrow the list and All clears them', async () => {
   await screen.findByRole('region', { name: 'Sun 8 Nov' });
 
   fireEvent.click(screen.getByRole('button', { name: 'Run' }));
-  await waitFor(() => expect(calls.at(-1)?.search.get('sport')).toBe('run'));
+  await waitFor(() => expect(pageCalls(calls).at(-1)?.search.get('sport')).toBe('run'));
   expect(router.state.location.search).toMatchObject({ sport: 'run' });
   expect(screen.getByRole('button', { name: 'Run' }).getAttribute('aria-pressed')).toBe('true');
 
@@ -79,8 +80,8 @@ test('a period sets the first day, and last year bounds both ends', async () => 
   fireEvent.click(await screen.findByRole('button', { name: 'Last year' }));
 
   const year = new Date().getFullYear() - 1;
-  await waitFor(() => expect(calls.at(-1)?.search.get('from')).toBe(`${year}-01-01`));
-  expect(calls.at(-1)?.search.get('to')).toBe(`${year}-12-31`);
+  await waitFor(() => expect(pageCalls(calls).at(-1)?.search.get('from')).toBe(`${year}-01-01`));
+  expect(pageCalls(calls).at(-1)?.search.get('to')).toBe(`${year}-12-31`);
 });
 
 test('searching asks for the text once typing pauses', async () => {
@@ -92,7 +93,7 @@ test('searching asks for the text once typing pauses', async () => {
     target: { value: 'long' },
   });
 
-  await waitFor(() => expect(calls.at(-1)?.search.get('q')).toBe('long'));
+  await waitFor(() => expect(pageCalls(calls).at(-1)?.search.get('q')).toBe('long'));
 });
 
 test('loads the next page with the cursor', async () => {
@@ -107,7 +108,7 @@ test('loads the next page with the cursor', async () => {
   fireEvent.click(await screen.findByRole('button', { name: 'Load more' }));
 
   expect(await screen.findByText('Older run')).toBeTruthy();
-  expect(calls.at(-1)?.search.get('cursor')).toBe('abc.1');
+  expect(pageCalls(calls).at(-1)?.search.get('cursor')).toBe('abc.1');
   expect(screen.queryByRole('button', { name: 'Load more' })).toBeNull();
 });
 

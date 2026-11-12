@@ -31,7 +31,10 @@ test('four figures link to their pages', async () => {
   expect(href(/^Last night/)).toBe('/health/sleep');
   expect(href(/^HRV, 7-day/)).toBe('/health/recovery');
   expect(href(/^Resting HR/)).toBe('/health/recovery');
-  expect(new Set(calls.map((c) => c.path))).toEqual(new Set(['/api/health/today']));
+  // The page's own data, and the header's Garmin freshness.
+  expect(new Set(calls.map((c) => c.path))).toEqual(
+    new Set(['/api/health/today', '/api/health/connection']),
+  );
   // No Mine / Household switch on Health.
   expect(screen.queryByRole('group', { name: 'View' })).toBeNull();
 });
@@ -122,7 +125,11 @@ test('the signals strip tells each signal apart without colour', async () => {
 
   const heading = await screen.findByRole('heading', { name: 'Signals today' });
   const card = heading.closest('a')?.parentElement as HTMLElement;
-  expect(within(card).getByText('3 of 4 OK')).toBeTruthy();
+  expect(within(card).getByText('3 OK · 1 watch')).toBeTruthy();
+  // The verdict shows at every width, desktop too, and comes first.
+  expect(card.className).not.toMatch(/(^|\s)(md:)?hidden(\s|$)/);
+  const main = screen.getByRole('main');
+  expect(main.querySelector('[data-slot="card"]')).toBe(card);
   const items = within(card).getAllByRole('listitem');
   expect(items.map((i) => i.textContent)).toEqual([
     'HRV: OK',
@@ -130,6 +137,20 @@ test('the signals strip tells each signal apart without colour', async () => {
     'Sleep: Watch',
     'Body Battery: OK',
   ]);
+});
+
+test('a signal without data is counted, and HRV above its range is not a warning', async () => {
+  const data = today();
+  data.signals.items = data.signals.items.map((signal) =>
+    signal.key === 'sleep' ? { ...signal, state: 'no_data', value: null } : signal,
+  );
+  data.figures.hrv = { ...data.figures.hrv, position: 'above' };
+  mockApi({ 'GET /api/health/today': () => data });
+  renderAt('/health');
+
+  expect(await screen.findByText('3 OK · 1 no data')).toBeTruthy();
+  const above = screen.getByText('Above');
+  expect(above.className).not.toContain('text-destructive');
 });
 
 test('a gap in the data is a dash and a note, never a zero', async () => {

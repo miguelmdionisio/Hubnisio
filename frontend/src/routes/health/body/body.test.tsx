@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, screen, within } from '@testing-library/react';
 import { afterEach, expect, test, vi } from 'vitest';
 import { body, emptyBody, oneWeighIn } from '@/test/health/body';
+import { pageCalls } from '@/test/health/calls';
 import { mockApi, renderAt } from '@/test/render';
 
 afterEach(() => {
@@ -27,7 +28,7 @@ test('shows the weight figures, the goal and fitness age against real age', asyn
   expect(screen.getByText('46 bpm')).toBeTruthy();
   expect(screen.getByText('3 readings')).toBeTruthy();
 
-  expect(calls[0]?.search.get('days')).toBe('365');
+  expect(pageCalls(calls)[0]?.search.get('days')).toBe('365');
   expect(screen.getByRole('button', { name: '1 year' }).getAttribute('aria-pressed')).toBe('true');
 });
 
@@ -103,5 +104,9 @@ test('the period pills ask for 90 days or everything', async () => {
   expect(await screen.findByRole('button', { name: '90 days', pressed: true })).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: 'All' }));
   expect(await screen.findByRole('button', { name: 'All', pressed: true })).toBeTruthy();
-  expect([...new Set(calls.map((call) => call.search.get('days')))]).toEqual(['365', '90', 'all']);
+  expect([...new Set(pageCalls(calls).map((call) => call.search.get('days')))]).toEqual([
+    '365',
+    '90',
+    'all',
+  ]);
 });

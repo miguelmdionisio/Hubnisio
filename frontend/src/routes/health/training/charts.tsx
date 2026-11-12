@@ -13,6 +13,7 @@ import {
 import type { Training } from '@/api/types.gen';
 import { ChartContainer } from '@/components/ui/chart';
 import { LOCALE, parseDate } from '@/lib/format';
+import { edgeTick } from '../edge-tick';
 
 const axisText = { fontSize: 11.5, fontWeight: 500, fill: 'var(--faint)' };
 const margin = { top: 8, right: 0, bottom: 0, left: 0 };
@@ -57,7 +58,7 @@ function DayAxis({ days, hide }: { days: string[]; hide?: boolean }) {
       tickLine={false}
       axisLine={false}
       height={hide ? 4 : 22}
-      tick={hide ? false : axisText}
+      tick={hide ? false : edgeTick}
     />
   );
 }
@@ -147,35 +148,53 @@ export function LoadChart({ data }: { data: Training }) {
           />
         </ComposedChart>
       </ChartContainer>
-      <ChartContainer config={config} className="aspect-auto h-[140px] w-full" aria-hidden>
-        <LineChart data={points} margin={margin}>
-          <DayAxis days={days} />
-          <YAxis
-            orientation="right"
-            domain={[-40, 25]}
-            allowDataOverflow
-            ticks={[]}
-            tickLine={false}
-            axisLine={false}
-            width={34}
-          />
-          <ReferenceArea y1={5} y2={25} fill="var(--sport-swim)" fillOpacity={0.1} />
-          <ReferenceArea y1={-30} y2={-10} fill="var(--good)" fillOpacity={0.12} />
-          <ReferenceArea y1={-40} y2={-30} fill="var(--destructive)" fillOpacity={0.12} />
-          <ReferenceLine y={0} stroke="var(--border)" strokeDasharray="3 4" />
-          <Line
-            dataKey="form"
-            stroke="var(--color-form)"
-            strokeWidth={2}
-            dot={false}
-            activeDot={false}
-            isAnimationActive={false}
-          />
-        </LineChart>
-      </ChartContainer>
+      <FormChart points={points} />
     </Figure>
   );
 }
+
+/**
+ * Form as a line in ink over its bands: fresh, neutral, optimal and high risk. The bands carry
+ * the meaning; the line stays neutral, so fresh never reads as simply good. Today and Training
+ * both draw form this way.
+ */
+export function FormChart({ points, height = 140 }: { points: FormPoint[]; height?: number }) {
+  return (
+    <ChartContainer
+      config={{ form: { label: 'Form', color: 'var(--foreground)' } }}
+      className="aspect-auto w-full"
+      style={{ height }}
+      aria-hidden
+    >
+      <LineChart data={points} margin={margin}>
+        <DayAxis days={points.map((p) => p.day)} />
+        <YAxis
+          orientation="right"
+          domain={[-40, 25]}
+          allowDataOverflow
+          ticks={[]}
+          tickLine={false}
+          axisLine={false}
+          width={34}
+        />
+        <ReferenceArea y1={5} y2={25} fill="var(--sport-swim)" fillOpacity={0.1} />
+        <ReferenceArea y1={-30} y2={-10} fill="var(--good)" fillOpacity={0.12} />
+        <ReferenceArea y1={-40} y2={-30} fill="var(--destructive)" fillOpacity={0.12} />
+        <ReferenceLine y={0} stroke="var(--border)" strokeDasharray="3 4" />
+        <Line
+          dataKey="form"
+          stroke="var(--color-form)"
+          strokeWidth={2}
+          dot={false}
+          activeDot={false}
+          isAnimationActive={false}
+        />
+      </LineChart>
+    </ChartContainer>
+  );
+}
+
+type FormPoint = { day: string; form: number };
 
 /** Hours per week stacked by sport, the average as a dashed line. */
 export function WeeksChart({ data }: { data: Training }) {
@@ -206,7 +225,7 @@ export function WeeksChart({ data }: { data: Training }) {
             tickLine={false}
             axisLine={false}
             height={22}
-            tick={axisText}
+            tick={edgeTick}
           />
           <YAxis hide domain={[0, Math.ceil(top) + 1]} />
           {SPORTS.map((s) => (

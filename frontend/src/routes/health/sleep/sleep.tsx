@@ -18,6 +18,7 @@ import {
   NightChart,
   NightsChart,
   ScheduleChart,
+  SERIES,
   Sparkline,
   STAGE_LEGEND,
   WeekdayChart,
@@ -258,21 +259,21 @@ function Night({ night }: { night: NightOut }) {
         <Mini
           name="Heart rate"
           unit="bpm"
-          color="var(--destructive)"
+          color={SERIES.hr.color}
           reading={night.heart_rate}
           note={lowNote(night, night.heart_rate, 'Low')}
         />
         <Mini
           name="HRV"
           unit="ms"
-          color="var(--good)"
+          color={SERIES.hrv.color}
           reading={night.hrv}
           note={highNote(night, night.hrv)}
         />
         <Mini
           name="Respiration"
           unit="brpm"
-          color="var(--sport-swim)"
+          color="var(--faint)"
           reading={night.respiration}
           note={
             night.respiration.low !== null && night.respiration.high !== null
@@ -283,7 +284,7 @@ function Night({ night }: { night: NightOut }) {
         <Mini
           name="SpO2"
           unit="%"
-          color="var(--sleep-rem)"
+          color={SERIES.spo2.color}
           reading={night.spo2}
           note={night.spo2.low !== null ? `Low ${Math.round(night.spo2.low)}` : 'No reading'}
         />
@@ -417,7 +418,18 @@ function Trends({ data }: { data: SleepTrends }) {
                 </span>
               )}
             </CardTitle>
-            <Legend items={[...STAGE_LEGEND, { name: 'Need', color: 'var(--faint)' }]} />
+            <Legend
+              items={[
+                ...STAGE_LEGEND,
+                {
+                  name:
+                    data.average_need_minutes === null
+                      ? 'Need'
+                      : `Need ${hm(data.average_need_minutes)}`,
+                  color: 'var(--faint)',
+                },
+              ]}
+            />
           </CardHeader>
           <CardContent>
             <NightsChart points={data.points} needMinutes={data.average_need_minutes} />

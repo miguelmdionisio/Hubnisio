@@ -39,6 +39,11 @@ colors:
   sleep-light: "#8fa3ff"
   sleep-rem: "#c58cff"
   sleep-awake: "#8ee6cf"
+  zone-1: "oklch(0.82 0.07 230)"
+  zone-2: "oklch(0.74 0.11 250)"
+  zone-3: "oklch(0.66 0.15 275)"
+  zone-4: "oklch(0.6 0.19 305)"
+  zone-5: "oklch(0.56 0.21 340)"
   good-light: "#1f8a5b"
   bad-light: "#cf3f36"
 typography:
@@ -142,6 +147,12 @@ Cool, near-neutral greys with a faint blue cast, one domain accent, and two sema
 ### Sport and sleep-stage colours
 Chart-only hues for Health, the same in both themes like the `--cat-*` hues (`--sport-*`, `--sleep-*`). Sports: swim `sport-swim`, bike `sport-bike`, run `sport-run`, strength `sport-strength`. Sleep stages: deep `sleep-deep` (darkest), light `sleep-light`, REM `sleep-rem`, and awake `sleep-awake`, a pale mint. Awake is deliberately not orange (the accent marks the domain, never data) and is told apart from the blues and purples by hue and by being the lightest of the four. Chart marks carry a label or screen-reader list too, never colour alone.
 
+### Heart-rate zones
+One sequential ramp, `--zone-1` to `--zone-5` (`zone-*` above), the same in both themes: pale sky through blue and indigo to magenta, darker as the effort rises. Every place that draws zones uses it: an activity's zone bars, and Training's intensity bars (Z1–2 `zone-2`, Z3 `zone-3`, Z4–5 `zone-5`). It avoids good and bad, because hard work is not a verdict, and the accent.
+
+### Series that are not verdicts
+Heart rate, HRV and cadence lines (an activity's lanes, the overnight chart) are drawn in ink, mute or faint, or in the sport's colour, never in good or bad: an ordinary heart rate is not an alarm. SpO2 is swim blue, apart from the sleep stages' violets. Form is a line in ink over its bands on both Today and Training (`FormChart`); the bands carry the meaning. Body Battery is charged in ink, drained in faint.
+
 ### Neutral
 - **Ground** (`ground-*`): the page (`background`, `card`).
 - **Soft** (`soft-*`): the first raised tone: list panels, segmented tracks, muted fills (`surface`, `muted`).
@@ -156,6 +167,8 @@ Chart-only hues for Health, the same in both themes like the `--cat-*` hues (`--
 ### Semantic
 - **Good** (`good-*`): fresh sync dot, money in, under budget (`good`).
 - **Bad** (`bad-*`): a connection needing a look, over budget, errors (`destructive`).
+
+**The Verdict Colour Rule.** Good and bad mark verdicts only: a sync fresh or needing a look, a signal OK or not, a value in its range or below it, an improvement or a drop. They never colour a data series, a zone or a level of effort. HRV above its normal range is no problem and reads neutral; below it is the warning.
 
 ### Named Rules
 **The One Accent Rule.** A domain owns one accent. It marks where you are and what you can act on; it never decorates. Semantic good/bad stay separate from it.
@@ -212,6 +225,7 @@ Soft and round. Controls are fully rounded pills (9999px); list panels 18px; row
 
 ### Page header
 - **Content:** title; on desktop, on Finance pages, the sync freshness ("Synced 21 minutes ago" with a good dot; a dashed ring when stale; "BPI needs a look" in bad, linking to Bank connections); Mine / Household on pages that sum money; the page's actions.
+- **Health's freshness:** on every Health page, at every width, from `GET /api/health/connection` (`components/health-freshness.tsx`): "Garmin synced 3 hours ago" with a good dot; a dashed ring when the last successful sync is over 26 hours old (the daily task plus two hours' slack); "Garmin syncing" while one runs; "Garmin needs a look" in bad, linking to the Garmin page, when nothing is linked, the last sync failed, or the key lapses within 14 days or has lapsed.
 
 ### List panels and rows
 - **Style:** soft panel, 18px radius, 6px inset; rows of chip, label and a trailing chevron or control, 14px radius, soft-2 on hover.

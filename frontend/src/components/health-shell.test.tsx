@@ -26,10 +26,12 @@ test('the Health sidebar lists its pages in groups', async () => {
   expect(sidebar.getByText('Sources')).toBeDefined();
   expect(sidebar.getByRole('link', { name: 'Today' }).getAttribute('aria-current')).toBe('page');
   expect(sidebar.getByRole('link', { name: 'Training' }).getAttribute('aria-current')).toBeNull();
-  // No Finance bank sync, no household view, and only Today's own call.
+  // No Finance bank sync, no household view: Today's own call and Garmin's freshness.
   expect(screen.queryByRole('group', { name: 'View' })).toBeNull();
   await screen.findByText('Recent activities');
-  expect(new Set(calls.map((call) => call.path))).toEqual(new Set(['/api/health/today']));
+  expect(new Set(calls.map((call) => call.path))).toEqual(
+    new Set(['/api/health/today', '/api/health/connection']),
+  );
 });
 
 test('the Health tab bar holds four pages and More', async () => {
