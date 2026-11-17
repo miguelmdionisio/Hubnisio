@@ -28,7 +28,7 @@ A private, self-hosted personal hub, one app per domain; finance first. Decision
   - AI (migration 0020): 11 `analytics.health_*` views and the tools `health_training`, `health_sleep`, `health_recovery`, `health_performance`, `health_body`, `health_activities`. Streams, GPS, overnight samples, raw replies and files stay out of the views.
   - What Garmin doesn't send: a sleep stage timeline (only seconds per stage), its own VO2max, Training Readiness and Status. The user's rides have no power; runs do. Open-water stroke distance arrives in centimetres.
   - Not done: the impeccable critique pass (H10) beyond measured checks at 375px (no sideways overflow, no text under 11px).
-- **Next:** plan the next milestone with the user.
+- **M9 iPhone, in progress** (approved 2026-11-17; [plan](docs/design/m9-iphone.md)): the hub as an installed web app on the user's iPhone over Tailscale (while the PC runs), slices P1–P7. Shell only: nothing real is cached on the phone. Web push included. The app icon is the user's own design.
 - **Deferred:** M5 server (Tailscale, Caddy, passkey login replacing the dev user, Postgres roles, backups) waits until the user has an always-on machine. Don't start it, and don't build anything that needs one, until they say so.
 - **Waiting on the user:**
   - switching on "Include in net worth" for the Trading 212 account on the Accounts page (ADR-0008, action item 3);
