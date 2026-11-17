@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, expect, test, vi } from 'vitest';
 import { connection } from '@/test/fixtures';
-import { mockApi, renderAt } from '@/test/render';
+import { mockApi, renderAt, touch } from '@/test/render';
 
 afterEach(() => {
   cleanup();
@@ -134,4 +134,25 @@ test("says when the hub can't be reached, and tries again", async () => {
   mockApi({ 'GET /api/finance/rules': () => [] });
   fireEvent.click(within(bar).getByRole('button', { name: 'Try again' }));
   await waitFor(() => expect(screen.queryByText("Can't reach the hub.")).toBeNull());
+});
+
+test('pulling down at the top of a page refetches its data', async () => {
+  const calls = mockApi({ 'GET /api/finance/rules': () => [] });
+
+  renderAt('/finance/rules');
+  await screen.findByRole('heading', { name: 'Rules' });
+  await waitFor(() => expect(calls.some((call) => call.path === '/api/finance/rules')).toBe(true));
+  const before = calls.filter((call) => call.path === '/api/finance/rules').length;
+
+  const main = document.getElementById('main') as HTMLElement;
+  touch(main, 'touchstart', [{ x: 100, y: 100 }]);
+  touch(main, 'touchmove', [{ x: 100, y: 140 }]);
+  touch(main, 'touchmove', [{ x: 100, y: 320 }]);
+  touch(main, 'touchend', [{ x: 100, y: 320 }]);
+
+  await waitFor(() =>
+    expect(calls.filter((call) => call.path === '/api/finance/rules').length).toBeGreaterThan(
+      before,
+    ),
+  );
 });

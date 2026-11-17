@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, expect, test, vi } from 'vitest';
 import { account, categories, transaction } from '@/test/fixtures';
-import { type ApiCall, mockApi, renderAt } from '@/test/render';
+import { type ApiCall, mockApi, renderAt, touch } from '@/test/render';
 
 /** The table's own request for a page, not the review queue's (which asks for 200 at a time). */
 const tablePage = (call: ApiCall) =>
@@ -163,4 +163,24 @@ test('the sheet shows who set the category, approves a suggestion, and links the
       transaction_ids: ['t4'],
     }),
   );
+});
+
+test('on the phone the sheet drags down to close, and springs back from a short pull', async () => {
+  api();
+
+  renderAt('/finance/transactions');
+  fireEvent.click(await screen.findByRole('button', { name: /Continente/ }));
+  const panel = await screen.findByRole('dialog');
+  const handle = panel.querySelector('[data-sheet-handle]');
+  if (!handle) throw new Error('No handle');
+
+  const drag = (to: number) => {
+    touch(handle, 'touchstart', [{ x: 100, y: 100 }]);
+    touch(handle, 'touchmove', [{ x: 100, y: 100 + to }]);
+    touch(handle, 'touchend', [{ x: 100, y: 100 + to }]);
+  };
+  drag(20);
+  expect(screen.getByRole('dialog')).toBeDefined();
+  drag(200);
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
 });

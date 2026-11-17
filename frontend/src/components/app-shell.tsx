@@ -9,7 +9,9 @@ import { ThemeProvider } from '@/lib/theme';
 import { cn } from '@/lib/utils';
 import { useView, VIEW_LABELS, VIEW_NOTES, type View, ViewProvider } from '@/lib/view';
 import { DOMAINS, type Domain, domainForPath, FINANCE, HEALTH, navItems } from './domains';
+import { EdgeSwipeBack } from './edge-swipe-back';
 import { HealthFreshness } from './health-freshness';
+import { PullToRefresh } from './pull-to-refresh';
 import { SearchProvider, useOpenSearch } from './search';
 import { Segmented } from './segmented';
 import { SyncFreshness } from './sync-freshness';
@@ -52,6 +54,8 @@ function Shell() {
       </main>
       <TabBar domain={domain} />
       <Unreachable />
+      <PullToRefresh />
+      <EdgeSwipeBack />
       <Toaster />
     </div>
   );

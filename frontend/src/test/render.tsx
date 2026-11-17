@@ -1,6 +1,6 @@
 import { QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, RouterProvider } from '@tanstack/react-router';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { StrictMode } from 'react';
 import { vi } from 'vitest';
 import { client } from '@/api/client.gen';
@@ -56,4 +56,22 @@ export function mockApi(handlers: Record<string, Handler>): ApiCall[] {
 export async function chooseOption(trigger: HTMLElement, option: string | RegExp) {
   fireEvent.keyDown(trigger, { key: 'Enter' });
   fireEvent.keyDown(await screen.findByRole('option', { name: option }), { key: 'Enter' });
+}
+
+/**
+ * Fire a touch event with the given finger positions. jsdom's TouchEvent drops plain objects
+ * from `touches`, so the lists are set on the event directly.
+ */
+export function touch(
+  target: EventTarget,
+  type: 'touchstart' | 'touchmove' | 'touchend',
+  points: { x: number; y: number }[],
+) {
+  const event = new Event(type, { bubbles: true, cancelable: true });
+  const list = points.map((point) => ({ clientX: point.x, clientY: point.y }));
+  Object.defineProperty(event, 'touches', { value: type === 'touchend' ? [] : list });
+  Object.defineProperty(event, 'changedTouches', { value: list });
+  act(() => {
+    target.dispatchEvent(event);
+  });
 }
