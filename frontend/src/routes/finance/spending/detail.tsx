@@ -50,7 +50,7 @@ function BackButton({ search }: { search: SpendingSearch }) {
               search: { month: search.month, account: search.account },
             })
       }
-      className="-ml-1.5 grid size-9 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-surface hover:text-foreground"
+      className="tap-area -ml-1.5 grid size-9 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-surface hover:text-foreground"
     >
       <ArrowLeft className="size-5" aria-hidden />
     </button>

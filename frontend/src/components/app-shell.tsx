@@ -198,7 +198,7 @@ function TabBar({ domain }: { domain: Domain }) {
     tab.to === domain.home ? pathname === tab.to : pathname.startsWith(tab.to),
   );
   const tabClass =
-    'flex flex-col items-center gap-[3px] text-[10.5px] font-medium text-faint [&>svg]:size-[22px]';
+    'tap-area flex flex-col items-center gap-[3px] [--tap-x:0px] [--tap-y:4px] text-[10.5px] font-medium text-faint [&>svg]:size-[22px]';
   return (
     <nav
       aria-label="Tabs"
@@ -246,6 +246,21 @@ function ViewSwitch() {
   );
 }
 
+/** Search on the phone, where there's no Ctrl K: the last thing in every page's header. */
+function PhoneSearch() {
+  const openSearch = useOpenSearch();
+  return (
+    <button
+      type="button"
+      aria-label="Search"
+      onClick={openSearch}
+      className="tap-area -mr-1.5 grid size-9 shrink-0 place-items-center rounded-full text-muted-foreground md:hidden"
+    >
+      <Search className="size-5" aria-hidden />
+    </button>
+  );
+}
+
 /**
  * Every page's header: its title, how fresh the data is, and on pages that sum money
  * (`showsView`) the Mine / Household switch, then the page's own actions. `leading` comes
@@ -271,6 +286,7 @@ export function PageHeader({
         {title}
       </h1>
       <div className="flex-1" />
+      <PhoneSearch />
       {domain === FINANCE && <SyncFreshness className="hidden md:flex" />}
       {/* Health's at every width: one watch, and the phone is where Today is read. */}
       {domain === HEALTH && <HealthFreshness />}

@@ -7,7 +7,7 @@ import { useOpenSearch } from '@/components/search';
 import { ThemeSwitch } from '@/components/theme-switch';
 
 const rowClass =
-  'grid w-full grid-cols-[34px_1fr_auto] items-center gap-3.5 rounded-[14px] px-3 py-2.5 text-left text-[15px] font-semibold';
+  'grid w-full grid-cols-[34px_1fr_auto] items-center gap-3.5 min-h-11 rounded-[14px] px-3 py-2.5 text-left text-[15px] font-semibold';
 
 function Chip({ icon: Icon }: { icon: LucideIcon }) {
   return (

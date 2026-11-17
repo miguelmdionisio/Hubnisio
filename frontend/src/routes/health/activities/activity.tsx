@@ -27,7 +27,7 @@ function BackButton() {
   const canGoBack = useCanGoBack();
   const router = useRouter();
   const className =
-    '-ml-1.5 grid size-9 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-surface hover:text-foreground';
+    'tap-area -ml-1.5 grid size-9 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-surface hover:text-foreground';
   if (canGoBack) {
     return (
       <button

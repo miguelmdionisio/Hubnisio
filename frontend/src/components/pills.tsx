@@ -6,7 +6,7 @@ import { currentMonth, monthStart, shiftMonth } from '@/lib/months';
 import { cn } from '@/lib/utils';
 
 export const pillClass =
-  'inline-flex h-[34px] shrink-0 items-center gap-[7px] rounded-full bg-surface px-3 text-[13.5px] font-semibold whitespace-nowrap transition-colors hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50 md:h-9 md:px-3.5 md:text-sm [&>svg]:size-4 [&>svg]:shrink-0';
+  'tap-area inline-flex h-[34px] min-w-11 shrink-0 items-center justify-center gap-[7px] [--tap-x:0px] [--tap-y:5px] rounded-full bg-surface px-3 text-[13.5px] font-semibold whitespace-nowrap transition-colors hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50 md:h-9 md:px-3.5 md:text-sm [&>svg]:size-4 [&>svg]:shrink-0';
 
 /** A rounded control on the soft tone; `on` when it narrows what's shown. */
 export function Pill({ on, className, ...props }: ComponentProps<'button'> & { on?: boolean }) {
@@ -89,7 +89,7 @@ export function MonthStepper({
 }) {
   const now = currentMonth();
   const step =
-    'grid h-[30px] w-8 place-items-center rounded-full text-muted-foreground hover:bg-surface-2 hover:text-foreground disabled:pointer-events-none disabled:opacity-30 [&>svg]:size-4';
+    'tap-area grid h-[30px] w-8 place-items-center [--tap-x:6px] [--tap-y:7px] rounded-full text-muted-foreground hover:bg-surface-2 hover:text-foreground disabled:pointer-events-none disabled:opacity-30 [&>svg]:size-4';
   return (
     <div className="inline-flex h-[34px] shrink-0 items-center rounded-full bg-surface px-1 text-[13.5px] font-semibold md:h-9 md:text-sm">
       <button

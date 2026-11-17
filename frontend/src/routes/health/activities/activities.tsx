@@ -73,10 +73,10 @@ export function ActivitiesPage() {
     <>
       <PageHeader title="Activities" />
       <div className="flex flex-wrap items-center gap-2">
-        <label className="flex h-[34px] min-w-[180px] flex-1 items-center gap-2 rounded-full bg-surface px-3.5 focus-within:outline-2 focus-within:outline-ring md:h-9">
+        <label className="tap-area flex h-[34px] min-w-[180px] flex-1 items-center [--tap-x:0px] [--tap-y:5px] gap-2 rounded-full bg-surface px-3.5 focus-within:outline-2 focus-within:outline-ring md:h-9">
           <Search className="size-4 shrink-0 text-muted-foreground" aria-hidden />
           <input
-            className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-faint"
+            className="relative z-[1] min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-faint md:text-sm"
             placeholder="Search"
             aria-label="Search activities"
             value={text}

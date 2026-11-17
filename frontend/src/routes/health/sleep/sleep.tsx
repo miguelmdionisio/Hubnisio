@@ -101,7 +101,7 @@ function NightStepper({
   onStep: (date: string) => void;
 }) {
   const step =
-    'grid h-[30px] w-8 place-items-center rounded-full text-muted-foreground hover:bg-surface-2 hover:text-foreground disabled:pointer-events-none disabled:opacity-30 [&>svg]:size-4';
+    'tap-area grid h-[30px] w-8 place-items-center [--tap-x:6px] [--tap-y:7px] rounded-full text-muted-foreground hover:bg-surface-2 hover:text-foreground disabled:pointer-events-none disabled:opacity-30 [&>svg]:size-4';
   return (
     <div className="inline-flex h-[34px] shrink-0 items-center rounded-full bg-surface px-1 text-[13.5px] font-semibold md:h-9 md:text-sm">
       <button

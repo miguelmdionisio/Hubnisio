@@ -122,7 +122,7 @@ function SectionTitle({
       </h2>
       <Link
         to={to}
-        className="ml-auto flex items-center gap-0.5 text-[13.5px] font-semibold text-primary"
+        className="tap-area ml-auto flex items-center gap-0.5 text-[13.5px] font-semibold text-primary [--tap-y:12px]"
       >
         {link}
         <ChevronRight className="size-4" aria-hidden />

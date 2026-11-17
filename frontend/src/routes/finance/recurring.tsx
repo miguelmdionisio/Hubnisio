@@ -204,7 +204,7 @@ function SeriesRow({
         <button
           type="button"
           title="Rename"
-          className="block max-w-full truncate text-left font-medium hover:underline"
+          className="tap-area block max-w-full truncate text-left font-medium [--tap-x:0px] [--tap-y:12px] hover:underline"
           onClick={onRename}
         >
           {series.name}

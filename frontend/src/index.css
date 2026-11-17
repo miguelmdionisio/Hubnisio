@@ -235,4 +235,42 @@
     background: var(--primary);
     color: var(--primary-foreground);
   }
+
+  /* Touch (M9 P3): no grey flash on tap, no double-tap zoom or tap delay, and the shell itself
+   * doesn't rubber-band (scrolling lists and sheets still do). */
+  html {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    overscroll-behavior-y: none;
+  }
+  /* Controls aren't text: a long press doesn't select them or open the link preview. */
+  :is(button, [role="button"], [role="tab"], [role="switch"], nav a) {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+}
+
+/* Pressed (M9 P3): on a touch screen a tap answers at once with a quick dim, before the page
+ * does. Hover-capable devices keep their hover states instead. */
+@media (hover: none) {
+  :is(button, a[href], [role="button"], [role="tab"], [role="switch"]):not(:disabled):active {
+    opacity: 0.6;
+    transition: opacity 0s;
+  }
+}
+
+/* A bigger touch area without a bigger look (M9 P3): on a touch screen the control's tap area
+ * reaches past its edges to about 44px, by --tap-x and --tap-y (default 8px each way). */
+@utility tap-area {
+  @media (pointer: coarse) {
+    &:not(.absolute, .fixed, .sticky) {
+      position: relative;
+    }
+    &::after {
+      content: "";
+      position: absolute;
+      inset: calc(-1 * var(--tap-y, 8px)) calc(-1 * var(--tap-x, 8px));
+    }
+  }
 }

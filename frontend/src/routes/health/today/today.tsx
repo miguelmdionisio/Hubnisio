@@ -272,7 +272,7 @@ function SignalsStrip({ signals }: { signals: Today['signals'] }) {
     <Card className="min-w-0 gap-3 px-(--card-spacing) md:grid md:grid-cols-[auto_minmax(160px,1fr)_auto] md:items-center md:gap-x-6">
       <Link
         to="/health/recovery"
-        className="flex items-baseline gap-2 md:flex-col md:items-start md:gap-0.5"
+        className="tap-area flex items-baseline gap-2 [--tap-x:0px] [--tap-y:12px] md:flex-col md:items-start md:gap-0.5"
       >
         <h2 className="text-[15px] font-semibold">Signals today</h2>
         <span className="ml-auto text-[13px] text-muted-foreground tabular-nums md:ml-0">

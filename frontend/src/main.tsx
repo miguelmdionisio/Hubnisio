@@ -13,6 +13,8 @@ const root = document.getElementById('root');
 if (!root) throw new Error('Missing #root element');
 
 registerServiceWorker();
+// iOS Safari applies :active (the pressed dim in index.css) only once a touch listener exists.
+document.addEventListener('touchstart', () => {}, { passive: true });
 
 createRoot(root).render(
   <StrictMode>

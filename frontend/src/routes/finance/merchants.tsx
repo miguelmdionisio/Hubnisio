@@ -160,7 +160,7 @@ export function MerchantsPage() {
                   <Link
                     to="/finance/transactions"
                     search={{ counterparty: merchant.id }}
-                    className="ml-auto min-w-10 rounded-full px-2 py-1 text-right text-sm font-semibold tabular-nums hover:bg-surface"
+                    className="tap-area ml-auto min-w-10 rounded-full px-2 py-1 text-right [--tap-x:2px] text-sm font-semibold tabular-nums hover:bg-surface"
                     aria-label={`${merchant.transactions} transactions with ${merchant.name}`}
                   >
                     {merchant.transactions}

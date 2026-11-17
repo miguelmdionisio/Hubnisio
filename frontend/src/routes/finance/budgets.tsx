@@ -164,7 +164,11 @@ function OverallCard({
     <Card size="sm" className="mb-3 max-w-4xl">
       <CardHeader>
         <CardTitle className="flex flex-wrap items-center gap-1.5">
-          <button type="button" className="text-left hover:underline" onClick={onOpen}>
+          <button
+            type="button"
+            className="tap-area text-left [--tap-x:0px] [--tap-y:13px] hover:underline"
+            onClick={onOpen}
+          >
             All spending
           </button>
           <BudgetBadges rollover={overall.rollover} carriedIn={overall.carried_in} over={over} />
@@ -328,7 +332,7 @@ function BudgetRows({
           <div className={cn('flex flex-wrap items-center gap-1.5', depth > 0 && 'pl-6 text-sm')}>
             <button
               type="button"
-              className="text-left font-medium hover:underline"
+              className="tap-area text-left font-medium [--tap-x:0px] [--tap-y:12px] hover:underline"
               onClick={() => onOpen(budget)}
             >
               {budget.name}

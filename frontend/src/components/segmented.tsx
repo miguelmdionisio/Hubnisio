@@ -40,8 +40,8 @@ export function Segmented<T extends string>({
             title={option.title ?? (Icon ? option.label : undefined)}
             onClick={() => onChange(option.value)}
             className={cn(
-              'grid h-7 place-items-center rounded-full font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
-              Icon ? 'w-8' : 'px-3',
+              'tap-area grid h-7 place-items-center rounded-full [--tap-x:0px] font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
+              Icon ? 'w-11 md:w-8' : 'min-w-11 px-3 md:min-w-0',
               on && 'bg-surface-2 font-semibold text-foreground',
             )}
           >
