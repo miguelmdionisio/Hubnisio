@@ -36,6 +36,172 @@
         }
       }
     },
+    "/api/push": {
+      "get": {
+        "tags": [
+          "core"
+        ],
+        "summary": "Get Push Settings",
+        "description": "The push key, how many devices get alerts, and which alerts are on.",
+        "operationId": "getPushSettings",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushSettings"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/push/subscriptions": {
+      "put": {
+        "tags": [
+          "core"
+        ],
+        "summary": "Subscribe",
+        "description": "Remember this device for the member's alerts (again, if its keys changed).",
+        "operationId": "subscribePush",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubscriptionIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/push/subscriptions/remove": {
+      "post": {
+        "tags": [
+          "core"
+        ],
+        "summary": "Unsubscribe",
+        "description": "Forget this device: it gets no more alerts.",
+        "operationId": "unsubscribePush",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Unsubscribe"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/push/alerts/{kind}": {
+      "put": {
+        "tags": [
+          "core"
+        ],
+        "summary": "Set Alert",
+        "description": "Turn one kind of alert on or off for the member.",
+        "operationId": "setAlert",
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/AlertKind"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AlertSettingIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushSettings"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/push/test": {
+      "post": {
+        "tags": [
+          "core"
+        ],
+        "summary": "Send Test",
+        "description": "Send a test notification to the member's devices now, whatever the hour.",
+        "operationId": "sendTestPush",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TestResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/finance/banks": {
       "get": {
         "tags": [
@@ -4444,6 +4610,52 @@
         ],
         "title": "AgePoint"
       },
+      "AlertKind": {
+        "type": "string",
+        "enum": [
+          "bill_due",
+          "budget_over",
+          "sync_failing",
+          "key_lapsing"
+        ],
+        "title": "AlertKind",
+        "description": "What a push alert is about (M9 P6). Each can be turned off per member."
+      },
+      "AlertSetting": {
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/AlertKind"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "label",
+          "enabled"
+        ],
+        "title": "AlertSetting"
+      },
+      "AlertSettingIn": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          }
+        },
+        "type": "object",
+        "required": [
+          "enabled"
+        ],
+        "title": "AlertSettingIn"
+      },
       "ApplyToCounterparty": {
         "properties": {
           "counterparty_id": {
@@ -7841,6 +8053,39 @@
         ],
         "title": "ProviderName"
       },
+      "PushSettings": {
+        "properties": {
+          "public_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Public Key"
+          },
+          "devices": {
+            "type": "integer",
+            "title": "Devices"
+          },
+          "alerts": {
+            "items": {
+              "$ref": "#/components/schemas/AlertSetting"
+            },
+            "type": "array",
+            "title": "Alerts"
+          }
+        },
+        "type": "object",
+        "required": [
+          "public_key",
+          "devices",
+          "alerts"
+        ],
+        "title": "PushSettings"
+      },
       "RacePrediction": {
         "properties": {
           "distance_m": {
@@ -9976,6 +10221,49 @@
         ],
         "title": "StressSummary"
       },
+      "SubscriptionIn": {
+        "properties": {
+          "endpoint": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "pattern": "^https://",
+            "title": "Endpoint"
+          },
+          "keys": {
+            "$ref": "#/components/schemas/SubscriptionKeys"
+          }
+        },
+        "type": "object",
+        "required": [
+          "endpoint",
+          "keys"
+        ],
+        "title": "SubscriptionIn",
+        "description": "A browser's PushSubscription, as `subscription.toJSON()` gives it."
+      },
+      "SubscriptionKeys": {
+        "properties": {
+          "p256dh": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "P256Dh"
+          },
+          "auth": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Auth"
+          }
+        },
+        "type": "object",
+        "required": [
+          "p256dh",
+          "auth"
+        ],
+        "title": "SubscriptionKeys"
+      },
       "SuggestionApproval": {
         "properties": {
           "transaction_ids": {
@@ -10250,6 +10538,19 @@
           "failed"
         ],
         "title": "SyncStatus"
+      },
+      "TestResult": {
+        "properties": {
+          "sent": {
+            "type": "integer",
+            "title": "Sent"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sent"
+        ],
+        "title": "TestResult"
       },
       "Today": {
         "properties": {
@@ -11338,6 +11639,21 @@
           "quantity"
         ],
         "title": "UnexplainedQuantity"
+      },
+      "Unsubscribe": {
+        "properties": {
+          "endpoint": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Endpoint"
+          }
+        },
+        "type": "object",
+        "required": [
+          "endpoint"
+        ],
+        "title": "Unsubscribe"
       },
       "UpcomingPayment": {
         "properties": {

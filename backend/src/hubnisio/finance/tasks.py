@@ -3,14 +3,18 @@
 import logging
 import uuid
 from collections.abc import Mapping
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import procrastinate
 from procrastinate.exceptions import AlreadyEnqueued
 from procrastinate.types import JSONDict, TimeDeltaParams
 
+from hubnisio.core import push
 from hubnisio.core.db import get_sessionmaker
+from hubnisio.core.settings import get_settings
 from hubnisio.finance import sync
+from hubnisio.finance.alerts import finance_alerts
 from hubnisio.finance.fx.sources import FxClient
 from hubnisio.finance.fx.store import refresh_rates
 from hubnisio.finance.models import ProviderName
@@ -95,6 +99,20 @@ async def fetch_prices(timestamp: int) -> None:
         logger.warning("No price symbol found for %s: set one with cli prices-symbol.", ticker)
     if result.failed:
         raise RuntimeError("Prices not fetched for " + ", ".join(sorted(result.failed)) + ".")
+
+
+# Alerts (M9 P6): every half hour, like the catch-up, so a PC that was off sends what it
+# missed. core/push.py sends each once, during the day, to members who want it.
+@blueprint.periodic(cron="*/30 * * * *")
+@blueprint.task(name="send_alerts")
+async def send_alerts(timestamp: int) -> None:
+    settings = get_settings()
+    now = datetime.now(UTC)
+    if not push.is_daytime(now, settings.alerts_time_zone):
+        return
+    async with get_sessionmaker()() as session:
+        today = now.astimezone(ZoneInfo(settings.alerts_time_zone)).date()
+        await push.deliver(session, await finance_alerts(session, now, today), now)
 
 
 async def defer_sync(

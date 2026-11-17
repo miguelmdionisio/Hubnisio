@@ -1,13 +1,17 @@
 """Health background jobs, registered on the shared job app in hubnisio/jobs.py."""
 
 import uuid
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 
 import procrastinate
 from procrastinate.exceptions import AlreadyEnqueued
 from procrastinate.types import TimeDeltaParams
 
+from hubnisio.core import push
+from hubnisio.core.db import get_sessionmaker
+from hubnisio.core.settings import get_settings
 from hubnisio.health import sync
+from hubnisio.health.alerts import health_alerts
 
 blueprint = procrastinate.Blueprint()
 
@@ -44,6 +48,18 @@ CATCH_UP_AFTER = timedelta(hours=20)
 async def catch_up_syncs(timestamp: int) -> None:
     for connection_id in await sync.stale_connection_ids(CATCH_UP_AFTER):
         await defer_sync(connection_id)
+
+
+# Alerts (M9 P6): every half hour, like the catch-up, so a PC that was off sends what it
+# missed. core/push.py sends each once, during the day, to members who want it.
+@blueprint.periodic(cron="*/30 * * * *")
+@blueprint.task(name="send_alerts")
+async def send_alerts(timestamp: int) -> None:
+    now = datetime.now(UTC)
+    if not push.is_daytime(now, get_settings().alerts_time_zone):
+        return
+    async with get_sessionmaker()() as session:
+        await push.deliver(session, await health_alerts(session, now), now)
 
 
 async def defer_sync(

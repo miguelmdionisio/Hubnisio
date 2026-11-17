@@ -25,6 +25,15 @@ class Principal:
     role: HouseholdRole
 
 
+async def household_principals(session: AsyncSession) -> list[Principal]:
+    """Every member of every household, as the principal they act as: for background work that
+    runs for each member (push alerts), with the same visibility as their own requests."""
+    rows = await session.execute(
+        select(HouseholdMember.user_id, HouseholdMember.household_id, HouseholdMember.role)
+    )
+    return [Principal(user_id=r.user_id, household_id=r.household_id, role=r.role) for r in rows]
+
+
 def check_auth_config(settings: Settings) -> None:
     """Called at startup: without real login, the API must not run outside development."""
     if settings.environment != "development":

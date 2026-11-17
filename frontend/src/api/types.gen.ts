@@ -698,6 +698,38 @@ export type AgePoint = {
 };
 
 /**
+ * AlertKind
+ *
+ * What a push alert is about (M9 P6). Each can be turned off per member.
+ */
+export type AlertKind = 'bill_due' | 'budget_over' | 'sync_failing' | 'key_lapsing';
+
+/**
+ * AlertSetting
+ */
+export type AlertSetting = {
+    kind: AlertKind;
+    /**
+     * Label
+     */
+    label: string;
+    /**
+     * Enabled
+     */
+    enabled: boolean;
+};
+
+/**
+ * AlertSettingIn
+ */
+export type AlertSettingIn = {
+    /**
+     * Enabled
+     */
+    enabled: boolean;
+};
+
+/**
  * ApplyToCounterparty
  *
  * Offered after a category is set by hand: make it the counterparty's default too.
@@ -2415,6 +2447,24 @@ export type PerformanceRecords = {
 export type ProviderName = 'enable_banking' | 'trading212';
 
 /**
+ * PushSettings
+ */
+export type PushSettings = {
+    /**
+     * Public Key
+     */
+    public_key: string | null;
+    /**
+     * Devices
+     */
+    devices: number;
+    /**
+     * Alerts
+     */
+    alerts: Array<AlertSetting>;
+};
+
+/**
  * RacePrediction
  */
 export type RacePrediction = {
@@ -3514,6 +3564,33 @@ export type StressSummary = {
 };
 
 /**
+ * SubscriptionIn
+ *
+ * A browser's PushSubscription, as `subscription.toJSON()` gives it.
+ */
+export type SubscriptionIn = {
+    /**
+     * Endpoint
+     */
+    endpoint: string;
+    keys: SubscriptionKeys;
+};
+
+/**
+ * SubscriptionKeys
+ */
+export type SubscriptionKeys = {
+    /**
+     * P256Dh
+     */
+    p256dh: string;
+    /**
+     * Auth
+     */
+    auth: string;
+};
+
+/**
  * SuggestionApproval
  *
  * Transactions whose AI-suggested category the user keeps.
@@ -3668,6 +3745,16 @@ export type SyncRunOut = {
  * SyncStatus
  */
 export type SyncStatus = 'running' | 'succeeded' | 'failed';
+
+/**
+ * TestResult
+ */
+export type TestResult = {
+    /**
+     * Sent
+     */
+    sent: number;
+};
 
 /**
  * Today
@@ -4216,6 +4303,16 @@ export type UnexplainedQuantity = {
 };
 
 /**
+ * Unsubscribe
+ */
+export type Unsubscribe = {
+    /**
+     * Endpoint
+     */
+    endpoint: string;
+};
+
+/**
  * UpcomingPayment
  */
 export type UpcomingPayment = {
@@ -4484,6 +4581,115 @@ export type GetHealthResponses = {
 };
 
 export type GetHealthResponse = GetHealthResponses[keyof GetHealthResponses];
+
+export type GetPushSettingsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/push';
+};
+
+export type GetPushSettingsResponses = {
+    /**
+     * Successful Response
+     */
+    200: PushSettings;
+};
+
+export type GetPushSettingsResponse = GetPushSettingsResponses[keyof GetPushSettingsResponses];
+
+export type SubscribePushData = {
+    body: SubscriptionIn;
+    path?: never;
+    query?: never;
+    url: '/api/push/subscriptions';
+};
+
+export type SubscribePushErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SubscribePushError = SubscribePushErrors[keyof SubscribePushErrors];
+
+export type SubscribePushResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type SubscribePushResponse = SubscribePushResponses[keyof SubscribePushResponses];
+
+export type UnsubscribePushData = {
+    body: Unsubscribe;
+    path?: never;
+    query?: never;
+    url: '/api/push/subscriptions/remove';
+};
+
+export type UnsubscribePushErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UnsubscribePushError = UnsubscribePushErrors[keyof UnsubscribePushErrors];
+
+export type UnsubscribePushResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type UnsubscribePushResponse = UnsubscribePushResponses[keyof UnsubscribePushResponses];
+
+export type SetAlertData = {
+    body: AlertSettingIn;
+    path: {
+        kind: AlertKind;
+    };
+    query?: never;
+    url: '/api/push/alerts/{kind}';
+};
+
+export type SetAlertErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SetAlertError = SetAlertErrors[keyof SetAlertErrors];
+
+export type SetAlertResponses = {
+    /**
+     * Successful Response
+     */
+    200: PushSettings;
+};
+
+export type SetAlertResponse = SetAlertResponses[keyof SetAlertResponses];
+
+export type SendTestPushData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/push/test';
+};
+
+export type SendTestPushResponses = {
+    /**
+     * Successful Response
+     */
+    200: TestResult;
+};
+
+export type SendTestPushResponse = SendTestPushResponses[keyof SendTestPushResponses];
 
 export type ListBanksData = {
     body?: never;

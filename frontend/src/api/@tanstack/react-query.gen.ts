@@ -3,8 +3,8 @@
 import { type DefaultError, type InfiniteData, infiniteQueryOptions, queryOptions, type UseMutationOptions } from '@tanstack/react-query';
 
 import { client } from '../client.gen';
-import { approveSuggestions, completeConnection, createCategory, createCounterparty, createRule, deleteAccount, deleteBudget, deleteCategory, deleteConnection, deleteOverallBudget, deleteRule, downloadActivityFile, getActivity, getBody, getCashFlow, getHealth, getHealthConnection, getInvestmentReturns, getInvestments, getNetWorth, getPerformance, getRecovery, getSleepNight, getSleepTrends, getSpending, getSpendingMonth, getToday, getTraining, linkTransfer, listAccounts, listActivities, listBanks, listBudgets, listCategories, listConnections, listCounterparties, listRecurring, listRules, listTransactions, listUpcomingPayments, mergeCounterparty, type Options, previewRule, reorderRules, runRules, setBudget, setOverallBudget, startConnection, syncConnection, syncHealth, unlinkTransfer, updateAccount, updateCategory, updateCounterparty, updateRecurring, updateRule, updateTransaction } from '../sdk.gen';
-import type { ApproveSuggestionsData, ApproveSuggestionsError, ApproveSuggestionsResponse, CompleteConnectionData, CompleteConnectionError, CompleteConnectionResponse, CreateCategoryData, CreateCategoryError, CreateCategoryResponse, CreateCounterpartyData, CreateCounterpartyError, CreateCounterpartyResponse, CreateRuleData, CreateRuleError, CreateRuleResponse, DeleteAccountData, DeleteAccountError, DeleteAccountResponse, DeleteBudgetData, DeleteBudgetError, DeleteBudgetResponse, DeleteCategoryData, DeleteCategoryError, DeleteCategoryResponse, DeleteConnectionData, DeleteConnectionError, DeleteConnectionResponse, DeleteOverallBudgetData, DeleteOverallBudgetResponse, DeleteRuleData, DeleteRuleError, DeleteRuleResponse, DownloadActivityFileData, DownloadActivityFileError, GetActivityData, GetActivityError, GetActivityResponse, GetBodyData, GetBodyError, GetBodyResponse, GetCashFlowData, GetCashFlowError, GetCashFlowResponse, GetHealthConnectionData, GetHealthConnectionResponse, GetHealthData, GetHealthError, GetHealthResponse, GetInvestmentReturnsData, GetInvestmentReturnsError, GetInvestmentReturnsResponse, GetInvestmentsData, GetInvestmentsError, GetInvestmentsResponse, GetNetWorthData, GetNetWorthError, GetNetWorthResponse, GetPerformanceData, GetPerformanceError, GetPerformanceResponse, GetRecoveryData, GetRecoveryError, GetRecoveryResponse, GetSleepNightData, GetSleepNightError, GetSleepNightResponse, GetSleepTrendsData, GetSleepTrendsError, GetSleepTrendsResponse, GetSpendingData, GetSpendingError, GetSpendingMonthData, GetSpendingMonthError, GetSpendingMonthResponse, GetSpendingResponse, GetTodayData, GetTodayResponse, GetTrainingData, GetTrainingError, GetTrainingResponse, LinkTransferData, LinkTransferError, LinkTransferResponse, ListAccountsData, ListAccountsError, ListAccountsResponse, ListActivitiesData, ListActivitiesError, ListActivitiesResponse, ListBanksData, ListBanksError, ListBanksResponse, ListBudgetsData, ListBudgetsError, ListBudgetsResponse, ListCategoriesData, ListCategoriesResponse, ListConnectionsData, ListConnectionsResponse, ListCounterpartiesData, ListCounterpartiesError, ListCounterpartiesResponse, ListRecurringData, ListRecurringError, ListRecurringResponse, ListRulesData, ListRulesResponse, ListTransactionsData, ListTransactionsError, ListTransactionsResponse, ListUpcomingPaymentsData, ListUpcomingPaymentsError, ListUpcomingPaymentsResponse, MergeCounterpartyData, MergeCounterpartyError, MergeCounterpartyResponse, PreviewRuleData, PreviewRuleError, PreviewRuleResponse, ReorderRulesData, ReorderRulesError, ReorderRulesResponse, RunRulesData, RunRulesResponse, SetBudgetData, SetBudgetError, SetBudgetResponse, SetOverallBudgetData, SetOverallBudgetError, SetOverallBudgetResponse, StartConnectionData, StartConnectionError, StartConnectionResponse, SyncConnectionData, SyncConnectionError, SyncConnectionResponse, SyncHealthData, SyncHealthResponse, UnlinkTransferData, UnlinkTransferError, UnlinkTransferResponse, UpdateAccountData, UpdateAccountError, UpdateAccountResponse, UpdateCategoryData, UpdateCategoryError, UpdateCategoryResponse, UpdateCounterpartyData, UpdateCounterpartyError, UpdateCounterpartyResponse, UpdateRecurringData, UpdateRecurringError, UpdateRecurringResponse, UpdateRuleData, UpdateRuleError, UpdateRuleResponse, UpdateTransactionData, UpdateTransactionError, UpdateTransactionResponse } from '../types.gen';
+import { approveSuggestions, completeConnection, createCategory, createCounterparty, createRule, deleteAccount, deleteBudget, deleteCategory, deleteConnection, deleteOverallBudget, deleteRule, downloadActivityFile, getActivity, getBody, getCashFlow, getHealth, getHealthConnection, getInvestmentReturns, getInvestments, getNetWorth, getPerformance, getPushSettings, getRecovery, getSleepNight, getSleepTrends, getSpending, getSpendingMonth, getToday, getTraining, linkTransfer, listAccounts, listActivities, listBanks, listBudgets, listCategories, listConnections, listCounterparties, listRecurring, listRules, listTransactions, listUpcomingPayments, mergeCounterparty, type Options, previewRule, reorderRules, runRules, sendTestPush, setAlert, setBudget, setOverallBudget, startConnection, subscribePush, syncConnection, syncHealth, unlinkTransfer, unsubscribePush, updateAccount, updateCategory, updateCounterparty, updateRecurring, updateRule, updateTransaction } from '../sdk.gen';
+import type { ApproveSuggestionsData, ApproveSuggestionsError, ApproveSuggestionsResponse, CompleteConnectionData, CompleteConnectionError, CompleteConnectionResponse, CreateCategoryData, CreateCategoryError, CreateCategoryResponse, CreateCounterpartyData, CreateCounterpartyError, CreateCounterpartyResponse, CreateRuleData, CreateRuleError, CreateRuleResponse, DeleteAccountData, DeleteAccountError, DeleteAccountResponse, DeleteBudgetData, DeleteBudgetError, DeleteBudgetResponse, DeleteCategoryData, DeleteCategoryError, DeleteCategoryResponse, DeleteConnectionData, DeleteConnectionError, DeleteConnectionResponse, DeleteOverallBudgetData, DeleteOverallBudgetResponse, DeleteRuleData, DeleteRuleError, DeleteRuleResponse, DownloadActivityFileData, DownloadActivityFileError, GetActivityData, GetActivityError, GetActivityResponse, GetBodyData, GetBodyError, GetBodyResponse, GetCashFlowData, GetCashFlowError, GetCashFlowResponse, GetHealthConnectionData, GetHealthConnectionResponse, GetHealthData, GetHealthError, GetHealthResponse, GetInvestmentReturnsData, GetInvestmentReturnsError, GetInvestmentReturnsResponse, GetInvestmentsData, GetInvestmentsError, GetInvestmentsResponse, GetNetWorthData, GetNetWorthError, GetNetWorthResponse, GetPerformanceData, GetPerformanceError, GetPerformanceResponse, GetPushSettingsData, GetPushSettingsResponse, GetRecoveryData, GetRecoveryError, GetRecoveryResponse, GetSleepNightData, GetSleepNightError, GetSleepNightResponse, GetSleepTrendsData, GetSleepTrendsError, GetSleepTrendsResponse, GetSpendingData, GetSpendingError, GetSpendingMonthData, GetSpendingMonthError, GetSpendingMonthResponse, GetSpendingResponse, GetTodayData, GetTodayResponse, GetTrainingData, GetTrainingError, GetTrainingResponse, LinkTransferData, LinkTransferError, LinkTransferResponse, ListAccountsData, ListAccountsError, ListAccountsResponse, ListActivitiesData, ListActivitiesError, ListActivitiesResponse, ListBanksData, ListBanksError, ListBanksResponse, ListBudgetsData, ListBudgetsError, ListBudgetsResponse, ListCategoriesData, ListCategoriesResponse, ListConnectionsData, ListConnectionsResponse, ListCounterpartiesData, ListCounterpartiesError, ListCounterpartiesResponse, ListRecurringData, ListRecurringError, ListRecurringResponse, ListRulesData, ListRulesResponse, ListTransactionsData, ListTransactionsError, ListTransactionsResponse, ListUpcomingPaymentsData, ListUpcomingPaymentsError, ListUpcomingPaymentsResponse, MergeCounterpartyData, MergeCounterpartyError, MergeCounterpartyResponse, PreviewRuleData, PreviewRuleError, PreviewRuleResponse, ReorderRulesData, ReorderRulesError, ReorderRulesResponse, RunRulesData, RunRulesResponse, SendTestPushData, SendTestPushResponse, SetAlertData, SetAlertError, SetAlertResponse, SetBudgetData, SetBudgetError, SetBudgetResponse, SetOverallBudgetData, SetOverallBudgetError, SetOverallBudgetResponse, StartConnectionData, StartConnectionError, StartConnectionResponse, SubscribePushData, SubscribePushError, SubscribePushResponse, SyncConnectionData, SyncConnectionError, SyncConnectionResponse, SyncHealthData, SyncHealthResponse, UnlinkTransferData, UnlinkTransferError, UnlinkTransferResponse, UnsubscribePushData, UnsubscribePushError, UnsubscribePushResponse, UpdateAccountData, UpdateAccountError, UpdateAccountResponse, UpdateCategoryData, UpdateCategoryError, UpdateCategoryResponse, UpdateCounterpartyData, UpdateCounterpartyError, UpdateCounterpartyResponse, UpdateRecurringData, UpdateRecurringError, UpdateRecurringResponse, UpdateRuleData, UpdateRuleError, UpdateRuleResponse, UpdateTransactionData, UpdateTransactionError, UpdateTransactionResponse } from '../types.gen';
 
 export type QueryKey<TOptions extends Options> = [
     Pick<TOptions, 'baseUrl' | 'body' | 'headers' | 'path' | 'query'> & {
@@ -56,6 +56,102 @@ export const getHealthOptions = (options?: Options<GetHealthData>) => queryOptio
     },
     queryKey: getHealthQueryKey(options)
 });
+
+export const getPushSettingsQueryKey = (options?: Options<GetPushSettingsData>) => createQueryKey('getPushSettings', options);
+
+/**
+ * Get Push Settings
+ *
+ * The push key, how many devices get alerts, and which alerts are on.
+ */
+export const getPushSettingsOptions = (options?: Options<GetPushSettingsData>) => queryOptions<GetPushSettingsResponse, DefaultError, GetPushSettingsResponse, ReturnType<typeof getPushSettingsQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getPushSettings({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getPushSettingsQueryKey(options)
+});
+
+/**
+ * Subscribe
+ *
+ * Remember this device for the member's alerts (again, if its keys changed).
+ */
+export const subscribePushMutation = (options?: Partial<Options<SubscribePushData>>): UseMutationOptions<SubscribePushResponse, SubscribePushError, Options<SubscribePushData>> => {
+    const mutationOptions: UseMutationOptions<SubscribePushResponse, SubscribePushError, Options<SubscribePushData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await subscribePush({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Unsubscribe
+ *
+ * Forget this device: it gets no more alerts.
+ */
+export const unsubscribePushMutation = (options?: Partial<Options<UnsubscribePushData>>): UseMutationOptions<UnsubscribePushResponse, UnsubscribePushError, Options<UnsubscribePushData>> => {
+    const mutationOptions: UseMutationOptions<UnsubscribePushResponse, UnsubscribePushError, Options<UnsubscribePushData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await unsubscribePush({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Set Alert
+ *
+ * Turn one kind of alert on or off for the member.
+ */
+export const setAlertMutation = (options?: Partial<Options<SetAlertData>>): UseMutationOptions<SetAlertResponse, SetAlertError, Options<SetAlertData>> => {
+    const mutationOptions: UseMutationOptions<SetAlertResponse, SetAlertError, Options<SetAlertData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await setAlert({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Send Test
+ *
+ * Send a test notification to the member's devices now, whatever the hour.
+ */
+export const sendTestPushMutation = (options?: Partial<Options<SendTestPushData>>): UseMutationOptions<SendTestPushResponse, DefaultError, Options<SendTestPushData>> => {
+    const mutationOptions: UseMutationOptions<SendTestPushResponse, DefaultError, Options<SendTestPushData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await sendTestPush({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
 
 export const listBanksQueryKey = (options: Options<ListBanksData>) => createQueryKey('listBanks', options);
 

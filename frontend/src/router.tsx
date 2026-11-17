@@ -38,6 +38,7 @@ import { TodayPage } from './routes/health/today/today';
 import { validateTrainingSearch } from './routes/health/training/search';
 import { TrainingPage } from './routes/health/training/training';
 import { HomePage } from './routes/home';
+import { NotificationsPage } from './routes/settings/notifications';
 
 const rootRoute = createRootRoute({
   component: AppShell,
@@ -158,6 +159,12 @@ const routeTree = rootRoute.addChildren([
   }),
   createRoute({ getParentRoute: () => rootRoute, path: '/health/garmin', component: GarminPage }),
   createRoute({ getParentRoute: () => rootRoute, path: '/health/more', component: HealthMorePage }),
+  // Hub-wide: push alerts on the phone (M9 P6), from either domain's More page.
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/settings/notifications',
+    component: NotificationsPage,
+  }),
   // Where the bank sends the browser back after authorization (Enable Banking redirect URL).
   createRoute({
     getParentRoute: () => rootRoute,

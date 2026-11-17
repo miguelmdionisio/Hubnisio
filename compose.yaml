@@ -19,6 +19,10 @@ x-backend: &backend
     HUBNISIO_TRADING212_KEYS_DIR: /run/secrets/trading212
     # Garmin personal API keys (ADR-0009), one file per member, read by `cli garmin-link` and the sync.
     HUBNISIO_GARMIN_KEYS_DIR: /run/secrets/garmin
+    # Web Push (M9 P6): the hub's key, made by `cli push-keys` in the api container.
+    HUBNISIO_PUSH_KEYS_DIR: /run/secrets/push
+    HUBNISIO_PUSH_SUBJECT: ${HUBNISIO_PUSH_SUBJECT:-mailto:hubnisio@localhost}
+    HUBNISIO_ALERTS_TIME_ZONE: ${HUBNISIO_ALERTS_TIME_ZONE:-Europe/Lisbon}
     # The MCP server's switch (ADR-0006): it starts only when .env sets this to true.
     HUBNISIO_AI_ENABLED: ${HUBNISIO_AI_ENABLED:-false}
     # File-change events don't cross from a Windows host into the container; poll instead.
@@ -61,6 +65,8 @@ services:
       # A folder, so the stack starts without it and a new key needs no restart.
       - ./secrets/trading212:/run/secrets/trading212:ro
       - ./secrets/garmin:/run/secrets/garmin:ro
+      # A folder the api writes once (`cli push-keys`); the worker only reads it.
+      - ./secrets/push:/run/secrets/push
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:
@@ -74,6 +80,7 @@ services:
       - ./backend/src:/app/src
       - ./secrets/trading212:/run/secrets/trading212:ro
       - ./secrets/garmin:/run/secrets/garmin:ro
+      - ./secrets/push:/run/secrets/push:ro
     depends_on:
       migrate:
         condition: service_completed_successfully

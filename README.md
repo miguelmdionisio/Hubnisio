@@ -71,6 +71,21 @@ cd frontend && corepack pnpm icons
 
 The app keeps only its own files on the phone (a service worker in `frontend/sw/sw.ts`), never the hub's data: with the PC off it opens and says the hub can't be reached. A new build shows "New version" with a Reload button.
 
+### Notifications
+
+The hub can send alerts to the installed app (iOS 16.4 or later): a bill due tomorrow, a budget overspent, a sync failing for a day, the Garmin key lapsing. They come from the PC's worker, so only while it runs, between 08:00 and 22:00 (`HUBNISIO_ALERTS_TIME_ZONE`, default Europe/Lisbon), and each once; a PC that was off sends what it missed when it's back.
+
+1. Make the hub's push key, once. It lands in `secrets/push/` and is never printed; keep it, since a new key would silently cut off every phone.
+   ```bash
+   docker compose exec api python -m hubnisio.cli push-keys
+   ```
+2. In the installed app on the iPhone: More → Notifications → Turn on, and allow notifications. Send a test from there, or from the PC:
+   ```bash
+   docker compose exec api python -m hubnisio.cli push-test --email you@example.com
+   ```
+
+Each alert can be switched off on that page. If Apple refuses the pushes, set `HUBNISIO_PUSH_SUBJECT` in `.env` to a `mailto:` address of yours (it goes to Apple with each push) and `docker compose up -d`.
+
 Link banks on the PC: Enable Banking redirects back to `localhost`. `tailscale serve status` shows what's served, `tailscale serve reset` stops it.
 
 ## Using the hub from Claude

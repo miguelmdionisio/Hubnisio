@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router';
-import { Check, ChevronRight, type LucideIcon, Palette, Search } from 'lucide-react';
+import { Bell, Check, ChevronRight, type LucideIcon, Palette, Search } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { DomainMark, PageHeader } from '@/components/app-shell';
 import { DOMAINS, type Domain } from '@/components/domains';
@@ -69,6 +69,13 @@ export function DomainMore({ domain }: { domain: Domain }) {
           );
         })}
         <Group>
+          <li>
+            <Link to="/settings/notifications" className={`${rowClass} hover:bg-surface-2`}>
+              <Chip icon={Bell} />
+              Notifications
+              <ChevronRight className="size-4 text-faint" aria-hidden />
+            </Link>
+          </li>
           <li>
             <button type="button" onClick={openSearch} className={`${rowClass} hover:bg-surface-2`}>
               <Chip icon={Search} />

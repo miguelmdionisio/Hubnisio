@@ -1,11 +1,11 @@
-"""Identity and household tables (ADR-0005), and AI access (ADR-0006)."""
+"""Identity and household tables (ADR-0005), AI access (ADR-0006), and push alerts (M9)."""
 
 import enum
 import uuid
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import DateTime, Enum, ForeignKey, Integer, String, func
+from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -86,3 +86,65 @@ class AiCall(Base):
     tool: Mapped[str] = mapped_column(String(100))
     arguments: Mapped[dict[str, Any]] = mapped_column(JSONB)
     row_count: Mapped[int | None] = mapped_column(Integer)
+
+
+class AlertKind(enum.StrEnum):
+    """What a push alert is about (M9 P6). Each can be turned off per member."""
+
+    BILL_DUE = "bill_due"  # a confirmed recurring payment due tomorrow
+    BUDGET_OVER = "budget_over"  # a budget overspent this month
+    SYNC_FAILING = "sync_failing"  # a bank or Garmin connection failing for a day
+    KEY_LAPSING = "key_lapsing"  # the Garmin key lapses within two weeks
+
+
+# One type, shared by the tables below.
+ALERT_KIND = Enum(
+    AlertKind,
+    name="alert_kind",
+    schema=SCHEMA,
+    values_callable=lambda kinds: [kind.value for kind in kinds],
+)
+
+
+class PushSubscription(Base):
+    """One device's Web Push subscription (the installed app on a phone), for one member. The
+    endpoint is the push service's URL for that device; the keys encrypt what's sent."""
+
+    __tablename__ = "push_subscriptions"
+    __table_args__ = {"schema": SCHEMA}  # noqa: RUF012
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid7)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("core.users.id", ondelete="CASCADE"))
+    endpoint: Mapped[str] = mapped_column(Text, unique=True)
+    p256dh: Mapped[str] = mapped_column(String(200))
+    auth: Mapped[str] = mapped_column(String(100))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    last_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class AlertPreference(Base):
+    """A member's choice for one kind of alert. No row: on."""
+
+    __tablename__ = "alert_preferences"
+    __table_args__ = {"schema": SCHEMA}  # noqa: RUF012
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("core.users.id", ondelete="CASCADE"), primary_key=True
+    )
+    kind: Mapped[AlertKind] = mapped_column(ALERT_KIND, primary_key=True)
+    enabled: Mapped[bool] = mapped_column(Boolean)
+
+
+class AlertSent(Base):
+    """An alert that went out, by its key (e.g. a bill and its date), so each is sent once
+    however often the checks run or catch up."""
+
+    __tablename__ = "alerts_sent"
+    __table_args__ = {"schema": SCHEMA}  # noqa: RUF012
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("core.users.id", ondelete="CASCADE"), primary_key=True
+    )
+    key: Mapped[str] = mapped_column(String(200), primary_key=True)
+    kind: Mapped[AlertKind] = mapped_column(ALERT_KIND)
+    sent_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

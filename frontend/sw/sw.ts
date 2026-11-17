@@ -85,3 +85,44 @@ async function fromShell(href: string, request: Request): Promise<Response> {
   const kept = await cache.match(href);
   return kept ?? fetch(request);
 }
+
+// Push alerts (M9 P6, backend core/push.py): show what the hub sent, and open its page on tap.
+type PushPayload = { title?: string; body?: string; url?: string; tag?: string | null };
+
+self.addEventListener('push', (event) => {
+  let payload: PushPayload = {};
+  try {
+    payload = event.data?.json() ?? {};
+  } catch {
+    payload = { body: event.data?.text() };
+  }
+  event.waitUntil(
+    self.registration.showNotification(payload.title ?? 'Hubnisio', {
+      body: payload.body ?? '',
+      tag: payload.tag ?? undefined,
+      icon: '/pwa-192x192.png',
+      badge: '/pwa-64x64.png',
+      data: { url: payload.url ?? '/' },
+    }),
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const path = (event.notification.data as { url?: string } | null)?.url ?? '/';
+  const target = new URL(path, self.location.origin);
+  // Only the hub's own pages.
+  const url = target.origin === self.location.origin ? target.href : self.location.origin;
+  event.waitUntil(
+    (async () => {
+      const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      const open = windows[0];
+      if (open) {
+        await open.focus();
+        await open.navigate(url);
+        return;
+      }
+      await self.clients.openWindow(url);
+    })(),
+  );
+});

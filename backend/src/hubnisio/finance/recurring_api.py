@@ -10,6 +10,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import Select, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from hubnisio.core.auth import Principal
 from hubnisio.finance import schemas
@@ -74,7 +75,14 @@ async def list_upcoming(
     """Expected dates of active, confirmed series in the next `days` days, soonest first. A
     payment that's due but not late yet shows on its expected date. Euro amounts use today's
     rate."""
-    today = date.today()
+    return await upcoming_payments(session, principal, days)
+
+
+async def upcoming_payments(
+    session: AsyncSession, principal: Principal, days: int, today: date | None = None
+) -> list[schemas.UpcomingPayment]:
+    """The upcoming payments the member sees (the API's, and the bill alerts')."""
+    today = today or date.today()
     end = today + timedelta(days=days)
     rows = await session.execute(
         _query(principal).where(

@@ -5,7 +5,7 @@ Later slices add their routers beside this one (`sleep_api.py`, …) and list th
 their own health data.
 """
 
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from hubnisio.core.auth import Principal, get_principal
 from hubnisio.core.db import get_session
 from hubnisio.health import tasks
+from hubnisio.health.alerts import KEY_WARNING
 from hubnisio.health.ingest import fact_counts
 from hubnisio.health.models import ConnectionStatus, SyncCursor, SyncRun, SyncStatus
 from hubnisio.health.ranges import DateRange, fact_ranges
@@ -28,7 +29,6 @@ DbSession = Annotated[AsyncSession, Depends(get_session)]
 CurrentPrincipal = Annotated[Principal, Depends(get_principal)]
 
 # The Garmin page warns from this long before the key lapses.
-KEY_WARNING = timedelta(days=14)
 
 
 class SyncRunOut(BaseModel):

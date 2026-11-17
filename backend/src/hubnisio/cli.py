@@ -21,6 +21,7 @@ from sqlalchemy import exists, func, select, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from hubnisio.core import push
 from hubnisio.core.auth import Principal
 from hubnisio.core.db import get_engine, get_sessionmaker
 from hubnisio.core.models import AiLogin, Household, HouseholdMember, HouseholdRole, User
@@ -512,6 +513,36 @@ def _write_secret(path: Path, content: str) -> None:
         file.write(content + "\n")
 
 
+def push_keys() -> int:
+    """Make the hub's VAPID key for Web Push (M9 P6), once. A new key would orphan every
+    phone's subscription, so an existing one is kept. The key itself is never printed."""
+    path = push.vapid_key_path()
+    if path.exists():
+        print(f"A push key exists already in {path.parent}; kept.")
+        return 0
+    push.generate_vapid_key(path)
+    path.chmod(0o600)
+    print(f"Push key written to {path.parent}.")
+    return 0
+
+
+async def push_test(email: str) -> int:
+    """Send a test notification to every device of the member."""
+    user_id = await _member_id(email)
+    if user_id is None:
+        print(f"No member with the email {email}.", file=sys.stderr)
+        return 1
+    async with get_sessionmaker()() as session:
+        result = await push.send(
+            session,
+            user_id,
+            push.Message(title="Hubnisio", body="A test from the PC.", tag="test"),
+        )
+        await session.commit()
+    print(f"Sent to {result.sent} device(s); {result.failed} failed, {result.removed} removed.")
+    return 0 if result.sent else 1
+
+
 async def _run(args: argparse.Namespace) -> int:
     try:
         match args.command:
@@ -539,6 +570,10 @@ async def _run(args: argparse.Namespace) -> int:
                 return await fx_backfill(args.since)
             case "prices-backfill":
                 return await prices_backfill(args.since)
+            case "push-keys":
+                return push_keys()
+            case "push-test":
+                return await push_test(args.email)
             case "prices-symbol":
                 return await prices_symbol(args.ticker, None if args.auto else args.symbol)
             case _:
@@ -681,6 +716,12 @@ def main(argv: list[str] | None = None) -> int:
     symbol_choice.add_argument(
         "--auto", action="store_true", help="forget the symbol, so it's found again"
     )
+
+    commands.add_parser("push-keys", help="make the hub's key for push notifications, once")
+    push_test_parser = commands.add_parser(
+        "push-test", help="send a test notification to a member's devices"
+    )
+    push_test_parser.add_argument("--email", required=True)
 
     args = parser.parse_args(argv)
     # psycopg's async mode can't run on the Proactor event loop that Windows uses by default.

@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from hubnisio.core.auth import check_auth_config
+from hubnisio.core.push_api import router as push_router
 from hubnisio.core.routes import router as core_router
 from hubnisio.core.settings import get_settings
 from hubnisio.finance.api import router as finance_router
@@ -38,6 +39,7 @@ app = FastAPI(title="Hubnisio", version="0.1.0", lifespan=lifespan)
 # Every router, by domain. A new one (e.g. health/sleep_api.py) is added here, nowhere else.
 ROUTERS = (
     core_router,
+    push_router,
     # Finance
     finance_router,
     transactions_router,

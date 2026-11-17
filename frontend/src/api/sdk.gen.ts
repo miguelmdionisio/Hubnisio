@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { ApproveSuggestionsData, ApproveSuggestionsErrors, ApproveSuggestionsResponses, CompleteConnectionData, CompleteConnectionErrors, CompleteConnectionResponses, CreateCategoryData, CreateCategoryErrors, CreateCategoryResponses, CreateCounterpartyData, CreateCounterpartyErrors, CreateCounterpartyResponses, CreateRuleData, CreateRuleErrors, CreateRuleResponses, DeleteAccountData, DeleteAccountErrors, DeleteAccountResponses, DeleteBudgetData, DeleteBudgetErrors, DeleteBudgetResponses, DeleteCategoryData, DeleteCategoryErrors, DeleteCategoryResponses, DeleteConnectionData, DeleteConnectionErrors, DeleteConnectionResponses, DeleteOverallBudgetData, DeleteOverallBudgetResponses, DeleteRuleData, DeleteRuleErrors, DeleteRuleResponses, DownloadActivityFileData, DownloadActivityFileErrors, DownloadActivityFileResponses, GetActivityData, GetActivityErrors, GetActivityResponses, GetBodyData, GetBodyErrors, GetBodyResponses, GetCashFlowData, GetCashFlowErrors, GetCashFlowResponses, GetHealthConnectionData, GetHealthConnectionResponses, GetHealthData, GetHealthErrors, GetHealthResponses, GetInvestmentReturnsData, GetInvestmentReturnsErrors, GetInvestmentReturnsResponses, GetInvestmentsData, GetInvestmentsErrors, GetInvestmentsResponses, GetNetWorthData, GetNetWorthErrors, GetNetWorthResponses, GetPerformanceData, GetPerformanceErrors, GetPerformanceResponses, GetRecoveryData, GetRecoveryErrors, GetRecoveryResponses, GetSleepNightData, GetSleepNightErrors, GetSleepNightResponses, GetSleepTrendsData, GetSleepTrendsErrors, GetSleepTrendsResponses, GetSpendingData, GetSpendingErrors, GetSpendingMonthData, GetSpendingMonthErrors, GetSpendingMonthResponses, GetSpendingResponses, GetTodayData, GetTodayResponses, GetTrainingData, GetTrainingErrors, GetTrainingResponses, LinkTransferData, LinkTransferErrors, LinkTransferResponses, ListAccountsData, ListAccountsErrors, ListAccountsResponses, ListActivitiesData, ListActivitiesErrors, ListActivitiesResponses, ListBanksData, ListBanksErrors, ListBanksResponses, ListBudgetsData, ListBudgetsErrors, ListBudgetsResponses, ListCategoriesData, ListCategoriesResponses, ListConnectionsData, ListConnectionsResponses, ListCounterpartiesData, ListCounterpartiesErrors, ListCounterpartiesResponses, ListRecurringData, ListRecurringErrors, ListRecurringResponses, ListRulesData, ListRulesResponses, ListTransactionsData, ListTransactionsErrors, ListTransactionsResponses, ListUpcomingPaymentsData, ListUpcomingPaymentsErrors, ListUpcomingPaymentsResponses, MergeCounterpartyData, MergeCounterpartyErrors, MergeCounterpartyResponses, PreviewRuleData, PreviewRuleErrors, PreviewRuleResponses, ReorderRulesData, ReorderRulesErrors, ReorderRulesResponses, RunRulesData, RunRulesResponses, SetBudgetData, SetBudgetErrors, SetBudgetResponses, SetOverallBudgetData, SetOverallBudgetErrors, SetOverallBudgetResponses, StartConnectionData, StartConnectionErrors, StartConnectionResponses, SyncConnectionData, SyncConnectionErrors, SyncConnectionResponses, SyncHealthData, SyncHealthResponses, UnlinkTransferData, UnlinkTransferErrors, UnlinkTransferResponses, UpdateAccountData, UpdateAccountErrors, UpdateAccountResponses, UpdateCategoryData, UpdateCategoryErrors, UpdateCategoryResponses, UpdateCounterpartyData, UpdateCounterpartyErrors, UpdateCounterpartyResponses, UpdateRecurringData, UpdateRecurringErrors, UpdateRecurringResponses, UpdateRuleData, UpdateRuleErrors, UpdateRuleResponses, UpdateTransactionData, UpdateTransactionErrors, UpdateTransactionResponses } from './types.gen';
+import type { ApproveSuggestionsData, ApproveSuggestionsErrors, ApproveSuggestionsResponses, CompleteConnectionData, CompleteConnectionErrors, CompleteConnectionResponses, CreateCategoryData, CreateCategoryErrors, CreateCategoryResponses, CreateCounterpartyData, CreateCounterpartyErrors, CreateCounterpartyResponses, CreateRuleData, CreateRuleErrors, CreateRuleResponses, DeleteAccountData, DeleteAccountErrors, DeleteAccountResponses, DeleteBudgetData, DeleteBudgetErrors, DeleteBudgetResponses, DeleteCategoryData, DeleteCategoryErrors, DeleteCategoryResponses, DeleteConnectionData, DeleteConnectionErrors, DeleteConnectionResponses, DeleteOverallBudgetData, DeleteOverallBudgetResponses, DeleteRuleData, DeleteRuleErrors, DeleteRuleResponses, DownloadActivityFileData, DownloadActivityFileErrors, DownloadActivityFileResponses, GetActivityData, GetActivityErrors, GetActivityResponses, GetBodyData, GetBodyErrors, GetBodyResponses, GetCashFlowData, GetCashFlowErrors, GetCashFlowResponses, GetHealthConnectionData, GetHealthConnectionResponses, GetHealthData, GetHealthErrors, GetHealthResponses, GetInvestmentReturnsData, GetInvestmentReturnsErrors, GetInvestmentReturnsResponses, GetInvestmentsData, GetInvestmentsErrors, GetInvestmentsResponses, GetNetWorthData, GetNetWorthErrors, GetNetWorthResponses, GetPerformanceData, GetPerformanceErrors, GetPerformanceResponses, GetPushSettingsData, GetPushSettingsResponses, GetRecoveryData, GetRecoveryErrors, GetRecoveryResponses, GetSleepNightData, GetSleepNightErrors, GetSleepNightResponses, GetSleepTrendsData, GetSleepTrendsErrors, GetSleepTrendsResponses, GetSpendingData, GetSpendingErrors, GetSpendingMonthData, GetSpendingMonthErrors, GetSpendingMonthResponses, GetSpendingResponses, GetTodayData, GetTodayResponses, GetTrainingData, GetTrainingErrors, GetTrainingResponses, LinkTransferData, LinkTransferErrors, LinkTransferResponses, ListAccountsData, ListAccountsErrors, ListAccountsResponses, ListActivitiesData, ListActivitiesErrors, ListActivitiesResponses, ListBanksData, ListBanksErrors, ListBanksResponses, ListBudgetsData, ListBudgetsErrors, ListBudgetsResponses, ListCategoriesData, ListCategoriesResponses, ListConnectionsData, ListConnectionsResponses, ListCounterpartiesData, ListCounterpartiesErrors, ListCounterpartiesResponses, ListRecurringData, ListRecurringErrors, ListRecurringResponses, ListRulesData, ListRulesResponses, ListTransactionsData, ListTransactionsErrors, ListTransactionsResponses, ListUpcomingPaymentsData, ListUpcomingPaymentsErrors, ListUpcomingPaymentsResponses, MergeCounterpartyData, MergeCounterpartyErrors, MergeCounterpartyResponses, PreviewRuleData, PreviewRuleErrors, PreviewRuleResponses, ReorderRulesData, ReorderRulesErrors, ReorderRulesResponses, RunRulesData, RunRulesResponses, SendTestPushData, SendTestPushResponses, SetAlertData, SetAlertErrors, SetAlertResponses, SetBudgetData, SetBudgetErrors, SetBudgetResponses, SetOverallBudgetData, SetOverallBudgetErrors, SetOverallBudgetResponses, StartConnectionData, StartConnectionErrors, StartConnectionResponses, SubscribePushData, SubscribePushErrors, SubscribePushResponses, SyncConnectionData, SyncConnectionErrors, SyncConnectionResponses, SyncHealthData, SyncHealthResponses, UnlinkTransferData, UnlinkTransferErrors, UnlinkTransferResponses, UnsubscribePushData, UnsubscribePushErrors, UnsubscribePushResponses, UpdateAccountData, UpdateAccountErrors, UpdateAccountResponses, UpdateCategoryData, UpdateCategoryErrors, UpdateCategoryResponses, UpdateCounterpartyData, UpdateCounterpartyErrors, UpdateCounterpartyResponses, UpdateRecurringData, UpdateRecurringErrors, UpdateRecurringResponses, UpdateRuleData, UpdateRuleErrors, UpdateRuleResponses, UpdateTransactionData, UpdateTransactionErrors, UpdateTransactionResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -22,6 +22,62 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
  * Health
  */
 export const getHealth = <ThrowOnError extends boolean = false>(options?: Options<GetHealthData, ThrowOnError>): RequestResult<GetHealthResponses, GetHealthErrors, ThrowOnError> => (options?.client ?? client).get<GetHealthResponses, GetHealthErrors, ThrowOnError>({ url: '/api/health', ...options });
+
+/**
+ * Get Push Settings
+ *
+ * The push key, how many devices get alerts, and which alerts are on.
+ */
+export const getPushSettings = <ThrowOnError extends boolean = false>(options?: Options<GetPushSettingsData, ThrowOnError>): RequestResult<GetPushSettingsResponses, unknown, ThrowOnError> => (options?.client ?? client).get<GetPushSettingsResponses, unknown, ThrowOnError>({ url: '/api/push', ...options });
+
+/**
+ * Subscribe
+ *
+ * Remember this device for the member's alerts (again, if its keys changed).
+ */
+export const subscribePush = <ThrowOnError extends boolean = false>(options: Options<SubscribePushData, ThrowOnError>): RequestResult<SubscribePushResponses, SubscribePushErrors, ThrowOnError> => (options.client ?? client).put<SubscribePushResponses, SubscribePushErrors, ThrowOnError>({
+    url: '/api/push/subscriptions',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Unsubscribe
+ *
+ * Forget this device: it gets no more alerts.
+ */
+export const unsubscribePush = <ThrowOnError extends boolean = false>(options: Options<UnsubscribePushData, ThrowOnError>): RequestResult<UnsubscribePushResponses, UnsubscribePushErrors, ThrowOnError> => (options.client ?? client).post<UnsubscribePushResponses, UnsubscribePushErrors, ThrowOnError>({
+    url: '/api/push/subscriptions/remove',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Set Alert
+ *
+ * Turn one kind of alert on or off for the member.
+ */
+export const setAlert = <ThrowOnError extends boolean = false>(options: Options<SetAlertData, ThrowOnError>): RequestResult<SetAlertResponses, SetAlertErrors, ThrowOnError> => (options.client ?? client).put<SetAlertResponses, SetAlertErrors, ThrowOnError>({
+    url: '/api/push/alerts/{kind}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Send Test
+ *
+ * Send a test notification to the member's devices now, whatever the hour.
+ */
+export const sendTestPush = <ThrowOnError extends boolean = false>(options?: Options<SendTestPushData, ThrowOnError>): RequestResult<SendTestPushResponses, unknown, ThrowOnError> => (options?.client ?? client).post<SendTestPushResponses, unknown, ThrowOnError>({ url: '/api/push/test', ...options });
 
 /**
  * List Banks
