@@ -41,6 +41,30 @@ After that, `docker compose up` starts everything.
   to https URLs), so the browser warns the first time: accept it once, before linking a bank.
 - API docs: http://localhost:8000/docs
 
+## On the iPhone
+
+The hub opens on the phone as an installed web app (M9, [plan](docs/design/m9-iphone.md)), through [Tailscale](https://tailscale.com), only while the PC and the stack run. Nothing is public: the tailnet holds only your own devices, and nobody else may join it while the hub logs everyone in as the dev user.
+
+First time only:
+
+1. Install Tailscale on the PC and on the iPhone (App Store), and sign in to the same tailnet on both.
+2. In the [admin console](https://login.tailscale.com/admin/dns), turn on MagicDNS and, under it, HTTPS Certificates.
+3. Find the PC's name: `tailscale status --json` shows it as `Self.DNSName`, such as `my-pc.tail1234.ts.net` (without the trailing dot). Put it in `.env` as `HUBNISIO_PHONE_HOST`, then recreate the containers: `docker compose up -d`.
+4. Put the phone's build on the tailnet, once (it stays across restarts):
+   ```bash
+   tailscale serve --bg http://127.0.0.1:4173
+   ```
+   Never use `tailscale funnel`: that would put the hub on the internet.
+5. On the iPhone, open `https://<that name>` in Safari, then Share → Add to Home Screen.
+
+The `phone` service serves a production build on port 4173 (the dev server on 5173 keeps hot reload). It builds when it starts, so after frontend changes:
+
+```bash
+docker compose restart phone
+```
+
+Link banks on the PC: Enable Banking redirects back to `localhost`. `tailscale serve status` shows what's served, `tailscale serve reset` stops it.
+
 ## Using the hub from Claude
 
 Claude Code and Claude Desktop can read your data through the hub's MCP server ([ADR-0006](docs/adr/0006-ai-access.md)). It runs in the api container and connects as your own Postgres login, which can only read the `analytics` views and suggest categories. So it sees what you see in the app (your view by default, or the household's), and the only thing it can change is a category suggestion. Every tool call is recorded in `core.ai_calls`, without the data it returned.

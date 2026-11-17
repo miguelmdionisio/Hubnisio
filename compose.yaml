@@ -86,6 +86,7 @@ services:
       API_PROXY_TARGET: http://api:8000
       COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"
       WATCH_POLLING: "true"
+      HUBNISIO_PHONE_HOST: ${HUBNISIO_PHONE_HOST:-}
     volumes:
       - ./frontend:/app
       # Keep Linux node_modules inside the container, apart from the host's.
@@ -95,9 +96,39 @@ services:
     depends_on:
       - api
 
+  # The phone's app (M9): a production build served by `vite preview`, which proxies /api like
+  # the dev server. `tailscale serve` puts it on the tailnet with a real certificate (README,
+  # "On the iPhone"). It builds on every start: after frontend changes, rebuild it with
+  #   docker compose restart phone
+  phone:
+    image: node:24-alpine
+    working_dir: /app
+    command:
+      - sh
+      - -c
+      - >-
+        corepack enable && pnpm install --frozen-lockfile &&
+        pnpm exec vite build --outDir /srv/dist --emptyOutDir &&
+        exec pnpm exec vite preview --host 0.0.0.0 --port 4173 --strictPort --outDir /srv/dist
+    environment:
+      API_PROXY_TARGET: http://api:8000
+      COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"
+      PLAIN_HTTP: "true"
+      HUBNISIO_PHONE_HOST: ${HUBNISIO_PHONE_HOST:-}
+    volumes:
+      - ./frontend:/app
+      # Its own node_modules: two containers installing into one volume at once would clash.
+      - phone-node-modules:/app/node_modules
+    ports:
+      # Localhost only; the tailnet reaches it through `tailscale serve`, nothing else does.
+      - "127.0.0.1:4173:4173"
+    depends_on:
+      - api
+
 volumes:
   db-data:
   frontend-node-modules:
+  phone-node-modules:
 
 # Mounted as files, never passed as environment variables (ADR-0004). secrets/ is gitignored.
 secrets:
