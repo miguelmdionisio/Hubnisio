@@ -6,6 +6,7 @@ import {
 } from '@tanstack/react-router';
 import { AppShell } from './components/app-shell';
 import { errorMessage } from './lib/errors';
+import { viewTransitionTypes } from './lib/transitions';
 import { AccountsPage } from './routes/finance/accounts';
 import { BudgetsPage, validateBudgetSearch } from './routes/finance/budgets';
 import { CallbackPage, validateCallbackSearch } from './routes/finance/callback';
@@ -167,7 +168,14 @@ const routeTree = rootRoute.addChildren([
 ]);
 
 export function createAppRouter(history?: RouterHistory) {
-  return createRouter({ routeTree, history });
+  return createRouter({
+    routeTree,
+    history,
+    // Back to a list returns to where it was (M9 P5).
+    scrollRestoration: true,
+    // Detail pages slide in and out; everything else is instant (lib/transitions.ts).
+    defaultViewTransition: { types: viewTransitionTypes },
+  });
 }
 
 export const router = createAppRouter();

@@ -7,7 +7,15 @@ import { syncState, useConnections } from '../finance/use-connections';
 /** How fresh the figures below are: when each connection last synced, and which need a look. */
 export function SyncStatus() {
   const connections = useConnections();
-  if (connections.isPending) return <Skeleton className="h-4 w-48" />;
+  // The phone fits about two connections a line: its skeleton keeps two lines' room.
+  if (connections.isPending) {
+    return (
+      <div className="flex flex-col gap-y-1 py-[3.5px]">
+        <Skeleton className="h-4 w-56" />
+        <Skeleton className="h-4 w-36 md:hidden" />
+      </div>
+    );
+  }
   if (connections.isError) {
     return <p className="text-xs text-muted-foreground">{errorMessage(connections.error)}</p>;
   }

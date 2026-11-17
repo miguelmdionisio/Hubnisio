@@ -78,7 +78,7 @@ export function HomePage() {
           <SectionTitle id="budgets" to="/finance/budgets" link="See all">
             Budgets
           </SectionTitle>
-          <QueryView query={budgets} skeleton="h-40">
+          <QueryView query={budgets} skeleton="h-[112px]">
             {(data) => <BudgetRows data={data} />}
           </QueryView>
         </section>
@@ -152,7 +152,7 @@ function Tile<T>({
         <ChevronRight className="size-4 text-faint" aria-hidden />
       </span>
       {query.isPending ? (
-        <Skeleton className="mt-2 h-10 w-24" />
+        <Skeleton className="mt-2 h-[43px] w-24 md:h-12" />
       ) : query.isError ? (
         <strong title={errorMessage(query.error)}>—</strong>
       ) : (
@@ -361,6 +361,10 @@ function ToReview() {
     page ? (page.next_cursor ? `${REVIEW_LIMIT}+` : String(page.items.length)) : '0';
   const open = uncategorized.data?.items.length ?? 0;
   const ai = suggested.data?.items.length ?? 0;
+  // Its room is kept while it loads, so the header doesn't wrap under the page later (M9 P5).
+  if (uncategorized.isPending || suggested.isPending) {
+    return <Skeleton className="h-[34px] w-44 rounded-full md:h-9" />;
+  }
   if (open === 0 && ai === 0) return null;
   return (
     <Link

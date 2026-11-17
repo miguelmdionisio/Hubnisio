@@ -1,11 +1,12 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { Link, Outlet, useNavigate, useRouterState } from '@tanstack/react-router';
 import { Check, ChevronDown, Ellipsis, Search, WifiOff } from 'lucide-react';
-import { type ReactNode, useLayoutEffect, useState } from 'react';
+import { type ReactNode, useLayoutEffect, useRef, useState } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Toaster } from '@/components/ui/sonner';
 import { useHubUnreachable } from '@/lib/reachability';
 import { ThemeProvider } from '@/lib/theme';
+import { slideFor } from '@/lib/transitions';
 import { cn } from '@/lib/utils';
 import { useView, VIEW_LABELS, VIEW_NOTES, type View, ViewProvider } from '@/lib/view';
 import { DOMAINS, type Domain, domainForPath, FINANCE, HEALTH, navItems } from './domains';
@@ -36,6 +37,7 @@ function Shell() {
   useLayoutEffect(() => {
     document.documentElement.dataset.domain = domain.id;
   }, [domain.id]);
+  useDetailPageOpensAtTop();
   return (
     <div className="min-h-dvh bg-background text-foreground md:flex">
       <a
@@ -88,6 +90,19 @@ function Unreachable() {
       </button>
     </div>
   );
+}
+
+/**
+ * A detail page that slides in opens at its top. The router resets the scroll itself, but WebKit
+ * loses that inside a view transition (M9 P5). Going back keeps the router's restored position.
+ */
+function useDetailPageOpensAtTop() {
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const previous = useRef(pathname);
+  useLayoutEffect(() => {
+    if (slideFor(previous.current, pathname) === 'slide-forward') window.scrollTo(0, 0);
+    previous.current = pathname;
+  }, [pathname]);
 }
 
 /** The domain the current URL belongs to. */
