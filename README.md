@@ -63,6 +63,14 @@ The `phone` service serves a production build on port 4173 (the dev server on 51
 docker compose restart phone
 ```
 
+The app's icon is drawn from one square SVG, `frontend/public/app-icon.svg` (a placeholder for now). Draw it full-bleed with its subject inside the middle 80%, then regenerate the PNGs and commit them:
+
+```bash
+cd frontend && corepack pnpm icons
+```
+
+The app keeps only its own files on the phone (a service worker in `frontend/sw/sw.ts`), never the hub's data: with the PC off it opens and says the hub can't be reached. A new build shows "New version" with a Reload button.
+
 Link banks on the PC: Enable Banking redirects back to `localhost`. `tailscale serve status` shows what's served, `tailscale serve reset` stops it.
 
 ## Using the hub from Claude

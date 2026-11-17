@@ -5,12 +5,14 @@ import { StrictMode } from 'react';
 import { vi } from 'vitest';
 import { client } from '@/api/client.gen';
 import { createQueryClient } from '@/lib/query-client';
+import { noteQuerySuccess } from '@/lib/reachability';
 import { createAppRouter } from '@/router';
 
 /** Render the whole app at `path`, in strict mode like the real entrypoint. */
 export function renderAt(path: string) {
   // Node's fetch can't resolve the relative URLs a browser would.
   client.setConfig({ baseUrl: 'http://localhost' });
+  noteQuerySuccess(); // a test that couldn't reach the API doesn't leak into the next
   const queryClient = createQueryClient({ retry: false });
   const router = createAppRouter(createMemoryHistory({ initialEntries: [path] }));
   const view = render(

@@ -1,8 +1,10 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { Link, Outlet, useNavigate, useRouterState } from '@tanstack/react-router';
-import { Check, ChevronDown, Ellipsis, Search } from 'lucide-react';
+import { Check, ChevronDown, Ellipsis, Search, WifiOff } from 'lucide-react';
 import { type ReactNode, useLayoutEffect, useState } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Toaster } from '@/components/ui/sonner';
+import { useHubUnreachable } from '@/lib/reachability';
 import { ThemeProvider } from '@/lib/theme';
 import { cn } from '@/lib/utils';
 import { useView, VIEW_LABELS, VIEW_NOTES, type View, ViewProvider } from '@/lib/view';
@@ -49,7 +51,37 @@ function Shell() {
         <Outlet />
       </main>
       <TabBar domain={domain} />
+      <Unreachable />
       <Toaster />
+    </div>
+  );
+}
+
+/**
+ * When the hub doesn't answer: on the phone that's the PC or the stack being off. The app's shell
+ * still opens (it's kept on the phone); its data never is.
+ */
+function Unreachable() {
+  const unreachable = useHubUnreachable();
+  const queryClient = useQueryClient();
+  if (!unreachable) return null;
+  return (
+    <div
+      role="status"
+      className="fixed inset-x-3 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-40 flex items-center gap-3 rounded-2xl bg-popover px-4 py-2 text-sm shadow-pop md:right-6 md:bottom-6 md:left-auto md:w-[420px]"
+    >
+      <WifiOff className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+      <p className="min-w-0 flex-1">
+        <span className="font-semibold">Can't reach the hub.</span>{' '}
+        <span className="text-muted-foreground">It answers while the PC and its stack run.</span>
+      </p>
+      <button
+        type="button"
+        onClick={() => void queryClient.refetchQueries({ type: 'active' })}
+        className="min-h-11 shrink-0 rounded-full px-3 font-semibold text-primary"
+      >
+        Try again
+      </button>
     </div>
   );
 }
@@ -232,23 +264,18 @@ export function PageHeader({
 }) {
   const domain = useCurrentDomain();
   return (
-    <>
-      <header
-        className={cn(
-          'sticky top-0 z-20 -mx-4 mb-5 flex min-h-[58px] flex-wrap items-center gap-x-3 gap-y-2 bg-background/88 px-4 py-2.5 backdrop-blur-md md:-mx-7 md:border-b md:px-7',
-        )}
-      >
-        {leading && <div className="-mr-0.5 flex items-center gap-2">{leading}</div>}
-        <h1 className="min-w-0 truncate text-2xl font-bold tracking-[-0.02em] md:text-lg md:tracking-normal">
-          {title}
-        </h1>
-        <div className="flex-1" />
-        {domain === FINANCE && <SyncFreshness className="hidden md:flex" />}
-        {/* Health's at every width: one watch, and the phone is where Today is read. */}
-        {domain === HEALTH && <HealthFreshness />}
-        {showsView && <ViewSwitch />}
-        {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
-      </header>
-    </>
+    // Installed on the iPhone the status bar sits over the page: the header pads for the notch.
+    <header className="sticky top-0 z-20 -mx-4 mb-5 flex min-h-[58px] flex-wrap items-center gap-x-3 gap-y-2 bg-background/88 px-4 pt-[calc(0.625rem+env(safe-area-inset-top))] pb-2.5 backdrop-blur-md md:-mx-7 md:border-b md:px-7">
+      {leading && <div className="-mr-0.5 flex items-center gap-2">{leading}</div>}
+      <h1 className="min-w-0 truncate text-2xl font-bold tracking-[-0.02em] md:text-lg md:tracking-normal">
+        {title}
+      </h1>
+      <div className="flex-1" />
+      {domain === FINANCE && <SyncFreshness className="hidden md:flex" />}
+      {/* Health's at every width: one watch, and the phone is where Today is read. */}
+      {domain === HEALTH && <HealthFreshness />}
+      {showsView && <ViewSwitch />}
+      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+    </header>
   );
 }

@@ -4,6 +4,18 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Hubnisio</title>
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
+    <link rel="icon" href="/app-icon.svg" type="image/svg+xml" />
+    <!-- The installed app on the iPhone (M9): full screen, the status bar over the page (the
+         header pads for it), and the icon from public/app-icon.svg (corepack pnpm icons). The
+         manifest link is added by vite-plugin-pwa. -->
+    <link rel="apple-touch-icon" href="/apple-touch-icon-180x180.png" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Hubnisio" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <!-- Follows the theme and the page's ground (src/lib/theme.tsx). -->
+    <meta name="theme-color" content="#0d0e13" />
     <script>
       // Dark unless this browser chose otherwise (src/lib/theme.tsx), before the first paint.
       try {

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <title>Hubnisio (placeholder icon)</title>
+  <!-- PLACEHOLDER until the user's own icon (M9 P2). Replace this file, then: corepack pnpm icons -->
+  <rect width="512" height="512" fill="#0d0e13"/>
+  <rect x="96" y="96" width="320" height="320" rx="56" fill="none" stroke="#8a909a" stroke-width="10" stroke-dasharray="28 20"/>
+  <g fill="#6b8cff">
+    <rect x="176" y="168" width="44" height="176" rx="8"/>
+    <rect x="292" y="168" width="44" height="176" rx="8"/>
+    <rect x="176" y="234" width="160" height="44" rx="8"/>
+  </g>
+</svg>

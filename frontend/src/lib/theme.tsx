@@ -32,11 +32,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const system = window.matchMedia('(prefers-color-scheme: dark)');
-    const apply = () =>
-      document.documentElement.classList.toggle(
-        'dark',
-        theme === 'dark' || (theme === 'system' && system.matches),
-      );
+    const apply = () => {
+      const root = document.documentElement;
+      root.classList.toggle('dark', theme === 'dark' || (theme === 'system' && system.matches));
+      // The browser's bars (and the installed app's) take the page's ground.
+      const ground = getComputedStyle(root).getPropertyValue('--background').trim();
+      if (ground)
+        document.querySelector('meta[name="theme-color"]')?.setAttribute('content', ground);
+    };
     apply();
     if (theme !== 'system') return;
     system.addEventListener('change', apply);

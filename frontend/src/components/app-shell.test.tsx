@@ -117,3 +117,21 @@ test('the page header says how fresh the data is, or which connection needs a lo
   renderAt('/finance/categories');
   expect(await screen.findByRole('link', { name: 'Revolut needs a look' })).toBeDefined();
 });
+
+test("says when the hub can't be reached, and tries again", async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => {
+      throw new TypeError('Failed to fetch');
+    }),
+  );
+
+  renderAt('/finance/rules');
+
+  const bar = (await screen.findByText("Can't reach the hub.")).closest('[role="status"]');
+  if (!(bar instanceof HTMLElement)) throw new Error('No status bar');
+
+  mockApi({ 'GET /api/finance/rules': () => [] });
+  fireEvent.click(within(bar).getByRole('button', { name: 'Try again' }));
+  await waitFor(() => expect(screen.queryByText("Can't reach the hub.")).toBeNull());
+});

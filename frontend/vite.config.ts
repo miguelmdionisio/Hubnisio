@@ -2,6 +2,7 @@ import path from 'node:path';
 import tailwindcss from '@tailwindcss/vite';
 import basicSsl from '@vitejs/plugin-basic-ssl';
 import react from '@vitejs/plugin-react';
+import { VitePWA } from 'vite-plugin-pwa';
 import { defineConfig } from 'vitest/config';
 
 // The PC's Tailscale name (README, "On the iPhone"): the dev server and the phone's build answer
@@ -17,6 +18,45 @@ export default defineConfig({
     // Tests don't serve pages, so they skip it, and so does the phone's build: `tailscale serve`
     // gives it a real certificate in front of plain HTTP.
     ...(process.env.VITEST || process.env.PLAIN_HTTP ? [] : [basicSsl()]),
+    // The installed app on the iPhone (M9): the manifest, and a service worker that keeps the
+    // app shell only (sw/sw.ts). Built apps only; the dev server registers none.
+    VitePWA({
+      strategies: 'injectManifest',
+      srcDir: 'sw',
+      filename: 'sw.ts',
+      registerType: 'prompt',
+      injectRegister: false,
+      includeManifestIcons: false, // the glob below has them already
+      injectManifest: {
+        // The shell: the build's code, styles, fonts and icons. Never anything from /api.
+        globPatterns: ['**/*.{html,js,css,woff2,png,svg,ico,webmanifest}'],
+        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
+      },
+      manifest: {
+        name: 'Hubnisio',
+        short_name: 'Hubnisio',
+        description: 'A private personal hub: finance and health.',
+        lang: 'en-GB',
+        start_url: '/',
+        scope: '/',
+        display: 'standalone',
+        orientation: 'portrait',
+        // The Calm tokens' dark ground (src/index.css), the app's default.
+        background_color: '#0d0e13',
+        theme_color: '#0d0e13',
+        icons: [
+          { src: 'pwa-64x64.png', sizes: '64x64', type: 'image/png' },
+          { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
+          { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png' },
+          {
+            src: 'maskable-icon-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable',
+          },
+        ],
+      },
+    }),
   ],
   resolve: {
     alias: { '@': path.resolve(import.meta.dirname, 'src') },
