@@ -155,7 +155,7 @@ Findings that shape it ([research](../research/oss-finance-analysis.md)):
 - **Money in with an expense category counts as negative spending in that category, not as income.** The partner sends 600 towards a 1,200 rent, both in Rent: Rent is 600. A friend repays a 30 lunch: it's 0. The sums already worked this way ("Net per category", above); this makes the rest agree: the transaction's kind is "expense", so the Transactions list's kind filter and the row show it that way. Money out with an income category is income in the same way.
 - **Rules can do it automatically.** A rule can set an expense category on money in, with the conditions that exist today: for example direction `in`, amount `between` two figures, and counterparty `contains` a name.
 - **Below zero:** a category that nets below zero in a month shows the net. Tables and budgets show a negative spent, with remaining above the limit, and rollover evens it out over the months (a remainder carries forward whether it came from unspent budget or from repayments). Bars in the spending chart dip below zero (`stackOffset="sign"`), and the donut, which can't draw a negative slice, lists it in its note. The overall budget and cash flow's spending subtract it too, and income is untouched.
-- **Display:** the Transactions page shows such a row as "+€600" in the normal colour, not income green, with a "Repayment" hint, or "Refund" for a card refund (Revolut `CARD_REFUND`, BPI `dev. compra`). The transaction's sheet says "Lowers Rent by €600".
+- **Display:** the Transactions page shows such a row as "+€50" in the normal colour, not income green, with a "Repayment" hint, or "Refund" for a card refund (Revolut `CARD_REFUND`, BPI `dev. compra`). The transaction's sheet says "Lowers Rent by €50".
 - **Refunds take their merchant's rule or default category,** like any payment. The automatic `dev. compra` → Income › Refunds rule is turned off. The Refunds category stays, for picking by hand.
 - **Option B is left open:** a `repayment_links` table (repayment → payment, amount) would take precedence over the category for the amounts it covers, and would date them to the payment's month, so a repayment in March for a February payment lowers February. This would fit a partial repayment of a single payment more exactly, at the cost of linking each one. Nothing here blocks it: it would add a table and change how `monthly_sums` dates those amounts, and nothing else.
 
@@ -210,17 +210,17 @@ Findings that shape it ([research](../research/oss-finance-analysis.md)):
   - the investment model, when the Trading 212 provider is built
   - a split UI, if receipts become a data source
 
-## What the banks actually send (first live sync, 2026-10-22)
+## What the banks actually send (first live sync)
 
 Observed through Enable Banking, restricted mode, first sync with `strategy=longest` run within 10 minutes of linking.
 
 | | BPI (PT) | Revolut (LT entity, PT IBANs) |
 |---|---|---|
-| Accounts | 2 current accounts | 2 current (EUR, PT IBAN), 1 MAD current, 2 EUR savings without IBAN |
+| Accounts | Current accounts | Current accounts (EUR with a PT IBAN, other currencies), savings accounts without an IBAN |
 | History returned | About 90 days, even inside the first hour | About 2 years |
 | `entry_reference` | On every transaction | On every transaction |
 | Pending transactions | None returned | None returned |
-| Counterparty name | Never; everything is in the description | On about 91% of transactions |
+| Counterparty name | Never; everything is in the description | On most transactions |
 | `bank_transaction_code` | Present but empty | `CARD_PAYMENT`, `TRANSFER`, `TOPUP`, `EXCHANGE`, `CARD_REFUND`, `ATM`, `FEE`, `REV_PAYMENT` |
 | Type hints in the description | Prefixes: `TRF`/`TRANSF.` (transfer), `DD` (direct debit), `dd/mm` (card purchase) | — |
 | MCC, balance after, original-currency amount | Never | Never |
@@ -229,78 +229,40 @@ Observed through Enable Banking, restricted mode, first sync with `strategy=long
 Consequences:
 
 - **Identity:** the `entry_reference` path covers every transaction so far; the fingerprint fallback is unused. Keep it for banks that drop references.
-- **Pending:** neither bank returned pending items, and asking Revolut explicitly (`transaction_status=PDNG`, last 10 days, main account) returned none either. The user-layer carry-over from pending to booked (M2) is built and tested for banks that do send them, but has nothing to do with these two.
+- **Pending:** neither bank returned pending items, and asking Revolut explicitly (`transaction_status=PDNG`) returned none either. The user-layer carry-over from pending to booked (M2) is built and tested for banks that do send them, but has nothing to do with these two.
 - **Categorization (M2):** rules can't rely on MCCs. Use Revolut's transaction codes and counterparty names, and BPI's description prefixes and text.
 - **History:** BPI's 90 days is the limit through this route; accepted, as there's no CSV backfill ([ADR-0003](0003-financial-data-sources.md)).
 - **Account names:** the hub uses `product`, else `details` unless it repeats the holder's name, else the IBAN's last four digits or the currency and type.
 
-### First categorization run (`cli recategorize`, 2026-10-22)
+### First categorization run (`cli recategorize`)
 
-Run over all 1,655 transactions with the seeded rule set and no merchant defaults. Counts only; no transaction details are recorded here.
+Run over the whole history with the seeded rule set and no merchant defaults. What it showed:
 
-| | Result |
-|---|---|
-| Merchants created | 537 (552 in total), all from Revolut's names. 1,363 of 1,485 Revolut transactions (92%) got one; BPI got none, as it sends no names |
-| Categorized | 5 of 1,655: the ones set by hand. The engine has nothing else to go on until rules or merchant defaults exist |
-| Kind set by rule | 23, the seeded "bank code is `EXCHANGE`" rule |
-| Transfer pairs linked | 16: 13 Revolut ↔ Revolut, 2 Revolut → BPI, 1 BPI → BPI |
-
-What it showed:
-
-- **No BPI → Revolut top-ups were paired.** BPI's 90 days hold 6 Revolut `TOPUP`s; none has a BPI outflow of the same amount within 3 days (one has one 21 days apart). Those top-ups are funded some other way, so the pairing can't be spot-checked against them. A BPI outflow with two same-amount Revolut candidates was correctly left unlinked.
-- **Revolut names are per branch, not per brand.** 537 merchants for 1,152 card payments; one brand alone has 38 spellings. The 10 most used merchants cover 23% of named transactions, the top 50 cover 46%. Setting a default per merchant is too slow; a rule on `bank_counterparty starts_with <brand>` that sets one merchant collapses the spellings, and that merchant's default category then covers them all.
+- **Without rules or merchant defaults the engine has little to go on.** Revolut's names created merchants for most of its transactions; BPI got none, as it sends no names. Only the hand-set categories and the seeded `EXCHANGE` rule applied.
+- **BPI → Revolut top-ups don't always pair.** Some Revolut `TOPUP`s have no BPI outflow of the same amount within 3 days, as they're funded some other way. A BPI outflow with two same-amount Revolut candidates was correctly left unlinked.
+- **Revolut names are per branch, not per brand.** One brand can arrive under dozens of spellings, and a few merchants cover a large share of named transactions. Setting a default per merchant is too slow; a rule on `bank_counterparty starts_with <brand>` that sets one merchant collapses the spellings, and that merchant's default category then covers them all.
 - **BPI descriptions carry the merchant after the card reference** (`dd/mm COMPRA <ref> <MERCHANT …>`), so a `description contains` rule can set the same merchant that Revolut's name created, and one category default then serves both banks.
-- **`TRF` is not "transfer".** `TRF SEPA+ INST` (35 transactions, 12 in) and `TRF CR INTRAB` (7, 6 in) are mostly payments to and from other people. Only transfers between the household's own accounts are transfers; marking every `TRF` would hide real spending.
-- **Patterns worth a rule on BPI** (counts are BPI transactions): `comissao` (26, includes the VAT on it), `imposto` (6), `lev. atm` (4), `reforco bpi poupanca` (3, a move to savings), `dev. compra` (2, refunds in), `paypal` (8), and card purchases by merchant name.
+- **`TRF` is not "transfer".** `TRF SEPA+ INST` and `TRF CR INTRAB` are mostly payments to and from other people. Only transfers between the household's own accounts are transfers; marking every `TRF` would hide real spending.
+- **Patterns worth a rule on BPI:** `comissao` (includes the VAT on it), `imposto`, `lev. atm`, `reforco bpi poupanca` (a move to savings), `dev. compra` (refunds in), `paypal`, and card purchases by merchant name.
 
-### First insights run (M3, 2026-10-22)
+### First insights run (M3)
 
-Run against the live data after M3's migrations. Counts and shares only.
-
-| | Result |
-|---|---|
-| FX rates | 117 dirham rates from currency-api, 2024-10-22 to 2026-10-22 (weekly back then, daily for the last two weeks). No other currency is in use: Revolut's USD card payments arrive already in euros |
-| Net worth | Starts 2026-07-24 (BPI's history), 91 daily points. Today's total equals the sum of the accounts' balances, and no account-day is unconverted. Going by each account's own first transaction would have started on 2026-08-03 instead, as one BPI account had nothing in its first ten days |
-| Spending, last 12 months | 95.8% uncategorized, as only a handful of transactions have a category yet. The charts work, but tell little until the BPI rules and Revolut brand rules exist |
-| Recurring series | 11 suggested: 9 monthly (2 of them income) and 2 weekly. 6 monthly ones come from BPI descriptions, 3 payments each (BPI's 90 days); 1 varies in amount. 37 transactions are linked |
-| Budgets | None yet |
-
-What it showed:
-
-- **No long same-amount Revolut subscriptions exist** in two years of data: no group of four or more same-amount payments to one merchant has a monthly rhythm. The weekly-rhythm groups (4) weren't linked, which is right: they look like habits, not subscriptions.
+- **Net worth** starts at the earliest date every account has history for (BPI's 90 days), and today's total equals the sum of the accounts' balances with no account-day unconverted. Going by each account's own first transaction would start later when an account is quiet in its first days.
+- **Spending** works but tells little until rules exist: almost everything was uncategorized.
+- **Recurring:** BPI series have only about 3 payments each (its 90 days). No long same-amount Revolut subscriptions turned up, and weekly-rhythm groups weren't linked, which is right: they look like habits, not subscriptions.
 - **The first rule for "other payments in the span" was too loose.** Allowing as many as the chain's own let shopping every three days pass as two interleaved weekly series. Half is the limit now.
 
-### Brand rules run (G3, 2026-10-23)
+### Brand rules run (G3)
 
-The table was built from read-only aggregates of uncategorized outgoing Revolut card payments, and the user approved it before anything was written. Then, through the API: 15 new merchants with a default category, 19 rules that set a merchant (any of `bank_counterparty starts_with <brand>`, plus `description contains` where BPI also names the brand; "Uber Eats" stops processing before "Uber"), default categories on 18 existing merchants, and "Run rules now". Counts only.
+The table was built from read-only aggregates of uncategorized outgoing Revolut card payments, and the user approved it before anything was written. Then, through the API: new merchants with a default category, rules that set a merchant (any of `bank_counterparty starts_with <brand>`, plus `description contains` where BPI also names the brand; "Uber Eats" stops processing before "Uber"), default categories on existing merchants, and "Run rules now". It roughly doubled the categorized share. What it showed:
 
-| | Before | After |
-|---|---|---|
-| Categorized, all | 361 of 1,659 | 767 of 1,659 |
-| BPI | 79 of 174 | 87 of 174 |
-| Revolut | 282 of 1,485 | 680 of 1,485 |
-| Revolut card payments | 274 of 1,152 | 672 of 1,152 |
-| Outgoing Revolut card payments without a category | 867, under 455 spellings, about €7,340 | 473, under 329 spellings, about €4,520 |
-| Merchants (with a default category) | 534 (14) | 549 (47) |
-| Rules | 15 | 34 |
+- **A brand word in a description isn't safe on its own.** Revolut transfers between people carry free-text references that can name a brand. So brands match on Revolut's name only, and BPI conditions use longer phrases (`uber trip`, `uber com`). With these, no rule matched anything but card payments, apart from a few card refunds and zero-amount entries.
+- **A few brands carry much of the gain.** A couple of frequent shops covered nearly half of what the run categorized.
+- **What's left is a long tail of single merchants** whose category can't be told from the name, merchants trading under a person's name, and payment processors that front many shops. The Merchants page's "Needs a category" filter lists them, most used first.
 
-What it showed:
+### First AI categorization pass (M4)
 
-- **A brand word in a description isn't safe on its own.** Revolut transfers between people carry free-text references: `uber`, `biedronka` and `zabka` appeared in 13, 3 and 1 of them. So brands match on Revolut's name only, and BPI conditions use longer phrases (`uber trip`, `uber com`). With these, no rule matched anything but card payments, apart from 2 Bolt card refunds and 2 zero-amount Amazon entries.
-- **A few brands carry much of the gain.** Żabka (130 transactions) and Biedronka (69, sent as its owner's name, `JMP S.A. Biedronka <shop>`) alone cover nearly half of what the run categorized (199 of 406).
-- **What's left is a long tail of single merchants.** Nine places with 4–17 transactions each, whose category couldn't be told from the name, were left for the user, along with merchants trading under a person's name and payment processors (Helopay, NYX) that front many shops. The Merchants page's "Needs a category" filter lists them, most used first.
-
-### First AI categorization pass (M4, 2026-10-23)
-
-The user ran ADR-0006's `categorize_uncategorized` prompt from Claude Code against the live data. Counts only.
-
-| | Before | After |
-|---|---|---|
-| Categorized, all | 771 of 1,663 | 946 of 1,663 |
-| By source | manual 42, rule 208, merchant default 521 | the same, plus AI 175 |
-| Categories the AI used | | 22 |
-
-The suggestions count at once and wait for review on the Transactions page ("Suggested by AI"), where approving one makes it the user's own.
+The user ran ADR-0006's `categorize_uncategorized` prompt from Claude Code against the live data. The suggestions count at once and wait for review on the Transactions page ("Suggested by AI"), where approving one makes it the user's own.
 
 ## Action Items
 
