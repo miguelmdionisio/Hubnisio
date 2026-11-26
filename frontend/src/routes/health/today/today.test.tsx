@@ -1,5 +1,6 @@
 import { cleanup, screen, within } from '@testing-library/react';
 import { afterEach, expect, test, vi } from 'vitest';
+import { connection } from '@/test/health/garmin';
 import { today } from '@/test/health/today';
 import { mockApi, renderAt } from '@/test/render';
 
@@ -174,4 +175,29 @@ test('a gap in the data is a dash and a note, never a zero', async () => {
   expect(await screen.findAllByText('No data')).toHaveLength(4);
   expect(screen.getAllByText('No activities yet')).toHaveLength(2);
   expect(screen.getByText('No night recorded')).toBeTruthy();
+});
+
+test('stale Garmin data is said first, linking to the Garmin page', async () => {
+  const synced = new Date(Date.now() - 3 * 86_400_000).toISOString();
+  mockApi({
+    'GET /api/health/today': () => today(),
+    'GET /api/health/connection': () => connection({ last_synced_at: synced }),
+  });
+  renderAt('/health');
+
+  const notice = await screen.findByRole('link', { name: /^Garmin last synced/ });
+  expect(notice.getAttribute('href')).toBe('/health/garmin');
+  expect(notice.textContent).toContain('Sync now');
+});
+
+test('fresh Garmin data needs no notice', async () => {
+  mockApi({
+    'GET /api/health/today': () => today(),
+    'GET /api/health/connection': () => connection(),
+  });
+  renderAt('/health');
+
+  expect(await screen.findByText('+4')).toBeTruthy();
+  expect(await screen.findByText(/^Garmin synced/)).toBeTruthy();
+  expect(screen.queryByRole('link', { name: /^Garmin last synced/ })).toBeNull();
 });

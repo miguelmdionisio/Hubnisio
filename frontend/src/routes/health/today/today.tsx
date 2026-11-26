@@ -1,13 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
-import { ArrowDown, ArrowUp, Check, Minus, TriangleAlert } from 'lucide-react';
+import { ArrowDown, ArrowUp, Check, ChevronRight, Minus, TriangleAlert } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { getTodayOptions } from '@/api/@tanstack/react-query.gen';
+import { getHealthConnectionOptions, getTodayOptions } from '@/api/@tanstack/react-query.gen';
 import type { LastNight, RecentActivity, Signal, Today } from '@/api/types.gen';
 import { PageHeader } from '@/components/app-shell';
+import { healthFreshness } from '@/components/health-freshness';
 import { pillClass } from '@/components/pills';
 import { Card } from '@/components/ui/card';
-import { formatDistance, formatDuration } from '@/lib/format';
+import { formatDistance, formatDuration, formatRelative } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { QueryView } from '@/routes/overview/panel';
 import { rowClass } from '../../finance/transaction-rows';
@@ -43,10 +44,43 @@ const weekdayMonth = (isoDate: string) =>
     new Date(`${isoDate}T00:00:00`),
   );
 
+/**
+ * When Garmin's data is stale, Today says so first: an empty week otherwise reads as a week
+ * without training. The header's freshness line is too small to carry that at a glance.
+ */
+function StaleNotice() {
+  const { data } = useQuery(getHealthConnectionOptions());
+  if (!data) return null;
+  const state = healthFreshness(data);
+  const stale = state.kind === 'never' || (state.kind === 'synced' && state.stale);
+  if (!stale) return null;
+  return (
+    <Link
+      to="/health/garmin"
+      className="flex items-center gap-2.5 rounded-[18px] bg-surface px-4 py-3 text-[13px] transition-colors hover:bg-surface-2"
+    >
+      <i
+        className="size-[7px] shrink-0 rounded-full border border-dashed border-muted-foreground"
+        aria-hidden
+      />
+      <span className="min-w-0 truncate font-semibold">
+        {state.kind === 'synced'
+          ? `Garmin last synced ${formatRelative(state.at)}`
+          : 'Garmin not synced yet'}
+      </span>
+      <span className="ml-auto flex shrink-0 items-center gap-0.5 text-muted-foreground">
+        Sync now
+        <ChevronRight className="size-4" aria-hidden />
+      </span>
+    </Link>
+  );
+}
+
 function Content({ data }: { data: Today }) {
   const { figures, night, signals } = data;
   return (
     <div className="flex flex-col gap-5">
+      <StaleNotice />
       <SignalsStrip signals={signals} />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">

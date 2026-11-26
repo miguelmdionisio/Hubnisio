@@ -54,7 +54,7 @@ test('each signal has its own state, word and icon, and the count is not a score
     'Resting HR46 vs 48 7-dayOK',
     'Sleep6h 40 of 8h 10 needWatch',
     'Body Battery82 at wake, 60 or moreOK',
-    'FormNo dataNo data',
+    'FormNo data',
   ]);
   // The states differ by icon, not only by colour.
   const icons = rows.map((row) => row.querySelector('svg')?.getAttribute('class'));

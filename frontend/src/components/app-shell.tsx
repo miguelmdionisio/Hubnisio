@@ -265,7 +265,7 @@ function ViewSwitch() {
   );
 }
 
-/** Search on the phone, where there's no Ctrl K: the last thing in every page's header. */
+/** Search on the phone, where there's no Ctrl K: last in the header's top row, before any actions. */
 function PhoneSearch() {
   const openSearch = useOpenSearch();
   return (
@@ -305,11 +305,11 @@ export function PageHeader({
         {title}
       </h1>
       <div className="flex-1" />
-      <PhoneSearch />
       {domain === FINANCE && <SyncFreshness className="hidden md:flex" />}
       {/* Health's at every width: one watch, and the phone is where Today is read. */}
       {domain === HEALTH && <HealthFreshness />}
       {showsView && <ViewSwitch />}
+      <PhoneSearch />
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
     </header>
   );

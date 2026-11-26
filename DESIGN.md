@@ -27,7 +27,7 @@ colors:
   faint-light: "#737a85"
   nav-light: "#f6f7f9"
   nav-on-light: "#e4e8f0"
-  finance-blue-light: "#2a6fdb"
+  finance-blue-light: "#2766cf"
   finance-blue-soft-light: "#e6eefb"
   health-orange-light: "#b04e08"
   health-orange-soft-light: "#fdeee3"
@@ -44,7 +44,7 @@ colors:
   zone-3: "oklch(0.66 0.15 275)"
   zone-4: "oklch(0.6 0.19 305)"
   zone-5: "oklch(0.56 0.21 340)"
-  good-light: "#1f8a5b"
+  good-light: "#187a50"
   bad-light: "#cf3f36"
 typography:
   page-title-phone:
@@ -139,7 +139,7 @@ Since M7 (done 2026-10-29) the whole finance app is in this system: the shell, t
 Cool, near-neutral greys with a faint blue cast, one domain accent, and two semantic colours. Light and dark are the same roles; the frontmatter holds both.
 
 ### Primary
-- **Finance Blue** (dark `finance-blue-dark`, light `finance-blue-light`): the Finance domain's accent. The domain mark, the active sidebar icon, the active tab, focus rings, selection, primary buttons. As `primary` in Tailwind.
+- **Finance Blue** (dark `finance-blue-dark`, light `finance-blue-light`): the Finance domain's accent. The domain mark, the active sidebar icon, the active tab, focus rings, selection, primary buttons. As `primary` in Tailwind. The light blue is 5.4:1 on white and 4.6:1 on its soft fill, so the tab bar's 10.5px labels and a selected pill's text pass.
 - **Finance Blue, soft** (`finance-blue-soft-*`): a selected pill's fill, with Finance Blue text (`primary-soft`).
 - **Health Orange** (dark `health-orange-dark`, light `health-orange-light`) and its soft fill (`health-orange-soft-*`): the Health domain's accent, in the same roles. The light orange is a deep burnt orange: 5.1:1 on white, 4.5:1 on its soft fill, 4.7:1 on soft, and white text on it passes too. Dark orange has 9.5:1 on the ground and the ground's colour as its text.
 - **Following the domain:** `primary`, `primary-soft`, `ring` and the sidebar's primary are not fixed. The shell sets `data-domain` on `<html>` from the route (`finance`, `health`), and `index.css` redefines those tokens per domain and theme (`:root[data-domain="health"]`, `.dark[data-domain="health"]`). Every component that uses the tokens takes the current domain's accent; Finance is the default. It lives on `<html>` so menus, the command menu and toasts, which render outside the shell, follow too.
@@ -165,7 +165,7 @@ Heart rate, HRV and cadence lines (an activity's lanes, the overnight chart) are
 - **Pop** (`pop-dark`): menus and popovers in dark (`popover`).
 
 ### Semantic
-- **Good** (`good-*`): fresh sync dot, money in, under budget (`good`).
+- **Good** (`good-*`): fresh sync dot, money in, under budget (`good`). The light green is 5.3:1 on white and 4.85:1 on soft, so it holds as text on both.
 - **Bad** (`bad-*`): a connection needing a look, over budget, errors (`destructive`).
 
 **The Verdict Colour Rule.** Good and bad mark verdicts only: a sync fresh or needing a look, a signal OK or not, a value in its range or below it, an improvement or a drop. They never colour a data series, a zone or a level of effort. HRV above its normal range is no problem and reads neutral; below it is the warning.

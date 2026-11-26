@@ -270,7 +270,7 @@ const SIGNAL_NAMES: Record<Signal['key'], string> = {
 
 /** What a signal's value is set against, short: "58 vs 52–66". */
 function signalNote(signal: Signal): string {
-  if (signal.value === null) return 'No data';
+  if (signal.value === null) return '';
   const value = number(signal.value, 1);
   switch (signal.key) {
     case 'hrv':
@@ -312,9 +312,12 @@ function SignalsCard({ signals }: { signals: Recovery['signals'] }) {
               </span>
               <span className="min-w-0">
                 <span className="block text-sm font-semibold">{SIGNAL_NAMES[signal.key]}</span>
-                <span className="block truncate text-[13px] text-muted-foreground">
-                  {signalNote(signal)}
-                </span>
+                {/* Without a value the state on the right says it all: "No data" once, not twice. */}
+                {signal.value !== null && (
+                  <span className="block truncate text-[13px] text-muted-foreground">
+                    {signalNote(signal)}
+                  </span>
+                )}
               </span>
               <span className="text-[13px] font-semibold">{state.label}</span>
             </li>
